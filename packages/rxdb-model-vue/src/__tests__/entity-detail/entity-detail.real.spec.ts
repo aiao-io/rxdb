@@ -457,6 +457,22 @@ describe('EntityDetail（真实组件）', () => {
     expect(detail.emitted('formSubmitted')).toEqual([[{ title: '已编辑', count: 2 }]]);
   });
 
+  it('edit 对话框模式内部保存：先 emit formSubmitted 再关闭——对话框关闭会卸载组件，卸载后的 emit 被 Vue 丢弃', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+
+    const { detail, component } = createWithDialog(dialogData({ formMode: 'edit', entityId: inst.id }));
+    await FLUSH();
+    const deliveredAtClose: number[] = [];
+    closeSpy.mockImplementation(() => {
+      deliveredAtClose.push(detail.emitted('formSubmitted')?.length ?? 0);
+    });
+
+    component.onFormSubmitted({ title: '已编辑', count: 2 });
+    await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledWith('saved'));
+    expect(deliveredAtClose).toEqual([1]);
+  });
+
   it('edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库', async () => {
     const { detail, component } = createWithDialog(dialogData({ formMode: 'edit' }));
     await FLUSH();
@@ -513,5 +529,102 @@ describe('EntityDetail（真实组件）', () => {
     expect(actionIconNames('Invoice')).toEqual(['view-action', 'delete-action']);
     expect(recordsOf('Contract').map(r => [r['id'], r['_readonly']])).toEqual([[contract.id, undefined]]);
     expect(actionIconNames('Contract')).toEqual(['view-action']);
+  });
+
+  describe('dirty-change：表单与关系页签的未保存输入', () => {
+    /** 详情按顺序发出的 dirty-change。 */
+    const reportsOf = (detail: ReturnType<typeof createWithDialog>['detail']): boolean[] =>
+      ((detail.emitted('dirtyChange') as unknown as boolean[][] | undefined) ?? []).map(event => event[0]!);
+    const panes = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('.rxdb-dialog-pane')];
+    /** 把文本框改成 `value`：Vue 表单的文本框按 input 收值。 */
+    const type = (input: HTMLInputElement, value: string): void => {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+
+    it('表单里的输入经模板交给详情：发出 true，改回原值发出 false；取消时回到 false', async () => {
+      const { wrapper, detail, component } = createWithDialog(dialogData());
+      const title = (): HTMLInputElement =>
+        wrapper.element.querySelector('form input[type="text"]') as HTMLInputElement;
+
+      type(title(), '甲');
+      type(title(), '');
+      type(title(), '乙');
+      expect(reportsOf(detail)).toEqual([true, false, true]);
+
+      component.onCancel();
+      expect(reportsOf(detail)).toEqual([true, false, true, false]);
+      expect(closeSpy).toHaveBeenCalled();
+      wrapper.unmount();
+    });
+
+    it('create 草稿保存成功回到 false', async () => {
+      const { wrapper, detail, component } = createWithDialog(dialogData());
+      component.onFieldChanged({ field: 'title', type: 'string', value: '第一组', previousValue: '' });
+      component.onSave();
+      await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledWith('saved'));
+      expect(reportsOf(detail)).toEqual([true, false]);
+      wrapper.unmount();
+    });
+
+    it('把输入交给宿主（delegateSave 的保存）即回到 false', () => {
+      const { wrapper, detail, component } = createWithDialog(dialogData({ delegateSave: true }));
+      component.onFieldChanged({ field: 'title', type: 'string', value: '委托', previousValue: '' });
+      component.onSave();
+      expect(reportsOf(detail)).toEqual([true, false]);
+      wrapper.unmount();
+    });
+
+    it('关系页签里嵌套列表的新增对话框有输入：汇总进详情，取消嵌套对话框后回到 false', async () => {
+      const { wrapper, detail } = createWithDialog(
+        dialogData({ formMode: 'edit', formData: { title: 'x', count: 0 } })
+      );
+      await FLUSH();
+      const nested = detail.findComponent(EntityList).vm as unknown as { openCreateDialog(): void };
+
+      nested.openCreateDialog();
+      await vi.waitFor(() => expect(panes()[0]?.querySelector('form input[type="text"]')).toBeTruthy());
+      type(panes()[0]!.querySelector<HTMLInputElement>('form input[type="text"]')!, '子项输入');
+      expect(reportsOf(detail)).toEqual([true]);
+
+      [...panes()[0]!.querySelectorAll<HTMLButtonElement>('button')]
+        .find(b => b.textContent?.trim() === '取消')!
+        .click();
+      await vi.waitFor(() => expect(panes()).toHaveLength(0));
+      expect(reportsOf(detail)).toEqual([true, false]);
+      wrapper.unmount();
+    });
+
+    it('编辑目标换了：旧记录上的输入随表单作废，回到 false', async () => {
+      const first = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '记录一' });
+      const second = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '记录二' });
+      await first.save();
+      await second.save();
+      const { wrapper, detail } = createWithRouteInputs('test', 'DetailGroup', first.id);
+      const title = (): HTMLInputElement =>
+        wrapper.element.querySelector('form input[type="text"]') as HTMLInputElement;
+      await vi.waitFor(() => expect(title()?.value).toBe('记录一'));
+      type(title(), '记录一改');
+      expect(reportsOf(detail)).toEqual([true]);
+
+      await wrapper.setProps({ entityId: second.id });
+      await vi.waitFor(() => expect(title()?.value).toBe('记录二'));
+      expect(reportsOf(detail)).toEqual([true, false]);
+      wrapper.unmount();
+    });
+
+    it('卸载时仍有未保存输入：补发一次 false', () => {
+      // 卸载会清掉 test-utils 的 emitted() 记录：改用宿主的监听属性收事件
+      const reports: boolean[] = [];
+      const host = createRxDBDialogHost(rxdb, closeSpy, EntityDetail);
+      const wrapper = mount(host, {
+        props: { ...dialogData(), onDirtyChange: (dirty: boolean) => reports.push(dirty) }
+      });
+      const component = wrapper.findComponent(EntityDetail).vm as unknown as DetailVM;
+      component.onFieldChanged({ field: 'title', type: 'string', value: '没保存', previousValue: '' });
+      expect(reports).toEqual([true]);
+      wrapper.unmount();
+      expect(reports).toEqual([true, false]);
+    });
   });
 });

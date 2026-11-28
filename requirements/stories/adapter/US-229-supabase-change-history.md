@@ -1,7 +1,7 @@
 ---
 id: US-229
 title: Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放
-status: In Review
+status: Done
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-25

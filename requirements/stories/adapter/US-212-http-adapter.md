@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, http, remote, querycache]
 ---
 
@@ -26,7 +26,7 @@ INVEST 检查清单:
 | 阶段 | 交付                                                                                                                                                                | 直接前置 | AC 区段            | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------ | ---- |
 | A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31～34  | ✅   |
-| B    | REST resource URL 模板（AC#27，2026-08-23 交付）；ETag / If-None-Match 条件请求（AC#28，2026-08-24 判定 owner = **本包**并交付）                                    | 阶段 A   | AC#27 ✅、AC#28 ✅ | ✅   |
+| B    | REST resource URL 模板（AC#27）；本包 transport 的 ETag / If-None-Match 条件请求（AC#28）                                                                           | 阶段 A   | AC#27 ✅、AC#28 ✅ | ✅   |
 
 **前置与发布门禁：无。** 本故事零前置，按 `stable` 发布。
 
@@ -167,7 +167,7 @@ forkJoin({
 `forkJoin` 的两条语义直接决定正确性，而 [`RxDBAdapterRemoteBase.fetchMetadata`](../../../packages/rxdb/src/rxdb-adapter.ts) 的**类型签名** `Observable<QueryCacheEntityMetadata[]>` 对它们完全沉默（约束写在该方法的 TSDoc 里，类型检查拦不住违约）：
 
 1. **只保留最后一次发射。** 翻页若实现成「每翻一页 `emit` 一次」——在 Observable 里是最自然的写法，判别式游标分页更是明着诱导——core 只看得到最后一页，前面所有页的 id 全部缺席，被判成远端已删除，即**大规模假孤儿**。这与 PostgREST `max-rows` 静默截断是同一症状、不同成因；本故事其余条款只防了后者。
-2. **要求上游 `complete`。** 不 complete 的 Observable 会让 `forkJoin` 永久挂起：查询既不返回也不报错，比返回错数据更难排查。阶段 B 的可选 SSE / invalidation（AC#29）最容易踩这条——**SSE 只能用于通知失效并触发下一次查询，不得让 `fetchMetadata` 变成长连接流**。
+2. **要求上游 `complete`。** 不 complete 的 Observable 会让 `forkJoin` 永久挂起：查询既不返回也不报错，比返回错数据更难排查。[US-023](../core/US-023-querycache-remote-invalidation.md) 的可选 SSE / invalidation 通道最容易踩这条——**SSE 只能用于通知失效并触发下一次查询，不得让 `fetchMetadata` 变成长连接流**。
 
 **另一个调用点的语义正好相反，同样承重。** [`query-cache-primary.ts`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts) 的 `#fetchMetadata` 用 `firstValueFrom`——**只取第一次发射**。逐页发射在 `forkJoin` 侧丢掉除末页外的全部元数据，在 `firstValueFrom` 侧则只看得到首页。两条理由不同，指向同一条结论，所以「单次发射」不是可以在某一侧优化掉的实现细节。
 
@@ -339,7 +339,7 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 | 18  | 一批 mutations 混入 HTTP-QueryCache 实体与 Full 实体   | `EntityManager.mutations`                                                                                                                              | 拒绝（US-020 AC#6），错误码 `mixed_versioned_cache_transaction`；本包不提供任何绕过该闸门的入口                                                                                                                                                                                                                                                                                                                        | ✅   |
 | 19  | 本包源码与实例                                         | 结构隔离契约测试                                                                                                                                       | 本包不实现也不调用 `upsertMany` / `deleteByIds` / `getMetadataByIds`；实例不持有 `QueryCacheLocalAdapter`；构造函数不 `new` 任何本地存储                                                                                                                                                                                                                                                                               | ✅   |
 | 20  | 新包落地                                               | `pnpm nx lint/test/build`、api-baseline、`inject` 契约测试                                                                                             | 绿；`declare module` 扩 `RxDBAdapters`；覆盖率按非核心包 ≥ 80%                                                                                                                                                                                                                                                                                                                                                         | ✅   |
-| 21  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                                                                                             | HTTP 行从「待实现」改为已实现；具名适配器计数 9 → 10；写清 v1 只支持 QueryCache、changelog 方法 unsupported                                                                                                                                                                                                                                                                                                            | ✅   |
+| 21  | 能力矩阵 / 公开文档                                    | 关闭阶段 A                                                                                                                                             | HTTP 行如实列出当前实现能力；具名适配器清单与工作区登记一致；写清 v1 只支持 QueryCache、changelog 方法 unsupported                                                                                                                                                                                                                                                                                                     | ✅   |
 | 22  | 对照实体仍是 `SyncType.Full` + supabase 或 sqlite      | 跑既有套件                                                                                                                                             | 用户可见行为不变；本包不改 Full/Filter 写本地                                                                                                                                                                                                                                                                                                                                                                          | ✅   |
 | 23  | 结果集跨 N 页（N ≥ 2）                                 | 订阅 `fetchMetadata` 返回的 Observable                                                                                                                 | **恰好发射 1 次**（值为 N 页拼接后的全量）并 `complete`。断言发射计数 === 1，不是「最后一次的内容对」——每页一发也能让后者过（见[发射契约](#fetchmetadata对-core-的发射契约)）                                                                                                                                                                                                                                          | ✅   |
 | 24  | 适配器实例                                             | `connect` / `disconnect` / `version` / `isTableExisted`                                                                                                | 四个成员按[生命周期语义表](#生命周期成员的-http-语义)实现，**每个成员至少一条独立用例**：`connect` 完成 AC#15 扫描且不发探测请求；`disconnect` 取消进行中的翻页并使后续 duck 调用抛错；`version` 无 `onVersion` 时抛 unsupported、**不得**回落到包版本号；`isTableExisted` 的 2xx→`true` / 404→`false` / 其余→抛错三分支各一条，**不得**恒 `true` 蒙混                                                                 | ✅   |
@@ -352,16 +352,15 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 
 ### 阶段 B — REST mapping 与可选加速
 
-> 阶段 B 的范围是 AC#27 + AC#28，两条**均已交付**（AC#28 见 `conditional-cache.ts` 与 `transport.ts` 的条件请求路径）。owner 判定的依据见技术笔记[「AC#28～30 的 owner 判定」](#ac2830-的-owner-判定)。
->
-> - **AC#28 ETag / If-None-Match → owner = 本包。** 它不需要 core 的任何新 API。304 的语义就是「你手上那份仍然有效」，因此按请求指纹缓存已解析结果**在定义上不会脏**——服务端一旦认为内容变了就不会回 304。两个原本待定的问题于是各有答案：响应缓存由**本包 transport** 持有（有界内存映射，既不是 `QueryCacheLocalAdapter` 也不是本地存储，与 AC#19 不冲突）；并发按请求指纹 **single-flight** 去重。
-> - **AC#29 SSE / invalidation → 已移出本故事，由 [US-023](../core/US-023-querycache-remote-invalidation.md) 交付**：core 的失效上报口是 `RxDB.invalidateRemoteEntity()`，适配器经 `changeFeed` 接 SSE。
-> - **AC#30 eviction → 拿不到 owner，已从本故事移出。** 它需要一个 core 侧不存在的抽象，且拿不出用户踩得到的症状。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件，**不新建故事文件**——[CONVENTIONS 的「价值待证」判据](../../CONVENTIONS.md)是病灶数 ≥ 抽象数，为它建文件恰恰是那条禁止的「凭 Epic 惯性排期」。
->
-> AC#27 完全在本包内，不受上述限制。**已交付**（`rest.ts` 的 `createRestHandlers()`）：
-> 它只是一个产出 {@link HttpHandlers} 的工厂，适配器本体一行未改，因此「缺省不得改变阶段 A 语义」是结构性成立的，
-> 不是靠回归测试盯着。校验全在**构造期**——占位符集合必须与操作精确匹配（`update` 缺 `:id`、任意模板缺 `:entity` 都当场抛），
-> 因为这两种退化在网线上都是 2xx，等发出去再看响应码是看不出来的。
+阶段 B 当前范围为 AC#27 / AC#28。职责依据见[AC#28～30 的 owner 判定](#ac2830-的-owner-判定)。
+
+- AC#27 的 `rest.ts` / `createRestHandlers()` 只产出 `HttpHandlers`，不改适配器默认语义；
+  构造期校验占位符与操作精确匹配，拒绝 `update` 缺 `:id` 或任意模板缺 `:entity`。
+- AC#28 的响应缓存由本包 transport 持有，使用有界内存映射与按请求指纹的 single-flight；
+  `conditional-cache.ts` / `transport.ts` 处理 ETag / If-None-Match 和 304，不需要 core 新增 API，也不接本地存储。
+- 实时失效通道归 [US-023](../core/US-023-querycache-remote-invalidation.md)：core 提供
+  `RxDB.invalidateRemoteEntity()`，适配器经 `changeFeed` 接 SSE。其接收方登记为唯一承接索引。
+- eviction 未纳入本故事，缺少 core 抽象的价值证据；准入条件见 [roadmap「明确不排期」](../../roadmap.md#明确不排期)。
 
 | #   | 前置条件                                            | 操作                                  | 预期结果                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 状态 |
 | --- | --------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
@@ -539,11 +538,11 @@ YAML 没有 `depends-on` 字段。本故事**零前置**。
 | `declare module` 扩 `RxDBAdapters` + 注册解析契约测试        | A    | AC#1。**不是** `inject`——那是插件字段，适配器身上没有                               |
 | transport 归属契约测试（auth / status / 不包装）             | A    | AC#12 / #13 / #16，断言主体是本包的 transport 而非 handler                          |
 | 结构隔离契约测试                                             | A    | AC#19                                                                               |
-| website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（含具名适配器计数 9 → 10）                                                    |
+| website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（具名适配器按当前清单登记）                                                   |
 | `packages/rxdb-adapter-http/src/rest.ts` + `rest.spec.ts`    | B    | AC#27。工厂产出普通 handler，适配器一行没改                                         |
 | `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | npm 页面的包说明与许可证                                                            |
 | website `docs/adapters/http.md` 的「REST 模板」小节          | B    | AC#27 的公开文档：默认模板表、构造期校验、`delete` 的取舍                           |
-| ETag 条件请求缓存 + single-flight（transport 内）            | B    | AC#28。owner = 本包（2026-08-24 判定）                                              |
+| ETag 条件请求缓存 + single-flight（transport 内）            | B    | AC#28。owner = 本包                                                                 |
 | SSE / invalidation、eviction                                 | —    | AC#29 由 US-023 交付；AC#30 见 [roadmap「明确不排期」](../../roadmap.md#明确不排期) |
 
 本故事不改 US-203。

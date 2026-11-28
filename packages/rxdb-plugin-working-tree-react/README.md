@@ -49,8 +49,8 @@ export function CommitBar() {
 }
 ```
 
-`useWorkingTree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十个状态字段是**普通只读值**
-（`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进
+`useWorkingTree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十六个状态字段是**普通只读值**
+（`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十六个方法**引用稳定**，可以安全放进
 `useEffect` / `useMemo` 的依赖数组。
 
 ## 检出位：`useWorktrees()`
@@ -98,14 +98,15 @@ Vue [`@aiao/rxdb-plugin-working-tree-vue`](../rxdb-plugin-working-tree-vue) 的
 
 ## 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：十六格状态初值全是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走
   `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
 - `commit()` 的 CAS 落败走返回值（`result.ok === false` 且带 `conflict`），不是异常。
-- `restore()` 的四个被拒成因（冲突 / 工作树不干净 / 编解码不兼容 / 目标不可达）同样走返回值，
+- `restore()` 的五个被拒成因（冲突 / 工作树不干净 / 编解码不兼容 / 目标不可达 / 目标只在合并侧枝上）同样走返回值，
   因此 `restoreState` **没有 empty**——「被拒」与「一条都没恢复」都是结果。`restoreSessionState`
   的空只有一个含义：当前分支没有未结束的恢复会话；`conflicted` 的会话**不是**空。
+- `importCommits(commits, options)` 的十种被拒成因（不是快进、指纹不符、前像对不上、缺父、工作树脏……）同样走返回值，`importCommitsState` **没有 empty**，成功与否都重读一次 status；`exportCommits(options?)` 是查询，`exportCommitsState` 的空只有一个含义：那个提交之后这条分支上没有新提交。导入的提交不经 `commits$` 发事件（US-319）。
 - `switchBranch(branchId, options?)` 的被拒反过来走**异常**：`{ requireClean: true }` 撞上非空工作树时
   抛 `WorkingTreeDirtyError`，`expectedActivationRevision` 过期时抛核心的分支前置条件错误——那一刻分支
   **根本没切**，没有任何结果可交给调用方。不传第二参与无条件切换逐字节一致（核心那条「一个条件都没提

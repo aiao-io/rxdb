@@ -429,6 +429,12 @@ const NAMING = {
     // 届时底层接口若不能经本 barrel 命名，下游的声明发射同样退回 `packages/rxdb/src/` 的相对路径。
     // 装的是实体元数据，与提交能力毫无关系，叫 `Commit*` / `WorkingTree*` 只会是个谎。
     'EntityMetadataType',
+    // US-040 恢复时的身份核对：SQLite 一族的 `restore()` 在恢复事务提交前调用，别的身份的归档整笔回滚。
+    // 判定原语（身份键、水位行格式、`assertIdentityBinding`）都是核心的 `@internal`，适配器只能经公开面拿到，
+    // 而在适配器里另写一份就是打开库与恢复库两套口径。它与早在基线里的 `assertRxDBBackupCompatible` 同族
+    // （恢复端的兼容性判定），与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 只会让人以为身份绑定
+    // 是提交能力的一部分。逐名登记，不放宽成前缀。
+    'assertRxDBRestoreIdentity',
     // metadata-only 分支首次物化的来源契约（2026-09-26 评审 P1）。同步插件实现、
     // 工作树插件消费，两者互不依赖，于是接口、登记槽与两端必须逐字相同的分页指纹只能住在核心。
     // 理由与 `RxDBBranchSwitchTakeover` 那三项同族：核心只搬运，叫 `WorkingTree*` 会让实现方

@@ -1,0 +1,394 @@
+{
+  "at": "2026-11-18T07:10:32.004Z",
+  "drills": [
+    {
+      "step": 1,
+      "attemptedRelease": "r20261118-065809-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 1 步（ADMIN_DEPLOY_FAIL_STEP=1）",
+      "steps": ["1:failed", "2:skipped", "3:skipped", "4:skipped", "5:skipped", "6:skipped", "7:skipped", "8:skipped"],
+      "compensations": [],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 83
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 29
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 2,
+      "attemptedRelease": "r20261118-065822-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 2 步（ADMIN_DEPLOY_FAIL_STEP=2）",
+      "steps": ["1:ok", "2:failed", "3:skipped", "4:skipped", "5:skipped", "6:skipped", "7:skipped", "8:skipped"],
+      "compensations": [],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 18
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 5
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 3,
+      "attemptedRelease": "r20261118-065845-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 3 步（ADMIN_DEPLOY_FAIL_STEP=3）",
+      "steps": ["1:ok", "2:ok", "3:failed", "4:skipped", "5:skipped", "6:skipped", "7:skipped", "8:skipped"],
+      "compensations": [
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 2
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 3
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 4,
+      "attemptedRelease": "r20261118-065920-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 4 步（ADMIN_DEPLOY_FAIL_STEP=4）",
+      "steps": ["1:ok", "2:ok", "3:ok", "4:failed", "5:skipped", "6:skipped", "7:skipped", "8:skipped"],
+      "compensations": [
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 9
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 10
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 5,
+      "attemptedRelease": "r20261118-070059-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 5 步（ADMIN_DEPLOY_FAIL_STEP=5）",
+      "steps": ["1:ok", "2:ok", "3:ok", "4:ok", "5:failed", "6:skipped", "7:skipped", "8:skipped"],
+      "compensations": [
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 8
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 10
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 6,
+      "attemptedRelease": "r20261118-070443-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 6 步（ADMIN_DEPLOY_FAIL_STEP=6）",
+      "steps": ["1:ok", "2:ok", "3:ok", "4:ok", "5:ok", "6:failed", "7:skipped", "8:skipped"],
+      "compensations": [
+        {
+          "name": "撤掉 staged 预览链接",
+          "status": "ok"
+        },
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 35
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 38
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 7,
+      "attemptedRelease": "r20261118-070646-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 7 步（ADMIN_DEPLOY_FAIL_STEP=7）",
+      "steps": ["1:ok", "2:ok", "3:ok", "4:ok", "5:ok", "6:ok", "7:failed", "8:skipped"],
+      "compensations": [
+        {
+          "name": "撤掉 staged 预览链接",
+          "status": "ok"
+        },
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 18
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 21
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    },
+    {
+      "step": 8,
+      "attemptedRelease": "r20261118-070851-121bbf2",
+      "exit": 1,
+      "error": "注入的失败：第 8 步（ADMIN_DEPLOY_FAIL_STEP=8）",
+      "steps": ["1:ok", "2:ok", "3:ok", "4:ok", "5:ok", "6:ok", "7:ok", "8:failed"],
+      "compensations": [
+        {
+          "name": "撤掉 staged 预览链接",
+          "status": "ok"
+        },
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "links": {
+        "current": "r20261118-065714-121bbf2",
+        "staged": null,
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 5
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 6
+          }
+        }
+      },
+      "served": {
+        "react": true,
+        "angular": true,
+        "vue": true
+      },
+      "checks": {
+        "exitedNonZero": true,
+        "recordedFailedStep": true,
+        "laterStepsSkipped": true,
+        "compensationsSucceeded": true,
+        "currentUnchanged": true,
+        "stagedRemoved": true,
+        "functionIsPrevious": true,
+        "oldVersionServed": true
+      }
+    }
+  ],
+  "kind": "failure-drill",
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "online": "r20261118-065714-121bbf2"
+}

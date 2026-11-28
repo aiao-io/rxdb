@@ -32,6 +32,7 @@ import {
   buildListViewOrderBy,
   buildListViewRecords,
   buildListViewTableOptions,
+  createEntityDirtyTracker,
   createListViewState,
   getListViewFields,
   localizeEntityMetadata,
@@ -156,6 +157,8 @@ const props = withDefaults(
     namespace: string;
     /** 实体名 */
     name: string;
+    /** 操作列最大宽度；初始宽度随按钮内容自动计算。 */
+    actionsMaxWidth?: number | string;
     /** 固定查询条件，与用户筛选条件做 AND 合并（用于关系属性过滤，如 ownerId = currentId） */
     // eslint-disable-next-line vue/require-default-prop -- 对象类型 props 的 undefined 默认与 withDefaults 类型推断不兼容（语义与 Angular 的 input<T | undefined>() 一致）
     fixedQuery?: FilterQuery | undefined;
@@ -184,6 +187,7 @@ const props = withDefaults(
     alreadyLinkedIds?: Set<string>;
   }>(),
   {
+    actionsMaxWidth: undefined,
     initialFilter: undefined,
     parentRelationName: undefined,
     creationChain: () => [],
@@ -201,7 +205,22 @@ const emit = defineEmits<{
   selectionConfirmed: [entities: EntityInstance[]];
   /** 选择模式：取消选择时触发 */
   selectionCancelled: [];
+  /**
+   * 列表打开的新增 / 编辑表单是否有未保存输入，状态变化时触发（模板里写作 `@dirty-change`）。
+   *
+   * 未保存输入指对话框里还没点保存的表单取值（改回原值就不算），以及关系页签里嵌套列表的同类输入、
+   * 随父实体一起保存的本地草稿；判定在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`，三端同一套规则。
+   * 只在状态真正变化时触发：保存成功、取消与关闭对话框都回到 `false`；卸载时仍是 `true` 就补发一次 `false`
+   * （在 `onBeforeUnmount` 里发出，宿主的监听那时还在），宿主不会停在 `true`。
+   * 宿主据此在离开页面前提示、在同步或切换前拦下，React / Angular 端对应 `onDirtyChange` 属性与 `dirtyChange` 输出。
+   */
+  dirtyChange: [dirty: boolean];
 }>();
+
+// ── 未保存输入（dirty-change）：判定在共享的 EntityDirtyTracker，对话框里的详情与本地草稿各报一个子来源，这里只接线 ──
+const dirtyTracker = createEntityDirtyTracker();
+const releaseDirty = dirtyTracker.subscribe(dirty => emit('dirtyChange', dirty));
+onBeforeUnmount(releaseDirty);
 
 const rxdb = useRxDB();
 
@@ -307,6 +326,11 @@ const instances = computed<EntityInstance[]>(() => {
 
 /** 级联新增模式下本地草稿子实体（未保存到 DB，由父实体级联保存） */
 const localDraftItems = ref<EntityInstance[]>([]);
+// 级联新增与多对多选择进本地草稿的记录随父实体一起保存，父实体保存之前同样是未保存内容
+watch(
+  () => localDraftItems.value.length > 0,
+  hasDrafts => dirtyTracker.setSource('drafts', hasDrafts)
+);
 
 const entityCls = computed(() => entityClsMap.get(entityKey.value));
 
@@ -390,9 +414,8 @@ const columnsCache = computed(() => {
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
           i18n: modelI18n,
-          readOnly: capabilityContext.value.readOnly,
-          // 快照变了重建列：操作列的删除按行与快照派生（US-029）
-          grants: capabilityContext.value.grants,
+          ...capabilityContext.value,
+          actionsMaxWidth: props.actionsMaxWidth,
           relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => {
               const m = getEntityMetadata(c);
@@ -735,6 +758,7 @@ const openCreateDialog = (): void => {
 const onCreateFormSubmitted = (result: EntityFormData): void => {
   void handleCreateSubmit(result);
   createDialogData.value = null;
+  dirtyTracker.setSource('create', false);
 };
 
 const saveToast = ref(false);
@@ -747,7 +771,9 @@ const showSaveToast = (): void => {
   }, 2000);
 };
 
+/** 关闭（保存、取消、Escape、遮罩）即结束这次输入；详情卸载时也会补报 false。 */
 const onCreateDialogClosed = (result?: unknown): void => {
+  dirtyTracker.setSource('create', false);
   if (result === 'saved') {
     currentList.value?.refresh();
     showSaveToast();
@@ -859,6 +885,7 @@ const openViewDialog = (record: EntityTableRecord): void => {
 };
 
 const onViewDialogClosed = (result?: unknown): void => {
+  dirtyTracker.setSource('view', false);
   if (result === 'saved') {
     currentList.value?.refresh();
     showSaveToast();
@@ -1399,6 +1426,7 @@ defineExpose({
     >
       <EntityDetail
         v-bind="createDialogData"
+        @dirty-change="(dirty: boolean) => dirtyTracker.setSource('create', dirty)"
         @form-submitted="onCreateFormSubmitted"
       />
     </DialogPortal>
@@ -1413,7 +1441,10 @@ defineExpose({
       width="min(720px, calc(100vw - 1rem))"
       @closed="onViewDialogClosed"
     >
-      <EntityDetail v-bind="viewDialogData" />
+      <EntityDetail
+        v-bind="viewDialogData"
+        @dirty-change="(dirty: boolean) => dirtyTracker.setSource('view', dirty)"
+      />
     </DialogPortal>
 
     <!-- 删除确认弹层 -->

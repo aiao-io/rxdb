@@ -62,7 +62,7 @@ Related projects include [Jazz](https://jazz.tools/), [LiveStore](https://github
 | Hosts            | Browser, Node.js 26+, Electron, and Tauri                                         |
 
 > [!NOTE]
-> The API is still evolving. Pin versions before production use and follow the [migration guide](https://rxdb.aiao.io/en/docs/migration/). The status overview tracks progress ([100/160 delivered](requirements/status-overview.md)).
+> The API is still evolving. Pin versions before production use and follow the [migration guide](https://rxdb.aiao.io/en/docs/migration/). The status overview tracks progress ([120/170 delivered](requirements/status-overview.md)).
 
 Support and feedback are welcome. Use the [bug report](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml), [feature request](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml), or [question form](https://github.com/aiao-io/rxdb/issues/new?template=question.yml).
 

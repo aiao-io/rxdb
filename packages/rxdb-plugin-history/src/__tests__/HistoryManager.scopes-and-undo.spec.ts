@@ -1218,12 +1218,9 @@ describe('历史流、作用域与撤销重做执行', () => {
       const harness = createHarness({ entities: [LocalOnlyNote] });
 
       harness.connected$.next(true);
-      await vi.waitFor(() => expect(harness.syncFind).toHaveBeenCalled());
-      await Promise.resolve();
-
       await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(0);
-      // 只剩订阅自己那次 count；空集合没有理由再发一次统计查询
-      expect(countMock).toHaveBeenCalledTimes(1);
+      expect(harness.syncFind).not.toHaveBeenCalled();
+      expect(countMock).not.toHaveBeenCalled();
     });
 
     // RXD-034：`#updatePushableCount` 是异步的，多次触发会并行在飞。

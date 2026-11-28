@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [core, querycache, repository, sync, swr]
 ---
 
@@ -216,7 +216,7 @@ QueryCache 的 `find` 是 `fetchMetadata → diff → findByIds → upsertMany`�
 | `find` 带 `limit` / `offset` / `orderBy` | **支持**：`where` 的同步先跑完，`limit`/`offset`/`orderBy` **原样下推给本地 `IRepository`** |
 | `findByCursor`                           | **支持**：游标规则已被 `Repository.findByCursor` 合并进 `where`，同步与本地读都是窄查询     |
 
-分页与排序为什么**不是** fail-fast——这条曾按「远端 metadata 没有排序键，客户端排序会与远端不一致」判过死刑，是错的：`fetchMetadata` 是按**整个 `where`** 拉的，同步完成时本地缓存对该 `where` **完整**，因此在本地做 `ORDER BY` / `LIMIT` / `OFFSET` 与远端分页逐值一致，且是 SQL 求值不是内存切片。**对同一个 `where` 反复翻页只同步一次**（第二页起全是 fresh）。
+分页与排序支持本地 SQL 求值：`fetchMetadata` 是按**整个 `where`** 拉的，同步完成时本地缓存对该 `where` **完整**，因此在本地做 `ORDER BY` / `LIMIT` / `OFFSET` 与远端分页逐值一致，且是 SQL 求值不是内存切片。**对同一个 `where` 反复翻页只同步一次**（第二页起全是 fresh）。
 
 真正的代价是另一回事，必须写进文档而不是伪装成不支持：
 

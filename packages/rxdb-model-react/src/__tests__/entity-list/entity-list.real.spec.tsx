@@ -111,6 +111,7 @@ describe('EntityList（真实组件）', () => {
         <EntityList
           namespace={props.namespace ?? 'public'}
           name={props.name ?? 'Todo'}
+          actionsMaxWidth={props.actionsMaxWidth}
           mode={props.mode}
           fixedQuery={props.fixedQuery}
           initialFilter={props.initialFilter}
@@ -139,6 +140,20 @@ describe('EntityList（真实组件）', () => {
   function tableOf(): FakeListTable {
     return getLastListTable();
   }
+
+  it('操作列按内容自动计算宽度，并响应最大宽度设置变化', async () => {
+    const { rerender } = await renderList({ actionsMaxWidth: 180 });
+    const column = () => getLastListTable().columns.find(column => column['field'] === 'actions');
+    expect(column()).toMatchObject({ width: 'auto', maxWidth: 180 });
+    expect(column()?.['minWidth']).toBeUndefined();
+
+    rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Todo' actionsMaxWidth={120} />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(column()?.['maxWidth']).toBe(120));
+  });
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 
@@ -1782,6 +1797,110 @@ describe('EntityList（真实组件）', () => {
       });
       expect(tableOf().records.map(r => r['sortOrder'])).toEqual(keys);
       expect(reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onDirtyChange：新增 / 编辑表单的未保存输入交给宿主', () => {
+    /** 挂载带 onDirtyChange 的列表，按顺序记下每次通知。 */
+    async function renderDirtyList() {
+      const reports: boolean[] = [];
+      const utils = render(
+        <RxDBProvider db={rxdb}>
+          <EntityList namespace='public' name='Todo' onDirtyChange={dirty => reports.push(dirty)} />
+        </RxDBProvider>
+      );
+      await waitFor(() => expect(getLastListTable()).toBeInstanceOf(FakeListTable));
+      await FLUSH();
+      return { ...utils, reports };
+    }
+    const pane = (): HTMLElement | null => document.querySelector('.rxdb-dialog-pane');
+    const titleInput = (): HTMLInputElement => pane()!.querySelector('[data-field="title"] input') as HTMLInputElement;
+    const dialogButton = (text: string): HTMLElement =>
+      [...pane()!.querySelectorAll('button')].find(button => button.textContent?.trim() === text)!;
+    async function openCreate(container: HTMLElement): Promise<void> {
+      fireEvent.click([...container.querySelectorAll('button')].find(b => b.textContent?.includes('+ 新增'))!);
+      await waitFor(() => expect(pane()?.querySelector('[data-field="title"] input')).toBeTruthy());
+    }
+    async function openEdit(title: string): Promise<void> {
+      await waitFor(() => expect(tableOf().records).toHaveLength(1));
+      act(() => tableOf().emit('icon_click', { name: 'view-action', col: 2, row: 1 }));
+      await waitFor(() =>
+        expect(pane()?.querySelector<HTMLInputElement>('[data-field="title"] input')?.value).toBe(title)
+      );
+    }
+
+    it('新增对话框：输入后报 true，继续输入不重复通知，取消后回到 false', async () => {
+      const { container, reports } = await renderDirtyList();
+      await openCreate(container);
+      expect(reports).toEqual([]);
+
+      fireEvent.change(titleInput(), { target: { value: '甲' } });
+      fireEvent.change(titleInput(), { target: { value: '甲乙' } });
+      expect(reports).toEqual([true]);
+
+      fireEvent.click(dialogButton('取消'));
+      await waitFor(() => expect(pane()).toBeNull());
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('新增对话框：改回原值不算未保存；保存成功后回到 false，记录落库', async () => {
+      const { container, reports } = await renderDirtyList();
+      await openCreate(container);
+
+      fireEvent.change(titleInput(), { target: { value: '甲' } });
+      fireEvent.change(titleInput(), { target: { value: '' } });
+      expect(reports).toEqual([true, false]);
+
+      fireEvent.change(titleInput(), { target: { value: 'dirty-then-saved' } });
+      fireEvent.click(dialogButton('保存'));
+      await waitFor(() => expect(pane()).toBeNull());
+      expect(reports).toEqual([true, false, true, false]);
+      await waitFor(async () => expect(await findTitles()).toContain('dirty-then-saved'));
+    });
+
+    it('编辑对话框：修改后报 true，Escape 关闭回到 false，记录不变', async () => {
+      await seedTodo('edit-me');
+      const { reports } = await renderDirtyList();
+      await openEdit('edit-me');
+
+      fireEvent.change(titleInput(), { target: { value: 'edited-but-closed' } });
+      expect(reports).toEqual([true]);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(pane()).toBeNull());
+      expect(reports).toEqual([true, false]);
+      expect(await findTitles()).toEqual(['edit-me']);
+    });
+
+    it('编辑对话框：保存成功回到 false', async () => {
+      await seedTodo('before-save');
+      const { reports } = await renderDirtyList();
+      await openEdit('before-save');
+
+      fireEvent.change(titleInput(), { target: { value: 'after-save' } });
+      fireEvent.click(dialogButton('保存'));
+      await waitFor(() => expect(pane()).toBeNull());
+      expect(reports).toEqual([true, false]);
+      await waitFor(async () => expect(await findTitles()).toEqual(['after-save']));
+    });
+
+    it('卸载时仍有未保存输入：补发一次 false，宿主不会停在 true', async () => {
+      const { container, reports, unmount } = await renderDirtyList();
+      await openCreate(container);
+      fireEvent.change(titleInput(), { target: { value: '没保存就离开' } });
+      expect(reports).toEqual([true]);
+
+      unmount();
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('不传 onDirtyChange 照常编辑与保存', async () => {
+      const { container } = await renderList();
+      await openCreate(container);
+      fireEvent.change(titleInput(), { target: { value: 'no-listener' } });
+      fireEvent.click(dialogButton('保存'));
+      await waitFor(() => expect(pane()).toBeNull());
+      await waitFor(async () => expect(await findTitles()).toContain('no-listener'));
     });
   });
 

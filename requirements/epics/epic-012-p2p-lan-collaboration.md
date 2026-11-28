@@ -21,9 +21,9 @@ owner: jimmy
 
 ## 为什么单列一个 Epic
 
-- **越过了 epic-011 的非目标。** [epic-011](epic-011-p2p-file-share.md) 写明「不替换同步协议，P2P 只传大文件字节」。本 Epic 的克隆与枢纽直接搬运结构化数据，信号会触发同步动作，范围不同。
-- **验收维度不同。** 每项能力都要证明没有破坏水位线、幂等推送与冲突语义（见下方约束），epic-011 没有这一维度。
-- **共同前置在 epic-011 内。** 会话层 [US-708](../stories/future/US-708-p2p-peer-session.md) 修的是文件传输自身的缺陷，归 epic-011，在 PR #172 内完成。
+- **越过了 epic-013 的非目标。** [epic-013](epic-013-p2p-file-share.md) 写明「不替换同步协议，P2P 只传大文件字节」。本 Epic 的克隆与枢纽直接搬运结构化数据，信号会触发同步动作，范围不同。
+- **验收维度不同。** 每项能力都要证明没有破坏水位线、幂等推送与冲突语义（见下方约束），epic-013 没有这一维度。
+- **共同前置在 epic-013 内。** 会话层 [US-708](../stories/future/US-708-p2p-peer-session.md) 修的是文件传输自身的缺陷，归 epic-013，在 PR #172 内完成。
 
 ## 同步内核给 P2P 定的约束
 
@@ -72,7 +72,7 @@ owner: jimmy
 - **对端转发服务器的变更日志**：本地不保存他人的变更（见约束表）；要补存就得新加表，还会带来存储放大。
 - **在设备间交换提交与分支**（git remote 式）：提交 id 由 `uuid()`（UUIDv7）生成，不是内容哈希；[`computeCommitContentFingerprint`](../../packages/rxdb-plugin-working-tree/src/commit/change-unit.ts) 以父提交的 id 而不是父指纹入摘要，不构成 Merkle 链。[epic-006](epic-006-working-tree-commits.md) 的愿景也明确不引入远程仓库。
 - **只存在本地的实体在自己的设备间同步**：这类数据没有排序者，需要一套「行版本 + 删除标记」的新合并模型。
-- **公网 P2P**：沿用 epic-011 的边界，不做 STUN/TURN 与 NAT 穿透。
+- **公网 P2P**：沿用 epic-013 的边界，不做 STUN/TURN 与 NAT 穿透。
 
 ## 价值待证
 

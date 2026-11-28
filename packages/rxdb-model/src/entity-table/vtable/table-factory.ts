@@ -16,6 +16,7 @@ import { TextFormatEditor } from '../editors/text-format-editor.js';
 import { UuidEditor } from '../editors/uuid-editor.js';
 import type { EntityTableRecord } from '../interfaces.js';
 import { labelTableFocusControl } from './focus-control-label.js';
+import { preserveActionsColumnWidthOnResize } from './table-operations.js';
 import { createTheme, getCSSVariables } from './table-theme.js';
 
 /** 基础编辑器注册标记（全局仅注册一次） */
@@ -112,6 +113,7 @@ export function createListTable(
   ensureBaseEditorRegistered();
   const option = buildTableOptions(records, columns, isDarkMode, options);
   const table = new VTable.ListTable(container, option);
+  preserveActionsColumnWidthOnResize(table);
   if (i18n) setTableI18n(table, i18n);
   const clearFocusLabel = labelTableFocusControl(container, i18n);
   const release = table.release.bind(table);

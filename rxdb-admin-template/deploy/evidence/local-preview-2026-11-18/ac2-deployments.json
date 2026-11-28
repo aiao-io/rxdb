@@ -1,0 +1,1092 @@
+{
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "records": [
+    {
+      "release": "r20261118-065714-121bbf2",
+      "result": "released",
+      "startedAt": "2026-11-18T06:57:14.825Z",
+      "finishedAt": "2026-11-18T06:58:06.993Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": null,
+      "error": null,
+      "injected": false,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 7457
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 6553
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 11655
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 6688
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "ok",
+          "durationMs": 19128
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "ok",
+          "durationMs": 106
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "ok",
+          "durationMs": 539
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "ok",
+          "durationMs": 40
+        }
+      ],
+      "compensations": [],
+      "before": {
+        "current": null,
+        "functions": null
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "function": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-065714-121bbf2",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 12
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 6
+            }
+          }
+        },
+        "auth": 200,
+        "rest": 200,
+        "realtime": 200,
+        "react": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-DuDNXj3s.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "angular": {
+          "index": "ok",
+          "route": "ok",
+          "script": "main-4WTHQ3IT.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "vue": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-CdJytZu5.js",
+          "config": "ok",
+          "rewrite": "ok"
+        }
+      }
+    },
+    {
+      "release": "r20261118-065809-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T06:58:09.217Z",
+      "finishedAt": "2026-11-18T06:58:21.094Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 1,
+      "error": "注入的失败：第 1 步（ADMIN_DEPLOY_FAIL_STEP=1）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "failed",
+          "durationMs": 11861,
+          "error": "注入的失败：第 1 步（ADMIN_DEPLOY_FAIL_STEP=1）"
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": null
+    },
+    {
+      "release": "r20261118-065822-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T06:58:22.519Z",
+      "finishedAt": "2026-11-18T06:58:45.676Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 2,
+      "error": "注入的失败：第 2 步（ADMIN_DEPLOY_FAIL_STEP=2）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 14452
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "failed",
+          "durationMs": 8702,
+          "error": "注入的失败：第 2 步（ADMIN_DEPLOY_FAIL_STEP=2）"
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": null
+    },
+    {
+      "release": "r20261118-065845-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T06:58:45.844Z",
+      "finishedAt": "2026-11-18T06:59:20.076Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 3,
+      "error": "注入的失败：第 3 步（ADMIN_DEPLOY_FAIL_STEP=3）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 7170
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 7033
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "failed",
+          "durationMs": 14277,
+          "error": "注入的失败：第 3 步（ADMIN_DEPLOY_FAIL_STEP=3）"
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": null
+    },
+    {
+      "release": "r20261118-065920-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T06:59:20.403Z",
+      "finishedAt": "2026-11-18T07:00:58.494Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 4,
+      "error": "注入的失败：第 4 步（ADMIN_DEPLOY_FAIL_STEP=4）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 13430
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 15886
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 32153
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "failed",
+          "durationMs": 28478,
+          "error": "注入的失败：第 4 步（ADMIN_DEPLOY_FAIL_STEP=4）"
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": null
+    },
+    {
+      "release": "r20261118-070059-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T07:00:59.005Z",
+      "finishedAt": "2026-11-18T07:04:43.181Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 5,
+      "error": "注入的失败：第 5 步（ADMIN_DEPLOY_FAIL_STEP=5）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 24932
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 36323
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 34776
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 23818
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "failed",
+          "durationMs": 96644,
+          "error": "注入的失败：第 5 步（ADMIN_DEPLOY_FAIL_STEP=5）"
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": null
+    },
+    {
+      "release": "r20261118-070443-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T07:04:43.601Z",
+      "finishedAt": "2026-11-18T07:06:46.355Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 6,
+      "error": "注入的失败：第 6 步（ADMIN_DEPLOY_FAIL_STEP=6）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 18476
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 23543
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 25068
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 20172
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "ok",
+          "durationMs": 26483
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "failed",
+          "durationMs": 631,
+          "error": "注入的失败：第 6 步（ADMIN_DEPLOY_FAIL_STEP=6）"
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "skipped",
+          "durationMs": 0
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [
+        {
+          "name": "撤掉 staged 预览链接",
+          "status": "ok"
+        },
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": null
+    },
+    {
+      "release": "r20261118-070646-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T07:06:46.937Z",
+      "finishedAt": "2026-11-18T07:08:50.954Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 7,
+      "error": "注入的失败：第 7 步（ADMIN_DEPLOY_FAIL_STEP=7）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 17229
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 21728
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 32811
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 27021
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "ok",
+          "durationMs": 16169
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "ok",
+          "durationMs": 498
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "failed",
+          "durationMs": 862,
+          "error": "注入的失败：第 7 步（ADMIN_DEPLOY_FAIL_STEP=7）"
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "skipped",
+          "durationMs": 0
+        }
+      ],
+      "compensations": [
+        {
+          "name": "撤掉 staged 预览链接",
+          "status": "ok"
+        },
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "function": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-070646-121bbf2",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 39
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 13
+            }
+          }
+        },
+        "auth": 200,
+        "rest": 200,
+        "realtime": 200,
+        "react": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-DuDNXj3s.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "angular": {
+          "index": "ok",
+          "route": "ok",
+          "script": "main-4WTHQ3IT.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "vue": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-CdJytZu5.js",
+          "config": "ok",
+          "rewrite": "ok"
+        }
+      }
+    },
+    {
+      "release": "r20261118-070851-121bbf2",
+      "result": "failed",
+      "startedAt": "2026-11-18T07:08:51.397Z",
+      "finishedAt": "2026-11-18T07:10:31.895Z",
+      "git": {
+        "commit": "121bbf2126e7f6d875c6e6076f886cb5c4172bb1",
+        "dirty": true
+      },
+      "failedStep": 8,
+      "error": "注入的失败：第 8 步（ADMIN_DEPLOY_FAIL_STEP=8）",
+      "injected": true,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 20309
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 24818
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 20940
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 17140
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "ok",
+          "durationMs": 9735
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "ok",
+          "durationMs": 478
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "ok",
+          "durationMs": 255
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "failed",
+          "durationMs": 0,
+          "error": "注入的失败：第 8 步（ADMIN_DEPLOY_FAIL_STEP=8）"
+        }
+      ],
+      "compensations": [
+        {
+          "name": "撤掉 staged 预览链接",
+          "status": "ok"
+        },
+        {
+          "name": "函数换回上一份产物（r20261118-065714-121bbf2）",
+          "status": "ok"
+        }
+      ],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "health": {
+        "function": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-070851-121bbf2",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 15
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 5
+            }
+          }
+        },
+        "auth": 200,
+        "rest": 200,
+        "realtime": 200,
+        "react": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-DuDNXj3s.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "angular": {
+          "index": "ok",
+          "route": "ok",
+          "script": "main-4WTHQ3IT.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "vue": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-CdJytZu5.js",
+          "config": "ok",
+          "rewrite": "ok"
+        }
+      }
+    },
+    {
+      "release": "r20261118-075128-3ab4041",
+      "result": "released",
+      "startedAt": "2026-11-18T07:51:28.852Z",
+      "finishedAt": "2026-11-18T07:54:10.584Z",
+      "git": {
+        "commit": "3ab4041ba94a2e24ebd1193791de0c7c3e5a8eaf",
+        "dirty": true,
+        "platformChanges": []
+      },
+      "failedStep": null,
+      "error": null,
+      "injected": false,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 9847
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 10209
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 12538
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 6414
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "ok",
+          "durationMs": 121930
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "ok",
+          "durationMs": 258
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "ok",
+          "durationMs": 509
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "ok",
+          "durationMs": 23
+        }
+      ],
+      "compensations": [],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-075128-3ab4041",
+        "functions": "r20261118-075128-3ab4041"
+      },
+      "health": {
+        "function": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-075128-3ab4041",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 45
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 60
+            }
+          }
+        },
+        "auth": 200,
+        "rest": 200,
+        "realtime": 200,
+        "react": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-CwUf5jal.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "angular": {
+          "index": "ok",
+          "route": "ok",
+          "script": "main-Y6VURP5U.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "vue": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-Dw_bbWHO.js",
+          "config": "ok",
+          "rewrite": "ok"
+        }
+      }
+    },
+    {
+      "release": "r20261118-065714-121bbf2",
+      "result": "rolled_back",
+      "from": "r20261118-075128-3ab4041",
+      "to": "r20261118-065714-121bbf2",
+      "startedAt": "2026-11-18T07:54:11.193Z",
+      "finishedAt": "2026-11-18T07:54:18.470Z",
+      "before": {
+        "current": "r20261118-075128-3ab4041",
+        "functions": "r20261118-075128-3ab4041"
+      },
+      "after": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "migrationsKept": [],
+      "health": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-065714-121bbf2",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 5
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 6
+          }
+        }
+      }
+    },
+    {
+      "release": "r20261118-080053-3ab4041",
+      "result": "released",
+      "startedAt": "2026-11-18T08:00:53.248Z",
+      "finishedAt": "2026-11-18T08:02:29.721Z",
+      "git": {
+        "commit": "3ab4041ba94a2e24ebd1193791de0c7c3e5a8eaf",
+        "dirty": true,
+        "platformChanges": []
+      },
+      "failedStep": null,
+      "error": null,
+      "injected": false,
+      "steps": [
+        {
+          "n": 1,
+          "name": "迁移",
+          "status": "ok",
+          "durationMs": 13913
+        },
+        {
+          "n": 2,
+          "name": "设专用角色口令",
+          "status": "ok",
+          "durationMs": 9809
+        },
+        {
+          "n": 3,
+          "name": "构建并部署函数",
+          "status": "ok",
+          "durationMs": 17650
+        },
+        {
+          "n": 4,
+          "name": "初始化",
+          "status": "ok",
+          "durationMs": 9289
+        },
+        {
+          "n": 5,
+          "name": "构建三端产物",
+          "status": "ok",
+          "durationMs": 45399
+        },
+        {
+          "n": 6,
+          "name": "发布 release 目录",
+          "status": "ok",
+          "durationMs": 147
+        },
+        {
+          "n": 7,
+          "name": "健康检查",
+          "status": "ok",
+          "durationMs": 239
+        },
+        {
+          "n": 8,
+          "name": "原子切换 current",
+          "status": "ok",
+          "durationMs": 22
+        }
+      ],
+      "compensations": [],
+      "before": {
+        "current": "r20261118-065714-121bbf2",
+        "functions": "r20261118-065714-121bbf2"
+      },
+      "after": {
+        "current": "r20261118-080053-3ab4041",
+        "functions": "r20261118-080053-3ab4041"
+      },
+      "health": {
+        "function": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-080053-3ab4041",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 15
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 4
+            }
+          }
+        },
+        "auth": 200,
+        "rest": 200,
+        "realtime": 200,
+        "react": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-CwUf5jal.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "angular": {
+          "index": "ok",
+          "route": "ok",
+          "script": "main-Y6VURP5U.js",
+          "config": "ok",
+          "rewrite": "ok"
+        },
+        "vue": {
+          "index": "ok",
+          "route": "ok",
+          "script": "/assets/index-Dw_bbWHO.js",
+          "config": "ok",
+          "rewrite": "ok"
+        }
+      }
+    }
+  ]
+}

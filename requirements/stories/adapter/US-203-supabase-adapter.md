@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, supabase, sync]
 ---
 
@@ -42,6 +42,6 @@ tags: [adapter, supabase, sync]
 - `packages/rxdb-adapter-supabase/` — Supabase 适配器完整实现
 - `apps/dev-rxdb-supabase/` — Supabase 演示应用
 
-## 参考
+## References
 
 - [文档: Supabase 适配器](../../../website/docs/adapters/supabase.md)

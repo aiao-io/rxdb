@@ -8,6 +8,7 @@ import {
   EntityPropertyMetadata,
   EntityRelationManyToManyMetadata,
   EntityRelationMetadata,
+  OnDeleteAction,
   RelationKind
 } from '../entity/metadata-options.interface.js';
 import { EntityMetadata } from '../entity/metadata.interface.js';
@@ -26,6 +27,18 @@ const get_entity_cache_key = (name: string, namespace?: string) => namespace + '
 /** 中间表的两端按 `namespace:name` 排序：从哪一端发现这条关系都得到同样的顺序 */
 const sort_endpoints = (a: EntityMetadata, b: EntityMetadata): readonly [EntityMetadata, EntityMetadata] =>
   get_entity_cache_key(a.name, a.namespace) <= get_entity_cache_key(b.name, b.namespace) ? [a, b] : [b, a];
+
+/**
+ * 删除父行时会改写子行的外键动作：级联删除、置空、置默认；`RESTRICT` / `NO ACTION` 只拒绝，不写子行。
+ * 按字符串认：`onDelete` 既可以写枚举，也可以写同值的字面量（如 `'SET NULL'`）。
+ */
+const DELETE_REWRITE_ACTIONS: ReadonlySet<string> = new Set<string>([
+  OnDeleteAction.CASCADE,
+  OnDeleteAction.SET_NULL,
+  OnDeleteAction.SET_DEFAULT
+]);
+const rewritesOnDelete = (action: string | undefined): boolean =>
+  action !== undefined && DELETE_REWRITE_ACTIONS.has(action);
 
 /** 反向关系的互补 kind：一对多的反面是多对一，一对一 / 多对多的反面是自身 */
 const REVERSE_RELATION_KIND: Record<RelationKind, RelationKind> = {
@@ -336,21 +349,33 @@ export class SchemaManager {
   }
 
   /**
-   * 有没有实体用外键引用它（US-318）
+   * 删除它时，本地外键会不会改写引用它的行（US-318）
    *
    * @param target - 实体类或实体元数据，按 `namespace` + `name` 认
-   * @returns 有实体（包括生成的多对多中间表、指向自己的树）的多对一或一对一关系指向它时为 `true`
+   * @returns 有指向它的外键带 `CASCADE`、`SET NULL` 或 `SET DEFAULT` 时为 `true`：关系外键（多对一、一对一，
+   *   包括生成的多对多中间表与指向自己的树）按解析后的 `onDelete` 判，实体级外键（`foreignKeys`）按声明的 `onDelete` 判
    *
    * @remarks
-   * 删除被引用的实体时，本地外键会级联删除或置空引用它的行。删除入口据此把删除放进带事务号的事务里，
-   * 源删除与级联写入记成同一个事务，撤销一次就能整组恢复。
+   * 删除入口据此把删除放进带事务号的事务里，源删除与外键级联的写入记成同一个事务，撤销一次就能整组恢复。
+   * 只被 `RESTRICT` / `NO ACTION` 外键引用时，删除要么因为还有引用被拒，要么只删这一行，照常走单条删除，
+   * 不为它造一个只有一条变更的事务——历史与活动按事务号分组的地方会把它当成批量变更。
    */
-  isReferenced(target: EntityType | EntityMetadata): boolean {
+  cascadesOnDelete(target: EntityType | EntityMetadata): boolean {
     const { name, namespace } = typeof target === 'function' ? getEntityMetadata(target) : target;
-    return [...this.#metadata_map.values()].some(metadata =>
-      metadata.foreignKeyRelations.some(
-        relation => relation.mappedEntity === name && (relation.mappedNamespace ?? metadata.namespace) === namespace
-      )
+    return [...this.#metadata_map.values()].some(
+      metadata =>
+        metadata.foreignKeyRelations.some(
+          relation =>
+            relation.mappedEntity === name &&
+            (relation.mappedNamespace ?? metadata.namespace) === namespace &&
+            rewritesOnDelete(relation.onDelete)
+        ) ||
+        metadata.foreignKeys.some(
+          foreignKey =>
+            foreignKey.mappedEntity === name &&
+            foreignKey.mappedNamespace === namespace &&
+            rewritesOnDelete(foreignKey.onDelete)
+        )
     );
   }
 

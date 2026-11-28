@@ -10,6 +10,7 @@ import {
   buildListViewTableOptions,
   canReorderEntityList,
   commitRowMove,
+  createEntityDirtyTracker,
   createListViewState,
   deriveEntityCapabilities,
   deriveRowCapabilities,
@@ -58,6 +59,7 @@ import {
   TemplateRef,
   untracked,
   viewChild,
+  type OnDestroy,
   type WritableSignal
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
@@ -182,7 +184,7 @@ function parseInitialFilter(raw: string | undefined): FilterQuery | undefined {
  * 撤销/重做（依赖 @aiao/rxdb-plugin-history）、筛选弹层（内嵌查询构建器）、
  * 级联新增与多对多选择模式。
  */
-export class EntityListComponent {
+export class EntityListComponent implements OnDestroy {
   readonly #modelBinding = useModelI18n();
 
   #m2mDialogRef: DialogRef<unknown, void> | null = null;
@@ -190,6 +192,9 @@ export class EntityListComponent {
   readonly #deleteConfirmRecord = signal<EntityTableRecord | null>(null);
   #deleteConfirmRef: DialogRef<unknown, void> | null = null;
   #saveToastTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 未保存输入（`dirtyChange`）的判定：对话框里的详情与本地草稿各报一个子来源，这里只接线。 */
+  readonly #dirty = createEntityDirtyTracker();
+  readonly #releaseDirty = this.#dirty.subscribe(dirty => this.dirtyChange.emit(dirty));
   // ── Service injections ────────────────────────────────────────────────
   readonly #rxdb = inject(RxDB);
   /** 授权快照（US-029）：规则形式的新增、编辑、删除按它逐行派生，变化时不刷新页面即生效 */
@@ -250,6 +255,7 @@ export class EntityListComponent {
             i18n: this.modelI18n,
             readOnly,
             grants,
+            actionsMaxWidth: this.actionsMaxWidth(),
             relatedItemsProviderFactory: (fkField, relatedEntityName) => {
               const relCls = [...this.#entityClsMap.values()].find(c => {
                 const m = getEntityMetadata(c);
@@ -403,6 +409,8 @@ export class EntityListComponent {
   // ── Route inputs ──────────────────────────────────────────────────────
   readonly namespace = input.required<string>();
   readonly name = input.required<string>();
+  /** 操作列最大宽度；初始宽度随按钮内容自动计算。 */
+  readonly actionsMaxWidth = input<number | string>();
 
   /** 固定查询条件，与用户筛选条件做 AND 合并（用于关系属性过滤，如 ownerId = currentId） */
   readonly fixedQuery = input<FilterQuery | undefined>(undefined);
@@ -445,6 +453,19 @@ export class EntityListComponent {
 
   /** 选择模式：取消选择时触发 */
   readonly selectionCancelled = output<void>();
+
+  /**
+   * 列表打开的新增 / 编辑表单是否有未保存输入，状态变化时输出。
+   *
+   * @remarks
+   * 未保存输入指对话框里还没点保存的表单取值（改回原值就不算），以及关系页签里嵌套列表的同类输入、
+   * 随父实体一起保存的本地草稿；判定在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`，三端同一套规则。
+   * 表单在 `change`（失焦或回车）时才提交取值，失焦之前的按键还不算输入。
+   * 只在状态真正变化时输出：保存成功、取消与关闭对话框都回到 `false`；组件销毁时仍是 `true` 就补发一次 `false`
+   * （在 `ngOnDestroy` 里发出，模板上的监听那时还在），宿主不会停在 `true`。
+   * 宿主据此在离开页面前提示、在同步或切换前拦下，React / Vue 端对应 `onDirtyChange` 属性与 `dirty-change` 事件。
+   */
+  readonly dirtyChange = output<boolean>();
 
   // ── Reactive state ────────────────────────────────────────────────────
   readonly filterQuery: WritableSignal<FilterQuery> = linkedSignal(() => {
@@ -631,6 +652,18 @@ export class EntityListComponent {
       this.#m2mDialogRef?.close();
       this.#m2mDialogRef = null;
     });
+
+    // 级联新增与多对多选择进本地草稿的记录随父实体一起保存，父实体保存之前同样是未保存内容
+    effect(() => this.#dirty.setSource('drafts', this.#localDraftItems().length > 0));
+  }
+
+  /**
+   * 取消未保存输入的订阅：仍是 `true` 就补发 `false`。
+   * @remarks 放在 `ngOnDestroy` 而不是 `DestroyRef` 回调：Angular 先调 `ngOnDestroy`，再清理模板监听与输出，
+   * 这时发出的 `false` 宿主还收得到。
+   */
+  ngOnDestroy(): void {
+    this.#releaseDirty();
   }
 
   // ── Event handlers ────────────────────────────────────────────────────
@@ -794,8 +827,11 @@ export class EntityListComponent {
       this.#handleCreateSubmit(result);
       dialogRef.close();
     });
+    dialogRef.componentInstance!.dirtyChange.subscribe(dirty => this.#dirty.setSource('create', dirty));
 
+    // 关闭（保存、取消、Escape、遮罩）即结束这次输入；详情销毁时也会补报 false
     dialogRef.closed.subscribe(result => {
+      this.#dirty.setSource('create', false);
       if (result === 'saved') {
         this.#currentList()?.refresh();
         this.#showSaveToast();
@@ -957,8 +993,10 @@ export class EntityListComponent {
         relatedEntityProvider: this.#makeRelatedEntityProvider(null)
       } satisfies EntityDetailDialogData
     });
+    dialogRef.componentInstance!.dirtyChange.subscribe(dirty => this.#dirty.setSource('view', dirty));
 
     dialogRef.closed.subscribe(result => {
+      this.#dirty.setSource('view', false);
       if (result === 'saved') {
         this.#currentList()?.refresh();
         this.#showSaveToast();

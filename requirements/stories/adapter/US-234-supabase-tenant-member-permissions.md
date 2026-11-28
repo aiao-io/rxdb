@@ -1,7 +1,7 @@
 ---
 id: US-234
 title: Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示
-status: In Review
+status: Done
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-26

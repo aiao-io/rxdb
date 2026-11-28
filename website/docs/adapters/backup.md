@@ -180,6 +180,7 @@ await adapter.backup(sink, {
 ## 恢复
 
 恢复只写入**空**目标，不做合并或覆盖。兼容性（adapter、引擎大版本、虚表模块、系统表 / 变更编码版本、实体结构指纹、加密认证域）在写入第一条语句之前判定；全部核对通过、完成该后端承诺的持久化之后，库才对普通连接可见。
+目标声明了 `identity` 时，恢复出来的库绑定的身份在提交之前核对，见[身份绑定](#身份绑定)。
 
 ### SQLite 适配器
 
@@ -249,6 +250,20 @@ const { database } = await restorePGliteDatabase(archiveStream, { rxdb: target, 
 target.adapter('pglite', db => new RxDBAdapterPGlite(db, { ...options, restoredDatabase: database }));
 await target.connect('pglite');
 ```
+
+### 身份绑定
+
+声明了 `identity` 的库（见[每个身份一个本地库](/collaboration/sync.md#每个身份一个本地库)）在库里记着它绑定的身份，这条记录随归档一起备份。
+恢复在提交之前按**目标实例**声明的身份核对恢复出来的库，SQLite 系、PGlite 与桌面 host 上的 PGlite 是同一套规则：
+
+| 归档里的库                 | 目标声明了 `identity` | 结果                                                                                           |
+| -------------------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
+| 绑定的是别的身份           | 是                    | 拒绝，报 `incompatible_archive`，`details.field` 为 `identity`；目标仍是空库，照常以本身份连接 |
+| 绑定的就是目标的身份       | 是                    | 恢复成功                                                                                       |
+| 没有绑定（源库没声明身份） | 是                    | 恢复成功；第一次连接时就地绑定到目标的身份                                                     |
+| 任意                       | 否                    | 恢复成功，不核对（与不声明身份时打开库的行为一致）                                             |
+
+一个账号的备份因此恢复不进另一个账号的库，也不会把当前账号的库改绑给别人、从此打不开。平台不提供改绑，也就是把别人的备份认领到自己名下。
 
 ### 清理未完成的恢复
 
@@ -320,7 +335,7 @@ await adapter.restore(archiveStream, {
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `restorePGliteDatabase`          | `(source: ReadableStream<Uint8Array>, target: PGliteRestoreTarget, options?: PGliteRestoreOptions) => Promise<PGliteRestoreResult>` |
 | `cleanupIncompletePGliteRestore` | `(target: PGliteRestoreTarget) => Promise<boolean>`                                                                                 |
-| `verifyPGliteRestored`           | `(db: PGliteQueryable, manifest: RxDBBackupManifest) => Promise<void>`                                                              |
+| `verifyPGliteRestored`           | `(db: PGliteQueryable, manifest: RxDBBackupManifest, target: RxDB) => Promise<void>`                                                |
 | `PGliteRestoredDatabase`         | 内存目标的一次性句柄（`consumed` / `close()`）                                                                                      |
 | `PGLITE_BACKUP_LOCK_TIMEOUT_MS`  | `30_000`                                                                                                                            |
 | `PGLITE_EXCLUDED_FILES`          | 不入档的运行态文件集合                                                                                                              |
@@ -334,6 +349,7 @@ await adapter.restore(archiveStream, {
 | `RxDBBackupArchiveWriter` / `RxDBBackupArchiveReader`                         | 流式归档写入 / 读取器；调用顺序 `writeManifest` → `beginEntry` / `writeData` → `finish` |
 | `RXDB_BACKUP_CHUNK_SIZE`                                                      | `64 * 1024`                                                                             |
 | `parseRxDBBackupManifest` / `assertRxDBBackupCompatible`                      | manifest 校验与兼容性判定                                                               |
+| `assertRxDBRestoreIdentity`                                                   | `(rxdb: RxDB, migrationNames: readonly string[]) => void`：恢复时按目标声明的身份核对   |
 | `computeRxDBSchemaFingerprint`                                                | `(entities: readonly EntityType[]) => string`                                           |
 | `RXDB_BACKUP_FORMAT` / `RXDB_BACKUP_FORMAT_VERSION` / `RXDB_BACKUP_SCOPE`     | `'rxdb-backup'` / `1` / `{ database: 'included', externalFiles: 'excluded' }`           |
 
@@ -378,6 +394,8 @@ await adapter.restore(archiveStream, {
 | `storage_full`            | 磁盘空间或存储配额不足                                         |
 | `lock_timeout`            | 等待一致性锁超时（例如在事务回调内调用备份）                   |
 | `invalid_state`           | adapter 未连接、正在关闭等无法执行操作的状态                   |
+
+恢复出来的库绑定了别的身份时，`incompatible_archive` 的 `details.field` 为 `identity`（见[身份绑定](#身份绑定)），应用可以据此单独提示「这份备份属于另一个账号」。
 
 ## 相关页面
 

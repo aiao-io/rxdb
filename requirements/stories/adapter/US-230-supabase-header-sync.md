@@ -1,7 +1,7 @@
 ---
 id: US-230
 title: dev-rxdb-supabase 顶栏统一推送与拉取：页面登记要哪些按钮，待拉数准确，推之前看得见会推什么
-status: In Review
+status: Done
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26

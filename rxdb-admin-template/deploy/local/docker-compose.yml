@@ -1,0 +1,357 @@
+# Admin 模板协作服务的本地预演栈（ADMIN-US-217）：一套完整的自托管 Supabase，按生产步骤部署并跑验收。
+# 只给本机预演用，证据标 ⚠️，上线前在真实环境复验。启停与发布一律经脚本（它们先生成 .env.local 与 .state 里的配置）：
+#   pnpm nx run rxdb-admin-template:local-up      起栈（首次生成随机密钥）
+#   pnpm nx run rxdb-admin-template:deploy-local  按生产顺序发布一次
+#   pnpm nx run rxdb-admin-template:local-down    停栈（保留数据卷；加 --volumes 连数据一起删）
+# 端口只发布到 127.0.0.1，独占 4500～4529（分配见 deploy/README.md）。项目名、容器名、网络与卷都带 admin-template-local 前缀，
+# 不与 CI 隔离栈（rxdb-supabase-*）和其他产品的栈共用任何资源。
+name: admin-template-local
+
+x-function-env:
+  &function-env # 命令入口访问 Supabase（接受邀请时向 Auth 确认邮箱、健康检查）经内部网关；浏览器拿到的公开地址另给
+  SUPABASE_URL: http://kong:8000
+  SUPABASE_ANON_KEY: ${ANON_KEY:?先运行 local-up 生成 .env.local}
+  ADMIN_PUBLIC_SUPABASE_URL: http://127.0.0.1:4500
+  # 非对称签名密钥（ES256）：按 JWKS 本地验签，签发者与 GoTrue 的 GOTRUE_JWT_ISSUER 完全一致
+  ADMIN_JWKS_URL: http://kong:8000/auth/v1/.well-known/jwks.json
+  ADMIN_JWT_ISSUER: http://127.0.0.1:4500/auth/v1
+  # 协作专用角色经 transaction 模式的连接池连库（生产是 Supavisor 6543）
+  ADMIN_DATABASE_URL: postgres://admin_collaboration:${ADMIN_SERVICE_PASSWORD:?先运行 local-up}@pooler:6432/postgres
+  ADMIN_ALLOWED_ORIGINS: http://127.0.0.1:4510,http://127.0.0.1:4511,http://127.0.0.1:4512,http://127.0.0.1:4513,http://127.0.0.1:4514,http://127.0.0.1:4515,http://localhost:4510,http://localhost:4511,http://localhost:4512
+  ADMIN_ERROR_REPORT_URL: http://collector:9000/ingest
+  # 发布标识：流水线重建函数容器时传入，健康检查据此确认在线的是哪一次发布
+  ADMIN_RELEASE: ${ADMIN_RELEASE:-none}
+  # 托管平台会给每个函数注入这两个变量；这里照样注入，证明命令入口从不读取它们
+  SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:?先运行 local-up}
+  SUPABASE_DB_URL: postgres://postgres:${POSTGRES_PASSWORD:?先运行 local-up}@db:5432/postgres
+
+services:
+  db:
+    image: supabase/postgres:17.6.1.136
+    restart: unless-stopped
+    ports:
+      # 迁移所有者的直连（迁移、设专用角色口令、初始化、归档与验收脚本），对应托管 Supabase 的直连 5432
+      - '127.0.0.1:4501:5432'
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      PGDATABASE: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?先运行 local-up}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?先运行 local-up}
+      JWT_EXP: ${AUTH_JWT_EXP:-900}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - db-config:/etc/postgresql-custom
+      - ./init/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-admin-template-roles.sql:ro
+      - ./init/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=warning
+      - -c
+      - log_lock_waits=on
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  mail:
+    # 本地收件服务：GoTrue 的 SMTP 发到这里，验收脚本经它的 API 读验证码邮件（不是真实邮箱）
+    image: inbucket/inbucket:3.0.3
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:4502:9000'
+    environment:
+      INBUCKET_WEB_ADDR: 0.0.0.0:9000
+      INBUCKET_SMTP_ADDR: 0.0.0.0:2500
+      INBUCKET_SMTP_DOMAIN: admin-template.local
+      INBUCKET_STORAGE_TYPE: memory
+
+  auth:
+    image: supabase/gotrue:v2.189.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      mail:
+        condition: service_started
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://127.0.0.1:4500
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: http://127.0.0.1:4510
+      GOTRUE_URI_ALLOW_LIST: http://127.0.0.1:4510/**,http://127.0.0.1:4511/**,http://127.0.0.1:4512/**
+      GOTRUE_DISABLE_SIGNUP: 'false'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      # access token 有效期 15 分钟（生产计划 10～15 分钟）
+      GOTRUE_JWT_EXP: ${AUTH_JWT_EXP:-900}
+      # 非对称签名：用户令牌以 ES256 私钥签发（JWKS 公开在 /auth/v1/.well-known/jwks.json）；
+      # anon / service role 这两个 API key 仍是旧的 HS256 共享密钥签的：JWT_KEYS 另带这把只验签的对称密钥，
+      # GoTrue 据此接受 HS256（不带 kid 的令牌按 GOTRUE_JWT_SECRET 校验），JWKS 接口不公开对称密钥
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_KEYS: ${JWT_KEYS:?先运行 local-up}
+      GOTRUE_JWT_ISSUER: http://127.0.0.1:4500/auth/v1
+      # 邮箱验证码：SMTP 发往本地收件服务；验证码有效期默认 1 小时，AC#4 预演时临时调短（AUTH_MAILER_OTP_EXP）
+      GOTRUE_MAILER_AUTOCONFIRM: 'false'
+      GOTRUE_MAILER_OTP_EXP: ${AUTH_MAILER_OTP_EXP:-3600}
+      GOTRUE_MAILER_OTP_LENGTH: 6
+      GOTRUE_SMTP_HOST: mail
+      GOTRUE_SMTP_PORT: 2500
+      GOTRUE_SMTP_ADMIN_EMAIL: noreply@admin-template.local
+      GOTRUE_SMTP_SENDER_NAME: Admin 模板本地预演
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://web:8080/magic-link.html
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://web:8080/confirmation.html
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Admin 模板登录验证码
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Admin 模板登录验证码
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      # 只用于预演：三端 e2e 一轮有上百次登录与刷新、AC#4 要连续请求验证码，放宽速率限制（生产按 Supabase 默认或按需配置）
+      GOTRUE_SMTP_MAX_FREQUENCY: 1s
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: 1000
+      GOTRUE_RATE_LIMIT_VERIFY: 100000
+      GOTRUE_RATE_LIMIT_TOKEN_REFRESH: 100000
+      GOTRUE_RATE_LIMIT_OTP: 100000
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9999/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  rest:
+    image: postgrest/postgrest:v14.12
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      # 读取按 500 行一页，max-rows 不得小于 500（托管 Supabase 默认 1000）
+      PGRST_DB_MAX_ROWS: 1000
+      # JWKS：用户令牌的 ES256 公钥 + 旧 HS256 共享密钥（anon / service role key）
+      PGRST_JWT_SECRET: ${JWT_JWKS:?先运行 local-up}
+      PGRST_DB_USE_LEGACY_GUCS: 'false'
+      PGRST_ADMIN_SERVER_PORT: 3001
+      PGRST_ADMIN_SERVER_HOST: localhost
+    healthcheck:
+      test: ['CMD', 'postgrest', '--ready']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  realtime:
+    image: supabase/realtime:v2.102.3
+    restart: unless-stopped
+    networks:
+      default:
+        # 网关按这个主机名转发，Realtime 按主机名的首段认租户（realtime-dev）
+        aliases: ['realtime-dev.supabase-realtime']
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
+      DB_ENC_KEY: ${REALTIME_DB_ENC_KEY:?先运行 local-up}
+      ANON_KEY: ${ANON_KEY}
+      API_JWT_SECRET: ${JWT_SECRET}
+      # 租户的 JWKS：加入私有频道时按 ES256 公钥校验用户令牌
+      API_JWT_JWKS: ${JWT_JWKS}
+      METRICS_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?先运行 local-up}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ERL_FLAGS: +S 2:2
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: '10000'
+      APP_NAME: realtime
+      SEED_SELF_HOST: 'true'
+      SELF_HOST_TENANT_NAME: realtime-dev
+      RUN_JANITOR: 'true'
+      DISABLE_HEALTHCHECK_LOGGING: 'true'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fsS -o /dev/null -H "Authorization: Bearer $$ANON_KEY" http://localhost:4000/api/tenants/realtime-dev/health'
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  pooler:
+    # PgBouncer 1.26.1，按镜像摘要固定（与契约测试相同）；配置与口令文件由 local-stack.mjs 生成
+    image: edoburu/pgbouncer@sha256:8638aa563607256d3c7440437534195f1066a92b68015d89ae9d6b935b444a6d
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:4504:6432'
+    volumes:
+      - ./.state/private/pgbouncer:/etc/pgbouncer:ro
+    healthcheck:
+      test: ['CMD', 'nc', '-z', '127.0.0.1', '6432']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  functions:
+    # 托管 Supabase Edge Functions 的本地对应：主服务按线上限额（每个请求 CPU 软限 1 秒、硬限 2 秒，内存 256 MB）
+    # 起用户 worker；函数目录 .state/site/functions 是指向当前在线发布的符号链接，发布与回滚换链接后重建本容器
+    image: supabase/edge-runtime:v1.74.0
+    restart: unless-stopped
+    depends_on:
+      pooler:
+        condition: service_healthy
+    environment: *function-env
+    volumes:
+      - ../../packages/collaboration/scripts/edge-runtime/main:/home/deno/main:ro
+      - ./.state/site/functions:/home/deno/functions:ro
+    command: ['start', '--main-service', '/home/deno/main']
+    healthcheck:
+      test: ['CMD-SHELL', "timeout 1 bash -c '</dev/tcp/127.0.0.1/9000'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  collector:
+    # 错误收集器：命令入口的 HTTP 上报器发到这里，追加到 .state/monitor/errors.jsonl（报告在命令入口里已脱敏）
+    image: supabase/edge-runtime:v1.74.0
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:4505:9000'
+    volumes:
+      - ./collector:/home/deno/main:ro
+      - ./.state/monitor:/var/log/collector
+    command: ['start', '--main-service', '/home/deno/main']
+    healthcheck:
+      test: ['CMD-SHELL', "timeout 1 bash -c '</dev/tcp/127.0.0.1/9000'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  kong:
+    image: kong/kong:3.9.3
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
+      functions:
+        condition: service_healthy
+    ports:
+      # 网关：浏览器与命令入口访问 Supabase 的唯一入口，对应 https://<ref>.supabase.co
+      - '127.0.0.1:4500:8000'
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: cors,key-auth,acl,request-transformer
+      KONG_ADMIN_LISTEN: 'off'
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      # 协作命令请求体上限 4 MiB
+      KONG_NGINX_HTTP_CLIENT_MAX_BODY_SIZE: 5m
+    volumes:
+      - ./.state/private/kong.yml:/home/kong/kong.yml:ro
+    healthcheck:
+      test: ['CMD', 'kong', 'health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    # 三端静态站点：current（4510～4512）与发布预览 staged（4513～4515），/collaboration-api/* 改写到函数网关
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:4510:4510'
+      - '127.0.0.1:4511:4511'
+      - '127.0.0.1:4512:4512'
+      - '127.0.0.1:4513:4513'
+      - '127.0.0.1:4514:4514'
+      - '127.0.0.1:4515:4515'
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.state/site:/srv/state:ro
+      - ./templates:/srv/templates:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/magic-link.html']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  meta:
+    profiles: ['studio']
+    image: supabase/postgres-meta:v0.95.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      CRYPTO_KEY: ${PG_META_CRYPTO_KEY:?先运行 local-up}
+
+  studio:
+    profiles: ['studio']
+    image: supabase/studio:2026.01.27-sha-6aa59ff
+    restart: unless-stopped
+    depends_on:
+      kong:
+        condition: service_healthy
+      meta:
+        condition: service_started
+    ports:
+      - '127.0.0.1:4503:3000'
+    environment:
+      HOSTNAME: 0.0.0.0
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+      DEFAULT_ORGANIZATION_NAME: Admin 模板本地预演
+      DEFAULT_PROJECT_NAME: admin-template-local
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: http://127.0.0.1:4500
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_ENABLE_LOGS: 'false'
+      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+
+volumes:
+  db-data:
+  db-config:

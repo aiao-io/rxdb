@@ -1,0 +1,6 @@
+<!-- passwordless 登录验证码邮件（Supabase Auth 的 Magic Link 模板）。只显示验证码，不放登录链接：工作台用验证码登录。
+     本地预演由 GoTrue 经 GOTRUE_MAILER_TEMPLATES_MAGIC_LINK 读取；托管 Supabase 把同样的内容填进 Authentication → Email Templates。 -->
+<h2>Admin 模板登录验证码</h2>
+<p>你的一次性验证码：</p>
+<p style="font-size: 24px; font-weight: bold; letter-spacing: 4px">{{ .Token }}</p>
+<p>验证码有效期有限，只能使用一次。如果不是你本人在登录，请忽略这封邮件。</p>

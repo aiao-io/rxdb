@@ -1,0 +1,173 @@
+import { applyVerified } from '../changes.js';
+import { commitBatchLimit } from '../commit.js';
+import { demand, type Command, type Commit, type Environment, type Identity, type Workspace } from '../model.js';
+import { assertChangesFit, schemaModel } from '../schema.js';
+import { authorize, editTask, expected, managePr, prFor, taskFor } from './access.js';
+import { preloaded, type Plan, type Run } from './plan.js';
+
+/**
+ * 上传与另存分叉需要预加载的数据：命令里已存在的提交、新提交改动到的记录在起点时的内容（只按这些记录推导），
+ * 分叉另需原任务头到共同起点的路径；其余任务命令不需要。
+ */
+export function taskPlan(state: Workspace, user: Identity, command: Command): Plan | undefined {
+  if (command.type !== 'upload' && command.type !== 'fork') return undefined;
+  const task = taskFor(state, command.taskId);
+  editTask(state, user, task);
+  const ids = command.commits.map(commit => commit.commitId);
+  const touched = [...new Set(command.commits.flatMap(commit => commit.units.map(unit => unit.entityId)))];
+  const shared = { head: state.head, root: state.root };
+  const content = { shared, base: task.base, head: task.head, touched: touched.sort() };
+  if (command.type === 'upload') return { type: 'upload', ids, content };
+  const chain = command.commits.map(commit => ({ id: commit.commitId, parent: commit.parentIds[0] ?? null }));
+  return { type: 'fork', ids, chain, content };
+}
+
+export function taskCommand(
+  state: Workspace,
+  user: Identity,
+  command: Command,
+  env: Environment,
+  run: Run
+): Record<string, unknown> | undefined {
+  if (command.type === 'task') {
+    authorize(state, user, 'edit');
+    expected(state.head, command.expectedHead);
+    demand(!state.tasks[command.id], 'exists', '任务标识已存在');
+    state.tasks[command.id] = {
+      id: command.id,
+      name: command.name,
+      ownerId: user.id,
+      base: state.head,
+      head: state.head,
+      originTaskId: null
+    };
+    return { taskId: command.id, head: state.head };
+  }
+  if (command.type === 'upload') return upload(state, user, command, run);
+  if (command.type === 'fork') return fork(state, user, command, run);
+  if (command.type === 'pr') {
+    demand(command.target === 'shared', 'invalid', 'PR 目标必须是共享分支');
+    const task = taskFor(state, command.taskId);
+    editTask(state, user, task);
+    demand(task.head !== task.base, 'empty', '先同步任务变更再创建 PR');
+    demand(!state.prs[command.id], 'exists', 'PR 标识已存在');
+    demand(
+      !Object.values(state.prs).some(pr => pr.taskId === task.id && ['draft', 'review'].includes(pr.status)),
+      'exists',
+      '任务已有打开的 PR'
+    );
+    state.prs[command.id] = {
+      id: command.id,
+      taskId: task.id,
+      title: command.title,
+      description: command.description,
+      target: command.target,
+      authorId: user.id,
+      status: 'draft',
+      revision: 0,
+      candidateId: null,
+      subscribers: [user.id]
+    };
+    return { prId: command.id, head: task.head };
+  }
+  if (command.type === 'pr_state') {
+    const pr = prFor(state, command.prId);
+    managePr(state, user, pr);
+    expected(pr.revision, command.expectedRevision);
+    demand(pr.status !== 'merged', 'state', '合并后的 PR 不能重开');
+    demand(
+      !Object.values(state.prs).some(
+        other => other.id !== pr.id && other.taskId === pr.taskId && ['draft', 'review'].includes(other.status)
+      ) || command.status === 'closed',
+      'exists',
+      '任务已有打开的 PR'
+    );
+    pr.status = command.status;
+    pr.revision++;
+    pr.candidateId = null;
+    return { prId: pr.id, revision: pr.revision, at: env.now };
+  }
+  return undefined;
+}
+function upload(state: Workspace, user: Identity, command: Extract<Command, { type: 'upload' }>, run: Run) {
+  const task = taskFor(state, command.taskId);
+  editTask(state, user, task);
+  demand(task.head === command.expectedHead, 'diverged', '任务已分叉，请另存为新任务', { remoteHead: task.head });
+  demand(
+    !Object.values(state.prs).some(pr => pr.taskId === task.id && pr.status === 'merged'),
+    'state',
+    '已合并任务请开始新任务'
+  );
+  // 起点就是任务头，而任务头沿父链必然回到共同起点（建任务与每次上传都保持这一点），无需再回溯整条链
+  const head = acceptChain(state, user, command.expectedHead, command.commits, run);
+  task.head = head;
+  for (const pr of Object.values(state.prs).filter(item => item.taskId === task.id)) {
+    pr.revision++;
+    pr.candidateId = null;
+  }
+  return { taskId: task.id, head };
+}
+function fork(state: Workspace, user: Identity, command: Extract<Command, { type: 'fork' }>, run: Run) {
+  const original = taskFor(state, command.taskId);
+  editTask(state, user, original);
+  demand(!state.tasks[command.id], 'exists', '任务标识已存在');
+  // 分叉起点必须落在原任务头到共同起点（含）之间
+  demand(preloaded(run.facts.path, 'fork path').has(command.expectedHead), 'ancestry', '无法确认分叉起点');
+  const head = acceptChain(state, user, command.expectedHead, command.commits, run);
+  state.tasks[command.id] = {
+    ...original,
+    id: command.id,
+    name: command.name,
+    head,
+    ownerId: user.id,
+    originTaskId: original.id
+  };
+  return { taskId: command.id, head };
+}
+/**
+ * 接受一条提交链（平台交换记录，`parseCommits()` 已按平台规则判过批次形状、服务端已复算过内容指纹）：
+ * 每个提交都必须是普通提交（`normal`），唯一的父接上前一个（第一个接上 `start`，即任务头或分叉起点）。
+ * 已存在的提交只做指纹相等与归属校验，不重复写入，归属以预加载的路径为准——同 ID 同指纹即同一个提交，幂等；
+ * 同 ID 不同内容拒绝。新提交的作者必须是当前用户；单元必须符合当前的数据模式清单（实体、命名空间、记录字段与系统字段），
+ * 并且能按顺序应用到父内容上：新增的记录原来不存在，修改与删除的记录原来存在且 `inversePatch` 与原值一致
+ * （按落库形态核对，见 `applyVerified`），任一项不符整批以 `invalid` 拒绝、不写入。
+ * 父内容只含新提交改动到的记录，由仓储按任务分叉以来的变更推导，成本与历史长度无关。
+ * 新 ID 的提交不可能成环（此前没有任何提交引用它），所以不需要沿祖先链回溯环检测。
+ */
+function acceptChain(state: Workspace, user: Identity, start: string, commits: readonly Commit[], run: Run): string {
+  demand(commits.length > 0 && commits.length <= commitBatchLimit, 'invalid', '一次同步需要 1～100 个提交');
+  const known = new Map(preloaded(run.facts.existing, 'existing commits'));
+  const path = preloaded(run.facts.path, 'commit ancestry');
+  const content = structuredClone(preloaded(run.facts.content, 'parent content'));
+  const model = schemaModel(state.schema);
+  let head = start;
+  for (const commit of commits) {
+    demand(commit.kind === 'normal', 'invalid', '任务提交必须是普通提交');
+    demand(commit.parentIds.length === 1 && commit.parentIds[0] === head, 'ancestry', '提交父链不连续');
+    const existing = known.get(commit.commitId);
+    demand(
+      !existing || existing.contentFingerprint === commit.contentFingerprint,
+      'idempotency',
+      '相同提交 ID 不能修改内容或作者'
+    );
+    demand(existing || commit.authorId === user.id, 'forbidden', '新提交作者必须是当前用户');
+    demand(!existing || path.has(commit.commitId), 'ancestry', '不能接管其他任务的提交');
+    if (!existing) {
+      assertChangesFit(state.schema, commit.units);
+      demand(content, 'ancestry', '找不到可信共同起点');
+      applyVerified(content, commit.units, model);
+      known.set(commit.commitId, {
+        id: commit.commitId,
+        parentIds: [...commit.parentIds],
+        kind: commit.kind,
+        authorId: commit.authorId,
+        message: commit.message,
+        createdAt: commit.createdAt,
+        contentFingerprint: commit.contentFingerprint
+      });
+      run.effects.commits.push({ record: structuredClone(commit), candidateId: null });
+    }
+    head = commit.commitId;
+  }
+  return head;
+}

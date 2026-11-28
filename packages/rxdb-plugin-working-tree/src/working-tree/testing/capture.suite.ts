@@ -78,7 +78,12 @@ import { WorkingTreeMaterializationStage } from '../working-tree-materialization
 import { WorkingTreeRestoreSession } from '../working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../working-tree-state.entity.js';
 import { classifyWriteEntrance, WorkingTreeWriteRejectedError } from '../write-entry-matrix.js';
-import { ConformanceCache, ConformanceNote, WORKING_TREE_CONFORMANCE_ENTITIES } from './conformance-entities.js';
+import {
+  ConformanceCache,
+  ConformanceNote,
+  WORKING_TREE_CONFORMANCE_ENTITIES,
+  WORKING_TREE_CONFORMANCE_USER_ID
+} from './conformance-entities.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 
 /** 取本地适配器；受信写声明与 raw 判定上下文都挂在这个实例上。 */
@@ -778,6 +783,49 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         expect(entries.map(entry => entry.origin)).toEqual(['remote_sync']);
         expect(entries.map(entry => entry.operation)).toEqual(['insert']);
         await expectColdReplayIntact(database);
+      });
+
+      it('discard 回写（登记表 #15）不产生单元：工作树清空，冷重放以回写之后的业务表为 HEAD 成立', async () => {
+        // HEAD 投影是两行物化出来的笔记（不进工作树）。审计主体与本库的 `context.userId` 相同：UPDATE 回写
+        // 与撤销、切分支同一条适配器路径，`updatedBy` 在那条路径上是只读列、写不回去——用同一个主体，
+        // 这条用例比的就只剩回写本身（多主体的边界写在 discard-command.ts 的 @remarks 里）。
+        const auditor = { createdBy: WORKING_TREE_CONFORMANCE_USER_ID, updatedBy: WORKING_TREE_CONFORMANCE_USER_ID };
+        const editedId = newEntityId();
+        const removedId = newEntityId();
+        const head = [
+          await materializeNote(editedId, { ...noteFields('HEAD 上的', null), ...auditor }),
+          await materializeNote(removedId, { ...noteFields('HEAD 上被删的', '正文'), ...auditor })
+        ];
+        await withTransaction(database, async executor => {
+          const repository = executor.getRepository(ConformanceNote);
+          const byId = (id: string) => ({
+            combinator: 'and' as const,
+            rules: [{ field: 'id', operator: '=' as const, value: id }]
+          });
+          const [edited] = await repository.find({ where: byId(editedId), limit: 1 });
+          const [removed] = await repository.find({ where: byId(removedId), limit: 1 });
+          await repository.update(edited, { title: '草稿改名' });
+          await repository.remove(removed);
+          await repository.create(noteOf('草稿新建', '正文'));
+        });
+        const dirty = await withTransaction(database, readWorkingTreeState);
+        expect(dirty.entryCount, '三笔草稿没有各落一个单元').toBe(3);
+        const status = await database.workingTree.status();
+
+        const result = await database.workingTree.discard({
+          expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
+          expectedHeadRevision: status.headRevision,
+          expectedWorkingTreeRevision: status.workingTreeRevision
+        });
+
+        // 回写开着触发器、进了变更日志，挂载点 1 却一条都不能把它再捕获成单元：revision 只推丢弃那一格。
+        expect(result).toEqual({ ok: true, discardedCount: 3, workingTreeRevision: dirty.workingTreeRevision + 1 });
+        expect(await withTransaction(database, readEntries), '回写被二次记录成了工作树单元').toEqual([]);
+        expect(await withTransaction(database, readWorkingTreeState)).toEqual({
+          workingTreeRevision: dirty.workingTreeRevision + 1,
+          entryCount: 0
+        });
+        await expectColdReplayIntact(database, head);
       });
 
       it('未声明受信意图的 mergeChanges 被拒，业务表零变化', async () => {

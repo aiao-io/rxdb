@@ -1,4 +1,5 @@
 import {
+  buildPushableRepositoryRules,
   declareTrustedWrite,
   EntityType,
   getEntityMetadata,
@@ -413,12 +414,14 @@ export class HistoryManager {
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
+    const hasPushableRepositories =
+      buildPushableRepositoryRules(this.rxdb.config.entities, this.rxdb.entitySync, []).length > 0;
     const pushableCountSub = combineLatest({
       connected: this.rxdb.connected$,
       branch: current_branch$
     })
       .pipe(
-        filter(({ connected, branch }) => connected && !!branch),
+        filter(({ connected, branch }) => connected && !!branch && hasPushableRepositories),
         switchMap(({ branch }) => {
           const baseRules = [
             { field: 'branchId' as const, operator: '=' as const, value: branch!.id },

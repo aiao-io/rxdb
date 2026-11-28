@@ -126,7 +126,7 @@ Worker 启动前，`scripts/e2e-admin-user.mjs` 先在栈里建好管理员账�
 
 ## 限制
 
-- **只走局域网直连**：不配 STUN / TURN（epic-011 非目标）。跨机器时浏览器用 mDNS 主机候选，屏蔽组播的网络里连不上；
+- **只走局域网直连**：不配 STUN / TURN（epic-013 非目标）。跨机器时浏览器用 mDNS 主机候选，屏蔽组播的网络里连不上；
   企业环境可用 Chrome 策略 `WebRtcLocalIpsAllowedUrls` 放开本地 IP。
 - **必须是安全上下文**（https 或 localhost）：连接票据用 WebCrypto 的 Ed25519 验签，OPFS 也只在安全上下文可用。
 - **服务器回退单次上传 ≤ 100 MB**：Cloudflare 免费 / Pro 域名的请求体上限；更大的文件需要分片上传。

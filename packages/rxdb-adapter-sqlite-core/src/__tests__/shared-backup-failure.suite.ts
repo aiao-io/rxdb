@@ -269,6 +269,34 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
       });
     });
 
+    describe('rejects an archive bound to another identity (US-040)', () => {
+      const alice = { scope: 'https://backup.test', subject: 'alice' };
+      const bob = { scope: 'https://backup.test', subject: 'bob' };
+
+      it('refuses before committing, leaves the target empty, and the target still opens as its own identity', async () => {
+        const source = createBackupRxDB(harness, uniqueDbName('backup-identity-src'), PLAIN_ENTITIES, scratch, alice);
+        opened.push(source);
+        const sourceAdapter = await source.connect();
+        await seedNotes(source.entities);
+        const out = collectingSink();
+        await sourceAdapter.backup(out.sink);
+
+        const dbName = uniqueDbName('backup-fail-dst');
+        const target = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, 'persistent', bob);
+        opened.push(target);
+        const error = await restoreInto(target, chunkedSource(out.bytes()).stream).then(
+          () => undefined,
+          (reason: unknown) => reason
+        );
+        expect(isRxDBBackupError(error) && error.code).toBe('incompatible_archive');
+        expect(isRxDBBackupError(error) && error.details.field).toBe('identity');
+        await expectClean(dbName);
+
+        const reopened = await target.connect();
+        expect(await readNotes(reopened, target.entities)).toEqual([]);
+      });
+    });
+
     describe('detects damaged archives and cleans up (AC#6)', () => {
       it('reports a truncated archive', async () => {
         const { archive } = await sharedSource();

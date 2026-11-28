@@ -17,7 +17,8 @@ import {
   RelationKind,
   RxDB,
   SyncType,
-  type EntityType
+  type EntityType,
+  type RxDBIdentity
 } from '@aiao/rxdb';
 import { cloneEntityClasses } from '@aiao/rxdb/testing';
 import { releaseProxy } from 'comlink';
@@ -173,17 +174,20 @@ export interface BackupRxDB {
  * @param dbName - 库名
  * @param entities - 实体原型（会被克隆）
  * @param location - 目标存储
+ * @param identity - 实例声明的身份（US-035）；不给时不启用身份绑定
  * @returns 实例、克隆后的实体与生命周期入口
  */
 export const createBackupRxDB = (
   harness: SqliteBackupHarness,
   dbName: string,
   entities: EntityType[],
-  location: BackupLocation
+  location: BackupLocation,
+  identity?: RxDBIdentity
 ): BackupRxDB => {
   const cloned = cloneEntityClasses(entities);
   const rxdb = new RxDB({
     dbName,
+    ...(identity ? { identity } : {}),
     context: { userId: 'backup-user' },
     entities: cloned,
     sync: { local: { adapter: harness.adapterName }, type: SyncType.None }

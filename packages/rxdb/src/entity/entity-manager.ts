@@ -553,8 +553,9 @@ export class EntityManager {
    */
   async remove<T extends EntityType>(data: InstanceType<T>): Promise<InstanceType<T>> {
     const EntityType = data.constructor as EntityType;
-    // 被引用的实体：本地外键会级联删除或置空引用它的行。走批量写入，源删除与级联写入在同一个带事务号的事务里，
-    // 记成一个事务、撤销一次整组恢复（US-318）；单条删除不开事务，级联写入会各记各的
+    // 有外键会级联删除、置空或置默认引用它的行：走批量写入，源删除与级联写入在同一个带事务号的事务里，
+    // 记成一个事务、撤销一次整组恢复（US-318）；单条删除不开事务，级联写入会各记各的。
+    // 只被 RESTRICT / NO ACTION 外键引用的实体照常单条删除：没有级联写入，不该记成一条变更的事务
     if (this.#removes_in_transaction(EntityType)) {
       await this.mutations(getEntityMutations({ needSaveEntities: [], needRemoveEntities: [data] }));
       return data;
@@ -696,9 +697,9 @@ export class EntityManager {
     return this.#get_entity_repository(EntityType);
   }
 
-  /** 删除要不要走批量写入的事务：实体被引用，且写的是本地库（远端与 QueryCache 的删除不经本地外键） */
+  /** 删除要不要走批量写入的事务：删它会让本地外键改写引用它的行，且写的是本地库（远端与 QueryCache 的删除不经本地外键） */
   #removes_in_transaction(EntityType: EntityType): boolean {
-    if (!this.rxdb.schemaManager.isReferenced(EntityType)) return false;
+    if (!this.rxdb.schemaManager.cascadesOnDelete(EntityType)) return false;
     const primary = resolveBatchPrimaryAdapter([EntityType], this.rxdb.entitySync);
     return primary?.kind === 'local' && !isQueryCacheBatch([EntityType], this.rxdb.entitySync);
   }

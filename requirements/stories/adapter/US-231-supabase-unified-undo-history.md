@@ -1,7 +1,7 @@
 ---
 id: US-231
 title: dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上
-status: In Review
+status: Done
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26

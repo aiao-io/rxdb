@@ -1,7 +1,7 @@
 ---
 id: US-232
 title: dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开
-status: In Review
+status: Done
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26

@@ -1,6 +1,6 @@
 ---
 id: epic-016-local-change-workbench
-status: In Progress
+status: Done
 startDate: 2026-11-26
 targetDate: TBD
 owner: jimmy

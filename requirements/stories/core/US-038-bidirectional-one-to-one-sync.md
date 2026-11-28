@@ -1,7 +1,7 @@
 ---
 id: US-038
 title: 双向一对一的实体能开同步：同步层按可空外键断环
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-11-25

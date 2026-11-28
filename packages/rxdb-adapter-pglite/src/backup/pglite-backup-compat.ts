@@ -121,6 +121,18 @@ export const readPGliteSystemVersionState = async (db: PGliteQueryable): Promise
 };
 
 /**
+ * 读库里迁移表的全部行名：恢复时交给核心核对身份绑定（US-040）。迁移表只有几行。
+ *
+ * @param db - 已在恢复出的数据目录上启动的 PGlite 或等价的查询入口
+ * @returns `rxdb_migration."name"` 全列
+ */
+export const readPGliteMigrationNames = async (db: PGliteQueryable): Promise<string[]> => {
+  const migrationTable = getTableNameByMetadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN);
+  const result = await db.query<{ name: string }>(`SELECT "name" FROM ${migrationTable}`);
+  return result.rows.map(row => row.name);
+};
+
+/**
  * 按规范化后的 `dataDir` 判定存储后端。
  *
  * @param dataDir - {@link resolvePGliteInitOptions} 的 `dataDir`

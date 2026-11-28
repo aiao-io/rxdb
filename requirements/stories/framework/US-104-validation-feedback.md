@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-21
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [framework, rxdb-model, tri-framework, validation]
 ---
 
@@ -55,7 +55,7 @@ tags: [framework, rxdb-model, tri-framework, validation]
 - [Angular `entity-detail.real.spec.ts`](../../../packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts)：校验拒绝、错误状态、字段变更清空、保存失败保留对话框
 - [React `entity-detail.real.spec.tsx`](../../../packages/rxdb-model-react/src/__tests__/entity-detail/entity-detail.real.spec.tsx)：create / edit 校验面板、保存错误、字段变更与取消
 - [Vue `entity-detail.real.spec.ts`](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts)：错误面板、保存错误、字段变更与取消
-- [工作台 `workbench.spec.ts`](../../../apps/rxdb-admin-template-react-e2e/src/workbench.spec.ts)：必填字段校验可见、不入库、关闭后列表仍为空
+- [工作台 `workbench.spec.ts`](../../../rxdb-admin-template/apps/react-e2e/src/workbench.spec.ts)：必填字段校验可见、不入库、关闭后列表仍为空
 
 ## 实现文件
 
@@ -65,4 +65,5 @@ tags: [framework, rxdb-model, tri-framework, validation]
 
 ## References
 
+- [US-105 字段错误提示与保存失败归因](US-105-form-field-error-feedback.md) — 后续需求：字段内联提示、友好约束文案、摘要定位与按关联属性清理；当前为 Backlog，不作为本故事已交付证据。
 - [admin-framework 候选分析](../../domain-research/admin-framework.md) — 触发背景（首版边界「校验反馈可读」，US-526 工作台 AC#4 的红色用例）

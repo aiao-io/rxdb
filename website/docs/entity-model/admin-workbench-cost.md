@@ -7,18 +7,18 @@ description: React Admin 应用模板（US-528）的源码基线、依赖、样�
 
 # 接入成本记录：React Admin 应用模板
 
-接入载体为 [rxdb-admin-template-react](https://github.com/aiao-io/rxdb/tree/main/apps/rxdb-admin-template-react)。
+接入载体为 [rxdb-admin-template-react](https://github.com/aiao-io/rxdb/tree/main/rxdb-admin-template/apps/react)。
 模板当前在 Nx 工作区内孵化，提供默认资产场景、模型驱动页面、搜索、后台外壳和备份恢复。
-应用范围与验收入口见其 [README](https://github.com/aiao-io/rxdb/blob/main/apps/rxdb-admin-template-react/README.md)。
+应用范围与验收入口见其 [README](https://github.com/aiao-io/rxdb/blob/main/rxdb-admin-template/apps/react/README.md)。
 
 本文列出现有模板的代码与工程基线。实际业务新增代码、开发者接入用时、仓外安装发布产物和试用者独立重搭均待验证，
 对应 [US-528](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/domain/US-528-admin-consumer-example.md) 的 AC#1～#3。
 
 ## 闭环范围与证据
 
-[`ENTITIES`](https://github.com/aiao-io/rxdb/blob/main/apps/rxdb-admin-template-react/src/app/entities/asset-entities.ts)
+[`ENTITIES`](https://github.com/aiao-io/rxdb/blob/main/rxdb-admin-template/apps/react/src/app/entities/asset-entities.ts)
 注册资产分类、资产与维护记录。模型 UI 提供列表、详情、表单、校验和查询筛选，应用另外接线导航、全文搜索与备份恢复。
-[`createWorkbenchDatabase`](https://github.com/aiao-io/rxdb/blob/main/apps/rxdb-admin-template-react/src/app/rxdb/setup_rxdb.ts)
+[`createWorkbenchDatabase`](https://github.com/aiao-io/rxdb/blob/main/rxdb-admin-template/apps/react/src/app/rxdb/setup_rxdb.ts)
 使用 sqlite-wasm 主线程 IndexedDB，以满足当前搜索和备份组合。
 
 仓库内浏览器闭环由 `rxdb-admin-template-react-e2e` 覆盖：
@@ -33,7 +33,7 @@ pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 
 ## 当前依赖入口
 
-直接依赖以模板 [package.json](https://github.com/aiao-io/rxdb/blob/main/apps/rxdb-admin-template-react/package.json) 为准：
+直接依赖以模板 [package.json](https://github.com/aiao-io/rxdb/blob/main/rxdb-admin-template/apps/react/package.json) 为准：
 
 | 包                                                            | 模板中的用途                           |
 | ------------------------------------------------------------- | -------------------------------------- |
@@ -83,7 +83,7 @@ pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 python3 - <<'PY'
 from pathlib import Path
 
-root = Path('apps/rxdb-admin-template-react')
+root = Path('rxdb-admin-template/apps/react')
 total = 0
 for source in sorted((root / 'src').rglob('*')):
     if not source.is_file() or '.spec.' in source.name or '.test.' in source.name:
@@ -100,7 +100,7 @@ PY
 
 ## 样式入口
 
-模板 [styles.css](https://github.com/aiao-io/rxdb/blob/main/apps/rxdb-admin-template-react/src/styles.css)
+模板 [styles.css](https://github.com/aiao-io/rxdb/blob/main/rxdb-admin-template/apps/react/src/styles.css)
 使用以下入口，再通过 daisyUI 插件声明可用主题：
 
 ```css

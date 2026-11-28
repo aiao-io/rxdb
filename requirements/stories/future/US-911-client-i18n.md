@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-12
-updated: 2026-11-08
+updated: 2026-11-16
 tags: [i18n, rxdb-model, tri-framework, plugin]
 ---
 
@@ -17,7 +17,7 @@ tags: [i18n, rxdb-model, tri-framework, plugin]
 **我想要** 一套客户端国际化运行时——rxdb-model 组件的文案不再硬编码中文，语言偏好持久保存并驱动三框架重渲染、同源多 Tab 即时跟随，应用可注册自己的目录覆盖任意 key
 **以便** 把应用交付给非中文用户：离线首屏即正确语言、切换语言无需刷新、目录可远端分发，且数据语言（US-910）与 UI 语言共享同一份偏好与 fallback 链
 
-当前实现进入代码评审；A～D 已交付，偏好载体已按 A4/A5 的方案对照、历史隔离与通知证据冻结。实现与验收事实见下文。
+A～D 的当前交付范围已合并，偏好载体由 A4/A5 的方案对照、历史隔离与通知证据支持。实现与验收入口见下文。
 
 ## 设计决策
 

@@ -1,11 +1,11 @@
 ---
 id: US-318
 title: 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来
-status: In Review
+status: Done
 priority: High
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-27
+updated: 2026-11-28
 tags: [collaboration, history, undo-redo, sqlite, bug]
 ---
 
@@ -57,7 +57,7 @@ INVEST 检查清单:
 
 ### In Scope
 
-- 删除会级联（`CASCADE`）或置空（`SET NULL`）子记录时，源删除与子记录的变更记在同一个事务里，历史里是一个事务项。
+- 删除会级联（`CASCADE`）或置空（`SET NULL`）子记录时，源删除与子记录的变更记在同一个事务里，历史里是一个事务项。只被 `RESTRICT` / `NO ACTION` 外键引用的实体照常单条删除，不记事务号。
 - `remove()` 与 `removeMany()` 都覆盖；本来就在事务里的删除不受影响。
 - 撤销一次恢复整组；重做一次再整组删掉；推送时远端收到的删除与现在一致（US-224 的远端级联语义不变）。
 - 各本地适配器（wa-sqlite、sqlite-wasm、node SQLite，PGlite 若同样按外键级联）跑同一组一致性用例。
@@ -82,13 +82,13 @@ INVEST 检查清单:
 
 验收证据：
 
-- AC#1～#4、#6：`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-cascade-mutation.suite.ts` 的「级联写入与源删除记成一个事务（US-318）」，各 SQLite 适配器入口复用（`pnpm nx run-many -t test --projects=rxdb-adapter-sqlite-core,rxdb-adapter-wa-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-electron`）；PGlite 的同一组断言在 `packages/rxdb-adapter-pglite/src/__tests__/cascade-delete-transaction.spec.ts`；`packages/rxdb/src/__tests__/schema/SchemaManager.spec.ts` 守 `isReferenced`。
+- AC#1～#4、#6：`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-cascade-mutation.suite.ts` 的「级联写入与源删除记成一个事务（US-318）」，各 SQLite 适配器入口复用（`pnpm nx run-many -t test --projects=rxdb-adapter-sqlite-core,rxdb-adapter-wa-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-electron`）；PGlite 的同一组断言在 `packages/rxdb-adapter-pglite/src/__tests__/cascade-delete-transaction.spec.ts`；`packages/rxdb/src/__tests__/schema/SchemaManager.spec.ts` 守删除判据 `cascadesOnDelete`（关系外键按解析后的 `onDelete`、实体级外键按声明的 `onDelete`）。两处一致性用例都有「只被 RESTRICT 外键引用的删除不记事务号」的反例。
 - AC#1、#2：真栈上 `apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「US-231 AC#12～#14」用例——删掉有证件、订单、订单项与分类关联的客户，点一次撤销全部回来。
 - AC#5：同一用例再删一次并推送，Bob 拉取后客户、订单、订单项与关联都不在了、分类还在；按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`。
 
 ## 技术笔记
 
-- 两条路：删除入口检测到实体有 `CASCADE` / `SET NULL` 的子关系时开一个事务再删（触发器随事务带上事务号，与 `saveMany` 同一机制）；或者所有删除都走事务。前者改动面小，后者口径简单，实现前比一下单条删除的开销再定。
+- 走的是第一条路：删除入口按 `SchemaManager.cascadesOnDelete()` 判断——有指向它的外键带 `CASCADE`、`SET NULL` 或 `SET DEFAULT` 时开一个事务再删（触发器随事务带上事务号，与 `saveMany` 同一机制），否则照常单条删除。首版判据只看「有没有外键指向它」，把只被 `RESTRICT` 外键引用的删除也记成一条变更的事务，Admin Dashboard 因此把单条删除显示成「批量变更 1 条记录」；2026-11-28 收窄到上面的口径，并把实体级外键（`foreignKeys`）一起算进来。
 - 级联由数据库执行，RxDB 不知道删掉了哪些子行——不改成在 JS 里逐个删子行，那会和数据库的外键动作重复。
 - 推送压缩已经按事务处理（`saveMany` 的路径），归进事务之后推送载荷的形状不变；US-037 的子在前删除排序照旧。
 

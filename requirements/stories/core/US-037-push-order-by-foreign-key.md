@@ -1,7 +1,7 @@
 ---
 id: US-037
 title: 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-11-25

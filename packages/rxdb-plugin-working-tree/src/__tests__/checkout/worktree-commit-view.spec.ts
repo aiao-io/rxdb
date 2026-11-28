@@ -11,12 +11,13 @@ import { parseRxDBChangeKey } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitViewActions, planCommitView } from '../../checkout/worktree-commit-view.js';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
+import { resolveFirstParentReplayPath } from '../../commit/commit-ancestry.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { assertCommitGraphIntact } from '../../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../../commit/list-commits.js';
 import { readActiveBranchToken } from '../../working-tree/capture-runtime.js';
 import { readActiveRestoreSession } from '../../working-tree/restore-command.js';
-import { findFirstReplayIncompatibility, selectRestoreReplayPath } from '../../working-tree/restore-precheck.js';
+import { findFirstReplayIncompatibility } from '../../working-tree/restore-precheck.js';
 import { WorkingTreeEntry } from '../../working-tree/working-tree-entry.entity.js';
 import type { WorkingTreePatchCodecContext } from '../../working-tree/working-tree-patch-codec.js';
 
@@ -38,8 +39,12 @@ vi.mock('../../commit/list-commits.js', async importOriginal => ({
 }));
 vi.mock('../../working-tree/restore-precheck.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../working-tree/restore-precheck.js')>()),
-  selectRestoreReplayPath: vi.fn(),
   findFirstReplayIncompatibility: vi.fn()
+}));
+// US-319：往回推的路走第一父链，侧枝上的目标与不可达的目标是两个结论
+vi.mock('../../commit/commit-ancestry.js', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../commit/commit-ancestry.js')>()),
+  resolveFirstParentReplayPath: vi.fn()
 }));
 
 /** 认不出任何实体：补丁按原样解码（浅拷贝），折叠只看身份与操作。 */
@@ -70,7 +75,7 @@ beforeEach(() => {
   vi.mocked(assertCommitGraphIntact).mockResolvedValue(undefined);
   vi.mocked(readActiveRestoreSession).mockResolvedValue(null);
   vi.mocked(readCommitBranchRef).mockResolvedValue({ headCommitId: 'c3' } as never);
-  vi.mocked(selectRestoreReplayPath).mockResolvedValue(['c3', 'c2']);
+  vi.mocked(resolveFirstParentReplayPath).mockResolvedValue({ kind: 'path', path: ['c3', 'c2'] });
   vi.mocked(findFirstReplayIncompatibility).mockResolvedValue(undefined);
 });
 
@@ -82,19 +87,26 @@ describe('planCommitView', () => {
       branchId: 'main',
       path: ['c3', 'c2']
     });
-    expect(selectRestoreReplayPath).toHaveBeenCalledWith(expect.anything(), 'c3', 'c1');
+    expect(resolveFirstParentReplayPath).toHaveBeenCalledWith(expect.anything(), 'c3', 'c1');
     expect(assertCommitGraphIntact).toHaveBeenCalledWith(expect.anything(), 'main');
   });
 
   it('有进行中的恢复：restoring_working_tree，不再往下判', async () => {
     vi.mocked(readActiveRestoreSession).mockResolvedValue({ sessionId: 's' } as never);
     expect(await reasonOf(planCommitView(executorWith([], []), codec, 'c1'))).toBe('restoring_working_tree');
-    expect(selectRestoreReplayPath).not.toHaveBeenCalled();
+    expect(resolveFirstParentReplayPath).not.toHaveBeenCalled();
   });
 
   it('不在 HEAD 的可达父链上：unreachable_target', async () => {
-    vi.mocked(selectRestoreReplayPath).mockResolvedValue(undefined);
+    vi.mocked(resolveFirstParentReplayPath).mockResolvedValue({ kind: 'unreachable' });
     expect(await reasonOf(planCommitView(executorWith([], []), codec, 'elsewhere'))).toBe('unreachable_target');
+  });
+
+  it('只在合并进来的侧枝上：side_branch_target，不读兼容性（US-319）', async () => {
+    // 侧枝提交的 ChangeSet 从没直接落到本分支的业务表上，沿第一父链往回推不到它；与「不在历史里」分开报
+    vi.mocked(resolveFirstParentReplayPath).mockResolvedValue({ kind: 'side_branch' });
+    expect(await reasonOf(planCommitView(executorWith([], []), codec, 'side'))).toBe('side_branch_target');
+    expect(findFirstReplayIncompatibility).not.toHaveBeenCalled();
   });
 
   it('路径上有认不出的实体：incompatible_schema', async () => {

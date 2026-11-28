@@ -27,7 +27,7 @@ owner: jimmy
 - [US-301 版本控制](../stories/collaboration/US-301-version-control.md) (Medium)
 - [US-302 撤销/重做](../stories/collaboration/US-302-undo-redo.md) (Medium)
 - [US-203 Supabase 适配器](../stories/adapter/US-203-supabase-adapter.md) (High)
-- [US-803 本地数据加密](../stories/future/US-803-local-encryption.md) (Medium) — `@aiao/rxdb-adapter-encrypted` 透明加密包装层
+- [US-803 本地数据加密](../stories/future/US-803-local-encryption.md) (Medium) — `@aiao/rxdb-adapter-encrypted` 提供共享 crypto / keyring / envelope 工具，由本地适配器的值转换入口接入
 
 > 原挂在本 Epic 下的 US-305「持久化 Git 式工作区提交」已升级为
 > [epic-006 本地工作树与提交历史](./epic-006-working-tree-commits.md) 并拆成 US-305～US-308；

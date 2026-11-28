@@ -1,7 +1,7 @@
 ---
 id: US-233
 title: Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计
-status: In Review
+status: Done
 priority: High
 epic: epic-016-local-change-workbench
 created: 2026-11-26

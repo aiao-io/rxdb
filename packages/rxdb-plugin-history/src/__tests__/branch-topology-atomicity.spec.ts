@@ -278,7 +278,7 @@ class FakeLocalDatabase {
 
 const createVersionManager = (db: FakeLocalDatabase): VersionManager => {
   const rxdb = {
-    config: { sync: {} },
+    config: { entities: [], sync: {} },
     connected$: NEVER,
     // 没换挂过的实例挂的是主表集（US-314 B1.4）
     worktreeTableSet: WorktreeTableSet.MAIN,

@@ -1,7 +1,7 @@
 ---
 id: US-316
 title: 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤
-status: In Review
+status: Done
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26

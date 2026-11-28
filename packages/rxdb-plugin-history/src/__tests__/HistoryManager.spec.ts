@@ -1,4 +1,6 @@
 import {
+  createEntitySyncResolver,
+  getEntityMetadata,
   HistoryItem,
   HistoryScope,
   RxDB,
@@ -19,6 +21,7 @@ import {
   HistoryManager
 } from '../HistoryManager.js';
 import { emptyPushInFlight } from './fixtures/push-inflight.js';
+import { User } from './fixtures/test-entities.js';
 
 describe('HistoryManager - Pure Functions', () => {
   describe('getScopeKey', () => {
@@ -429,20 +432,56 @@ describe('HistoryManager - Class Methods', () => {
     });
   });
 
-  // `pushableCountSub` 构造期订阅的那条「重算触发」查询：结果本身被丢弃，只用来在变化时
-  // 重新调用 `#updatePushableCount()`。真正的计数口径在 undo-redo-apply.ts 的
-  // `updatePushableCount()` 里（另有归属，不在本文件测），但这条触发查询本身也按
-  // `remoteId = null` 认「待推」，同样需要排除被拒变更，否则被拒变更一有风吹草动
-  // （比如同实体另一条变更改了分支）就会白触发一次重算。
   describe('pushableCount 重算触发查询', () => {
-    it('待推送触发查询需排除已被拒绝的变更（rejectedAt 非空）', () => {
-      // 红：`HistoryManager.ts` 构造函数里的 `baseRules` 目前只有 `remoteId = null`，
-      // 还没有 `rejectedAt = null` 这条规则，所以此刻断言会在数组里找不到它而失败。
-      // beforeEach 里 `config.entities: []` 会让 `updatePushableCount()` 内部那次计数
-      // 查询提前 return，因此 `mockChangeRepository.count` 此刻只会被这条触发查询调用一次。
-      expect(mockChangeRepository.count).toHaveBeenCalledTimes(1);
+    it('没有业务实体时不启动待推送计数查询', () => {
+      expect(mockChangeRepository.count).not.toHaveBeenCalled();
+    });
+
+    it('纯本地实体不启动待推送计数查询', () => {
+      historyManager.destroy();
+      mockChangeRepository.count.mockClear();
+      const sync = { type: SyncType.None, local: { adapter: 'local' } } as const;
+      mockRxDB = {
+        ...mockRxDB,
+        config: { ...mockRxDB.config, entities: [User], sync },
+        entitySync: createEntitySyncResolver(sync)
+      } as unknown as RxDB;
+      historyManager = new HistoryManager(mockRxDB);
+      expect(mockChangeRepository.count).not.toHaveBeenCalled();
+    });
+
+    it('有可推送仓库时保留触发查询，并排除已被拒绝的变更', () => {
+      historyManager.destroy();
+      mockChangeRepository.count.mockClear();
+      mockRxDB = {
+        ...mockRxDB,
+        config: { ...mockRxDB.config, entities: [User] },
+        entitySync: createEntitySyncResolver(mockRxDB.config.sync)
+      } as unknown as RxDB;
+      historyManager = new HistoryManager(mockRxDB);
       const callOptions = mockChangeRepository.count.mock.calls[0]?.[0] as { where: { rules: unknown[] } };
       expect(callOptions.where.rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+    });
+
+    it('实例覆盖启用同步时保留触发查询', () => {
+      historyManager.destroy();
+      mockChangeRepository.count.mockClear();
+      const sync = { type: SyncType.None, local: { adapter: 'local' } } as const;
+      mockRxDB = {
+        ...mockRxDB,
+        config: { ...mockRxDB.config, entities: [User], sync },
+        entitySync: createEntitySyncResolver(
+          sync,
+          new Map([
+            [
+              getEntityMetadata(User),
+              { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
+            ]
+          ])
+        )
+      } as unknown as RxDB;
+      historyManager = new HistoryManager(mockRxDB);
+      expect(mockChangeRepository.count).toHaveBeenCalled();
     });
   });
 

@@ -114,7 +114,7 @@ US-538 可在 US-534 / US-536 就绪后与 UI 阶段 A 并行实现；基础 UI 
    **修订（2026-10-28，owner 决定）**：owner 实测 GitHub Projects 后解锁**结构化筛选**（零 schema 变更，
    随 [US-539 阶段 C](../stories/domain/US-539-board-tri-framework-ui.md#交付阶段) 交付，同时把详情编辑改为即改即存）；
    多视图（表格 / 路线图 / 保存视图）与需要 schema 迁移的字段、列属性、归档仍不进本 epic，
-   留在 [看板 v2 调研](../domain-research/board-v2-github-projects-style.md#立项结论2026-10-28) 的阶段 3。
+   留在 [看板 v2 调研](../domain-research/board-v2-github-projects-style.md#立项结论) 的阶段 3。
 6. **团队版独立**：US-535 只定义单人移动语义；身份、成员权限、离线并发合并规则的定义与实现
    全部随 US-541。US-027 只区分公开 / 系统写入口，不提供用户身份授权。
 

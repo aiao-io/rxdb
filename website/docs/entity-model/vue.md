@@ -33,9 +33,22 @@ const name = computed(() => String(route.params.name ?? ''));
 </template>
 ```
 
-主要 props：`namespace` / `name`（实体定位，必填）、`fixed-query`（列表固定查询，钉住固定查询后才能对分组排序实体拖拽排序）、`mode`（`'default'` 或 `'select'` 多对多选择模式）、`creation-chain` / `edit-chain`（级联新增与关系下钻的防环链路）。
+主要 props：`namespace` / `name`（实体定位，必填）、`fixed-query`（列表固定查询，钉住固定查询后才能对分组排序实体拖拽排序）、`mode`（`'default'` 或 `'select'` 多对多选择模式）、`creation-chain` / `edit-chain`（级联新增与关系下钻的防环链路）；事件 `view-entity`、`selection-confirmed` / `selection-cancelled`、`dirty-change`（见下方「未保存输入」）。
 
 「查看」行 → 组件内置打开 edit 详情对话框（关系 Tab 内同理可无限下钻，`editChain` 防环）。
+
+### 未保存输入
+
+列表打开的新增 / 编辑对话框里还没点保存的取值，组件经 `dirty-change` 事件交给宿主，用来在离开页面前提示、在同步或切换前拦下：
+
+```vue
+<EntityList :name="name" :namespace="namespace" @dirty-change="dirty => (unsaved = dirty)" />
+```
+
+- 只在状态真正变化时触发：输入后为 `true`，改回原值（含把新建表单的字段清空）为 `false`；保存成功、取消、关闭对话框（Escape、遮罩）都回到 `false`。
+- 关系 Tab 里嵌套列表的同类输入、级联新增进本地草稿（随父实体一起保存）的子记录也算未保存，父实体保存或取消之后才回到 `false`。
+- 组件卸载时仍是 `true` 就在 `onBeforeUnmount` 里补发一次 `false`（宿主的监听那时还在），宿主不会停在 `true`。
+- `EntityDetail` 有同名的 `dirty-change` 事件，独立使用详情时同样可用；判定规则在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`（见 [Headless](headless.md#未保存输入)），三端一致。
 
 ## 实体详情
 
@@ -73,7 +86,7 @@ function onSaved(data: EntityFormData): void {
 </template>
 ```
 
-主要 props：`namespace` / `name` / `entity-id`（路由输入通道，与 `metadata` 二选一）、`metadata` / `form-fields` / `form-data` / `form-mode`（直接传入元数据与表单数据）；事件 `form-submitted` / `form-cancelled` / `field-changed` / `validation-errors`。
+主要 props：`namespace` / `name` / `entity-id`（路由输入通道，与 `metadata` 二选一）、`metadata` / `form-fields` / `form-data` / `form-mode`（直接传入元数据与表单数据）；事件 `form-submitted` / `form-cancelled` / `field-changed` / `validation-errors` / `dirty-change`（是否有未保存输入；保存成功、把输入交给宿主、取消或换了编辑目标都回到 `false`）。
 
 编辑目标加载期间（数据库或实例未就绪）表单内部动作隐藏、只留「取消」，提交被拦截，但允许输入：输入暂存，就绪后合入加载到的实例数据，随下次提交落库（取消或切换编辑目标时丢弃）。edit 模式下 `fixedFormData` 叠加在实例数据上显示（对应字段只读，保存不改写实例上的原值）。这两点是与 Angular / React 的框架差异：那两端未就绪期间的输入不保留，`fixedFormData` 只合入 create 草稿与无实例的透传表单。
 

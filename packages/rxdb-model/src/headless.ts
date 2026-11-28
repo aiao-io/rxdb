@@ -19,6 +19,7 @@ export {
 export * from './entity-detail/headless.js';
 export * from './entity-detail/interfaces.js';
 export * from './entity-dialog/headless.js';
+export * from './entity-form/dirty-tracker.js';
 export * from './entity-form/form-data.js';
 export * from './entity-form/form-fields.js';
 export * from './entity-form/form-validation.js';

@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-11-08
+updated: 2026-11-16
 tags: [domain, board, schema]
 ---
 
@@ -66,10 +66,10 @@ tags: [domain, board, schema]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **验收注记（2026-10-29）**：AC#8 由 `packages/rxdb-plugin-board/src/__tests__/board-upgrade.{node,browser}.spec.ts` 在
-> PGlite 磁盘库与 sqlite-wasm 主线程 `vfs: 'idb'` 上各验一遍：只有旧实体的库写入、断开，装看板实体与插件重开后旧数据原样、
-> 种子可装载、再断开重开不丢（sqlite-wasm 半边原因「干净关闭后重连丢行」挂起，当前适配器上已不复现，去掉 skip 后连跑全绿）。
-> 其余 AC 由服务层单测与三端 e2e 覆盖；demo 层的既有库组合验收归 US-540 AC#7。
+**验收证据**：AC#8 由 `packages/rxdb-plugin-board/src/__tests__/board-upgrade.{node,browser}.spec.ts`
+在 PGlite 磁盘库与 sqlite-wasm 主线程 `vfs: 'idb'` 上覆盖：旧实体库写入、断开，装看板实体与插件后重开，
+旧数据原样、种子可装载、再次断开重开不丢。其余 AC 由服务层单测与三端 e2e 覆盖；
+demo 层的既有库组合验收归 US-540 AC#7。
 
 ## 技术笔记
 
@@ -109,7 +109,7 @@ AC#13），是因为改归属会悄悄改变判环图；看板没有图的完整
 与 task 的按列排序域同一条引擎路径，不新增任何原语。
 
 **落点：新建 `packages/rxdb-plugin-board`**（新建包而非扩现有插件，先例是 BOM 的 `packages/rxdb-plugin-bom`，
-owner 2026-10-02 决定）。核心包零框架依赖，承载实体、仓储、领域服务、落点换算、搜索源、恢复状态机与
+owner 确定采用此包边界）。核心包零框架依赖，承载实体、仓储、领域服务、落点换算、搜索源、恢复状态机与
 `./testing` 种子；三框架绑定是 `rxdb-plugin-board-{angular,react,vue}` 三个独立包，与 search / tree / replay
 同构（[US-539](US-539-board-tri-framework-ui.md)）。看板实体放在独立命名空间 `board`。**不复用 `rxdb-test`
 的 `Task` 实体**——现有 [`Task`](../../../packages/rxdb-test/entities/Task.ts) 是带排序的 Todo 数据，不包含
@@ -135,8 +135,9 @@ Board / Column / 跨列移动产品，看板需要自己的三个实体；同一
 
 ## 价值待证
 
-本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
-解锁（2026-10-19，owner 决定）：新增 `board` / `column` / `task` 抽象对应零个已知病灶，
+本故事的开工授权见 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)。
+
+新增 `board` / `column` / `task` 抽象对应零个已知病灶，
 「病灶数 ≥ 抽象数」按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
 ## 实现文件

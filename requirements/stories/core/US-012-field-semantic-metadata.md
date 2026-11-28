@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-06
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [core, model, metadata, field-type, frontend, transport, teable]
 ---
 
@@ -47,10 +47,9 @@ INVEST 检查清单:
 
 ## 设计原则、设计决策与字段语义契约
 
-设计原则（核心不变式）、设计决策 **D1～D13**、Teable 字段映射与字段语义契约（format / 注册期校验规则 /
-通信 DTO / 值校验扩展）全文见已随实现归档的 spec（目录已删除，用
-`git show 780c1ab:specs/003-field-semantic-metadata/spec.md` 读取）。
-验收标准里的 `D#` 引用指向该文件的对应小节。
+设计原则（INV-1～INV-6）、设计决策 **D1～D13**、Teable 字段映射与字段语义合同
+见[字段语义元数据合同](US-012-field-semantic-contract.md)。验收标准中的 `D#` 对应其同名小节；
+该合同与故事共同维护，源码与测试入口见下方「实现文件」。
 
 ## 范围边界
 

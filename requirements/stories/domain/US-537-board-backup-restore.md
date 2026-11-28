@@ -5,7 +5,7 @@ status: In Progress
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-29
+updated: 2026-11-16
 tags: [domain, board, backup, restore]
 ---
 
@@ -71,10 +71,11 @@ tags: [domain, board, backup, restore]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **验收注记（2026-10-29）**：AC#1～8、#10 由核心包单测与独立 board demo 的闭环 / 恢复 e2e 覆盖；
-> AC#9 的「配额不足 / 关闭页面后重开」注入分支未全部落地。宿主编排收进核心包 `BoardShellController`（驱动
-> `restoreStateMachine`；顺带修正状态机在「切换中」提前清除恢复中标记、与下表不一致的一处），三端绑定各出外壳组件，
-> 独立 demo 与三端宿主共用；三端宿主的启动页 / 工具菜单恢复与跨页门禁由 US-539 AC#4 / #5 的 `board-restore.spec.ts` 验收。
+**验收证据与保留项**：AC#1～8、#10 由核心包单测与独立 board demo 的闭环 / 恢复 e2e 覆盖；
+AC#9 的「配额不足 / 关闭页面后重开」注入分支尚未全部验收，保持 ⚠️。
+宿主共用核心包 `BoardShellController` 驱动 `restoreStateMachine`，切换完成前保持恢复中标记；
+三端绑定提供外壳组件，供独立 demo 与三端宿主使用。宿主启动页 / 工具菜单恢复与跨页门禁
+由 US-539 AC#4 / #5 的 `board-restore.spec.ts` 验收。
 
 ## 技术笔记
 
@@ -131,8 +132,9 @@ React / Vue 虽能换实例，三端数据 hooks 在库关闭后都不重新订�
 
 ## 价值待证
 
-本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
-解锁（2026-10-19，owner 决定）：备份导出流程对应零个已知看板病灶（引擎能力已由 US-217 交付），
+本故事的开工授权见 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)。
+
+备份导出流程对应零个已知看板病灶（引擎能力已由 US-217 交付），
 「病灶数 ≥ 抽象数」按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
 ## 实现文件

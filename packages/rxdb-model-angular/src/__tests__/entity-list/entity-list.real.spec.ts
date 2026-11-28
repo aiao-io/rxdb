@@ -11,6 +11,7 @@ import {
 } from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
 import { Account, AuditLog, Contract, Invoice, Task, TenantNote, Todo } from '@aiao/rxdb-test/entities';
+import { Dialog } from '@angular/cdk/dialog';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -146,12 +147,20 @@ describe('EntityListComponent（真实组件）', () => {
   }
 
   /** 挂载列表组件并等待首页加载完成。 */
-  async function renderList(inputs: Partial<{ namespace: string; name: string; mode: 'default' | 'select' }> = {}) {
+  async function renderList(
+    inputs: Partial<{
+      namespace: string;
+      name: string;
+      mode: 'default' | 'select';
+      actionsMaxWidth: number | string;
+    }> = {}
+  ) {
     const fixture = TestBed.createComponent(EntityListComponent);
     const component = fixture.componentInstance;
     fixture.componentRef.setInput('namespace', inputs.namespace ?? 'public');
     fixture.componentRef.setInput('name', inputs.name ?? 'Todo');
     if (inputs.mode) fixture.componentRef.setInput('mode', inputs.mode);
+    fixture.componentRef.setInput('actionsMaxWidth', inputs.actionsMaxWidth);
     const confirmed: Array<Array<{ id: string }>> = [];
     const cancelled: unknown[] = [];
     const viewed: EntityTableRecord[] = [];
@@ -168,6 +177,18 @@ describe('EntityListComponent（真实组件）', () => {
     const queryTable = fixture.debugElement.query(By.directive(QueryTableComponent));
     return queryTable.componentInstance.tableInstance as unknown as FakeListTable;
   }
+
+  it('操作列按内容自动计算宽度，并响应最大宽度设置变化', async () => {
+    const { fixture } = await renderList({ actionsMaxWidth: 180 });
+    const column = () => tableOf(fixture).columns.find(column => column['field'] === 'actions');
+    expect(column()).toMatchObject({ width: 'auto', maxWidth: 180 });
+    expect(column()?.['minWidth']).toBeUndefined();
+
+    fixture.componentRef.setInput('actionsMaxWidth', 120);
+    fixture.detectChanges();
+    await FLUSH();
+    expect(column()?.['maxWidth']).toBe(120);
+  });
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 
@@ -1808,5 +1829,109 @@ describe('EntityListComponent（真实组件）', () => {
     expect(viewed).toEqual([record]);
     expect(document.body.querySelector('.cdk-dialog-container')).toBeNull();
     fixture.destroy();
+  });
+
+  describe('dirtyChange：新增 / 编辑表单的未保存输入交给宿主', () => {
+    /** 挂载列表并按顺序记下 dirtyChange 的每次输出。 */
+    async function renderDirtyList() {
+      const rendered = await renderList();
+      const reports: boolean[] = [];
+      rendered.component.dirtyChange.subscribe(dirty => reports.push(dirty));
+      return { ...rendered, reports };
+    }
+    const dialog = (): HTMLElement | null => document.body.querySelector('.cdk-dialog-container');
+    /** 对话框表单里的 title 文本框（Todo 唯一的文本字段；Tab 是 radio，completed 是复选框）。 */
+    const titleInput = (): HTMLInputElement => dialog()!.querySelector<HTMLInputElement>('form input[type="text"]')!;
+    /** 把 title 文本框改成 `value`：表单按 change（失焦或回车）收值。 */
+    const typeTitle = (value: string): void => {
+      titleInput().value = value;
+      titleInput().dispatchEvent(new Event('change'));
+    };
+    const dialogButton = (text: string): HTMLButtonElement =>
+      [...dialog()!.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.trim() === text)!;
+    async function openCreate(component: EntityListComponent): Promise<void> {
+      await component.openCreateDialog();
+      await vi.waitFor(() => expect(dialog()?.querySelector('form input[type="text"]')).toBeTruthy());
+    }
+    async function openEdit(component: EntityListComponent, title: string): Promise<void> {
+      await vi.waitFor(() => expect(component.tableRecords()).toHaveLength(1));
+      await component.onIconClicked({ name: 'view-action', record: component.tableRecords()[0]! });
+      await vi.waitFor(() =>
+        expect(dialog()?.querySelector<HTMLInputElement>('form input[type="text"]')?.value).toBe(title)
+      );
+    }
+
+    it('新增对话框：输入后输出 true，继续输入不重复输出，取消后回到 false', async () => {
+      const { fixture, component, reports } = await renderDirtyList();
+      await openCreate(component);
+      expect(reports).toEqual([]);
+
+      typeTitle('甲');
+      typeTitle('甲乙');
+      expect(reports).toEqual([true]);
+
+      dialogButton('取消').click();
+      await vi.waitFor(() => expect(dialog()).toBeNull());
+      expect(reports).toEqual([true, false]);
+      fixture.destroy();
+    });
+
+    it('新增对话框：改回原值不算未保存；保存成功后回到 false，记录落库', async () => {
+      const { fixture, component, reports } = await renderDirtyList();
+      await openCreate(component);
+
+      typeTitle('甲');
+      typeTitle('');
+      expect(reports).toEqual([true, false]);
+
+      typeTitle('dirty-then-saved');
+      dialogButton('保存').click();
+      await vi.waitFor(() => expect(dialog()).toBeNull());
+      expect(reports).toEqual([true, false, true, false]);
+      await vi.waitFor(() =>
+        expect(component.tableRecords().map(record => record['title'])).toContain('dirty-then-saved')
+      );
+      fixture.destroy();
+    });
+
+    it('编辑对话框：修改后输出 true，点遮罩关闭回到 false，记录不变', async () => {
+      await seedTodo('edit-me');
+      const { fixture, component, reports } = await renderDirtyList();
+      await openEdit(component, 'edit-me');
+
+      typeTitle('edited-but-closed');
+      expect(reports).toEqual([true]);
+
+      document.body.querySelector<HTMLElement>('.cdk-overlay-backdrop')!.click();
+      await vi.waitFor(() => expect(dialog()).toBeNull());
+      expect(reports).toEqual([true, false]);
+      expect(component.tableRecords().map(record => record['title'])).toEqual(['edit-me']);
+      fixture.destroy();
+    });
+
+    it('编辑对话框：保存成功回到 false', async () => {
+      await seedTodo('before-save');
+      const { fixture, component, reports } = await renderDirtyList();
+      await openEdit(component, 'before-save');
+
+      typeTitle('after-save');
+      dialogButton('保存').click();
+      await vi.waitFor(() => expect(dialog()).toBeNull());
+      expect(reports).toEqual([true, false]);
+      await vi.waitFor(() => expect(component.tableRecords().map(record => record['title'])).toEqual(['after-save']));
+      fixture.destroy();
+    });
+
+    it('销毁时仍有未保存输入：补发一次 false，宿主不会停在 true', async () => {
+      const { fixture, component, reports } = await renderDirtyList();
+      await openCreate(component);
+      typeTitle('没保存就离开');
+      expect(reports).toEqual([true]);
+
+      fixture.destroy();
+      expect(reports).toEqual([true, false]);
+      TestBed.inject(Dialog).closeAll();
+      await vi.waitFor(() => expect(dialog()).toBeNull());
+    });
   });
 });

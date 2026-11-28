@@ -39,6 +39,7 @@ export { handleTableKeydown, type KeyboardHandlerContext } from './vtable/table-
 export {
   collectReorderedIds,
   patchDragIconForReadonlyRows,
+  preserveActionsColumnWidthOnResize,
   syncHeaderSortIcon,
   updateTableRecords,
   type HeaderSortClick

@@ -58,6 +58,25 @@ export interface CommitIdempotencyKey {
 }
 
 /**
+ * 把一段带域前缀的文本折成 uuid 形状。
+ *
+ * @remarks
+ * 版本位固定写 `8`（RFC 9562 的 name-based/custom 位），变体位按 RFC 取 `10xx`——
+ * 让它在任何一个校验 uuid 形状的后端上都合法。其余位直接取摘要。
+ */
+const uuidOfDigest = (text: string): string => {
+  const digest = sha256Hex((textEncoder ??= new TextEncoder()).encode(text));
+  const variant = ((parseInt(digest[16], 16) & 0x3) | 0x8).toString(16);
+  return [
+    digest.slice(0, 8),
+    digest.slice(8, 12),
+    `8${digest.slice(13, 16)}`,
+    `${variant}${digest.slice(17, 20)}`,
+    digest.slice(20, 32)
+  ].join('-');
+};
+
+/**
  * 把幂等键折成一个稳定的 uuid，作为 `rxdb_commit."operationId"` 的值。
  *
  * @param key - 见 {@link CommitIdempotencyKey}
@@ -71,19 +90,33 @@ export interface CommitIdempotencyKey {
  * 同步而非异步：它被写路径在拼 CAS 之前调用，那里没有额外 await 的余地
  * （见 `sha256.ts` 的 fileoverview）。
  */
-export const deriveCommitOperationId = (key: CommitIdempotencyKey): string => {
-  const digest = sha256Hex(
-    (textEncoder ??= new TextEncoder()).encode(`${IDEMPOTENCY_DOMAIN} ${key.branchGeneration} ${key.operationId}`)
-  );
-  const variant = ((parseInt(digest[16], 16) & 0x3) | 0x8).toString(16);
-  return [
-    digest.slice(0, 8),
-    digest.slice(8, 12),
-    `8${digest.slice(13, 16)}`,
-    `${variant}${digest.slice(17, 20)}`,
-    digest.slice(20, 32)
-  ].join('-');
-};
+export const deriveCommitOperationId = (key: CommitIdempotencyKey): string =>
+  uuidOfDigest(`${IDEMPOTENCY_DOMAIN} ${key.branchGeneration} ${key.operationId}`);
+
+/**
+ * 导入提交的幂等键域；与本地提交的域分开，理由见 {@link deriveImportedCommitOperationId}。
+ *
+ * @remarks
+ * 带 `v1` 的理由与 {@link IDEMPOTENCY_DOMAIN} 相同：它一旦落库就冻结了，换算法必须换串。
+ */
+const IMPORT_IDEMPOTENCY_DOMAIN = 'rxdb.commit.import.v1';
+
+/**
+ * 给一个导入的提交派生它在本库里的 `operationId`（US-319）。
+ *
+ * @param commitId - 远端提交 id，导入后原样作为本地 id
+ * @returns 36 字符小写 uuid 形状字符串；同一个提交 id 恒得同一个值
+ *
+ * @remarks
+ * `rxdb_commit."operationId"` 是唯一的 uuid 列，导入的提交也要有一个，而它在本库里没有「调用方的一次操作」可言：
+ * 远端提交的身份就是它的 id。于是键只由 id 合成——同一个提交在本库里至多一个节点，这一点由 id 主键守着，
+ * 这个键只是让唯一列有一个确定的值。
+ *
+ * 域与本地提交的 {@link deriveCommitOperationId} 分开：本地那一份的输入是「代际 + 调用方 id」，两份共用一个域时，
+ * 一个恰好拼成 `"<代际> <id>"` 形状的远端提交 id 会撞上某次本地提交的键，唯一约束让导入在一条无关的冲突上失败。
+ */
+export const deriveImportedCommitOperationId = (commitId: string): string =>
+  uuidOfDigest(`${IMPORT_IDEMPOTENCY_DOMAIN} ${commitId}`);
 
 /**
  * 按派生出的 `operationId` 读回已存在的 commit。

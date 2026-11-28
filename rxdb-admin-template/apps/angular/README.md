@@ -1,0 +1,48 @@
+# RxDB Admin Angular 应用模板
+
+`rxdb-admin-template-angular` 是模型驱动本地数据工作台的 Angular 版本，与 React 模板使用同一套功能和浏览器验收场景：资产、分类、维护记录，模型驱动录入 / 编辑 / 筛选，全文搜索，备份恢复，以及后台外壳的主题、页签、命令面板、锁屏与中英文。
+
+`/dashboard` 展示真实资产统计、最近 5 个操作单元和快捷入口。最近活动按事务合并，读取当前分支的资产日志，刷新后保留；操作、实体名称和日期随中英文切换。首页继续保留连接前恢复备份的入口。统计入口见 [dashboard-model.ts](src/app/pages/dashboard-model.ts)，活动查询见 [dashboard-activity-source.ts](src/app/pages/dashboard-activity-source.ts)；替换资产样例时须同步调整这两处。
+
+产品根目录见 [rxdb-admin-template](../../README.md)。三端优化进度与剩余任务见 [实施清单](../../requirements/plans/nexus-template-optimization-tasks.md)，已执行结果见 [Dashboard 验收记录](../../requirements/plans/nexus-dashboard-verification.md)。
+
+在仓库根目录执行，环境要求沿用根 `package.json`：
+
+```bash
+pnpm install
+pnpm nx serve rxdb-admin-template-angular
+pnpm nx run rxdb-admin-template:requirements-check
+pnpm nx run rxdb-admin-template:requirements-test
+pnpm nx run rxdb-admin-template-angular:lint
+pnpm nx run rxdb-admin-template-angular:typecheck
+pnpm nx run rxdb-admin-template-angular:test
+pnpm nx run rxdb-admin-template-angular:build
+pnpm nx run rxdb-admin-template-angular-e2e:e2e --workers=2
+```
+
+开发地址为 `http://127.0.0.1:4207`。默认数据库的基础名为 `admin-workbench-ng`，实际库名按登录账号的身份派生（每个账号一个本机库，ADMIN-US-222），偏好前缀为 `aiao.workbench.angular`，三端数据互不覆盖。恢复备份必须先进入首页的「从备份恢复」，不能先打开实体列表或搜索页初始化目标库；清理失败后可继续重试。别的账号导出的备份会被拒绝，恢复不进当前账号的库。
+
+Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面板与搜索分页偏好扩展步骤见 [三端页面扩展指南](../../requirements/plans/custom-pages-navigation.md)。
+
+| 定制内容                                           | 入口                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| 品牌、中英文标题、数据库名、偏好前缀、可见命名空间 | [app.config.json](app.config.json)                          |
+| 样例实体与注册列表                                 | [asset-entities.ts](src/app/entities/asset-entities.ts)     |
+| 可见实体与实体查找                                 | [entity-registry.ts](src/app/entities/entity-registry.ts)   |
+| 懒加载页面与路由                                   | [app.routes.ts](src/app/app.routes.ts)                      |
+| 导航与图标                                         | [workbench-menu.ts](src/app/shell/workbench-menu.ts)        |
+| 外壳偏好、主题与旧键迁移                           | [workbench-shell.ts](src/app/shell/workbench-shell.ts)      |
+| 中英文目录与模型字段文案                           | [i18n](src/app/i18n/)                                       |
+| 本地数据库、历史与搜索插件                         | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts)                 |
+| 本机匿名身份 `ANONYMOUS_LOCAL_USER_ID`             | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts)                 |
+| 备份恢复互斥、错误与清理状态                       | [backup-controller.ts](src/app/backup/backup-controller.ts) |
+
+`ANONYMOUS_LOCAL_USER_ID` 是本机工作台审计字段的取值，保持 `'userId'`；库已按账号分开，归属由库本身的身份表达（ADMIN-US-222）；团队协作的云端身份来自 `/collaboration` 的真实会话，接入真实身份时不得复用。修改已有应用的数据库名和偏好前缀需要数据迁移方案。替换样例实体时同步检查关系、可搜索字段及中英文目录；主题清单与 `src/styles.css` 保持一致。
+
+数据库沿用 sqlite-wasm 主线程 + IndexedDB，满足浏览器备份恢复和 FTS5 搜索。外壳在连接数据库之前初始化，导航计数只在数据库连接后挂载，保留空库恢复入口。
+
+三端共用 [浏览器验收](../react-e2e/src/)，每端的 Nx e2e 目标负责构建并启动自己的生产产物。产品级需求与边界参见 [模板需求](../../requirements/README.md)；当前仍在本仓库内孵化，不提供独立仓库导出流程。
+
+Angular 使用独立组件、signals、懒加载路由与 `@angular/build:application`。`prepare-html` 从应用配置生成 `.generated/index.html` 和首屏主题恢复脚本，`serve` / `build` 自动执行；请修改根 `index.html` 模板。
+
+开发服务器会把 `node_modules` 依赖交给 Vite 预打包，并从仓库根目录解析；产品私有包只链接在本应用的 `node_modules` 中，因此 `serve` 的 `prebundle.exclude` 列出了 `@rxdb-admin-template/collaboration`，让它随应用代码直接打包。新增产品私有包时同步加入该列表，否则开发服务器会报 `Failed to resolve import`；生产构建不受影响。

@@ -19,6 +19,7 @@
 - [HTTP 适配器翻页键改名](/migration/http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](/migration/desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
 - [工作树拆包](/migration/working-tree-split.md)：工作树与提交历史从核心拆成 `@aiao/rxdb-plugin-working-tree`，能力守卫取代版本号锁
+- [放弃与恢复回写业务表](/migration/working-tree-discard-restore.md)：`discard()` 之后业务表逐行回到 HEAD、`restore()` 之后业务表就是所选提交的数据，签名不变、语义变了；升级前先在旧版本上处理进行中的恢复会话
 - [树结构拆包](/migration/tree-split.md)：树实体、`TreeRepository` 与增量 merge 从核心拆成 `@aiao/rxdb-plugin-tree`，四个树 hook 搬进 `@aiao/rxdb-plugin-tree-{angular,react,vue}`
 - [插件升级与启用](/migration/plugins.md)：启用/升级插件（如全文搜索）
 - [插件作用域契约迁移](/migration/plugin-scope.md)：`install(scope)` 新契约、`destroy()` 废弃与随之而来的行为变化

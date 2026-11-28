@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-04
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [adapter, miniprogram, taro, build, vite, wechat, douyin, alipay, experimental]
 ---
 
@@ -118,7 +118,7 @@ demo 的 [`noBabelVitePlugin()`](../../../apps/dev-rxdb-miniprogram/config/no-ba
 
 ### Out of Scope
 
-- webpack5 编译器：不支持（2026-10-07 决定，原阶段 C 删除）。AC#7 的构建期报错是长期行为，不是过渡状态
+- webpack5 编译器：不支持（owner 确定的范围）。AC#7 的构建期报错是长期行为，不是过渡状态
 - 支付宝进 Taro 插件白名单：还差懒加载分包（`lazyChunkVitePlugin()`）、标签 `var` 提升（`labeledVarHoistVitePlugin()`），以及插件管不到的 `app.config.ts` 的 `workers` 与 `project.alipay.json`
   的 `compileOptions.transpile`。另立故事
 - 百度 / QQ / 京东：未登记，插件不为它们开任何构建路径
@@ -151,7 +151,7 @@ AC#1～3、AC#5 在 demo 产物上由 `dev-rxdb-miniprogram:verify-dist` 断言�
 | 7   | `compiler: 'webpack5'`（或缺省即 webpack5）                                                    | 构建                                                                                     | 构建期报错，说明只支持 vite 编译器                                                                                                                                                  | ✅   |
 | 8   | `plugins` 里本插件排在一个带异步 `modifyViteConfig` 的插件之后                                 | 构建 weapp                                                                               | #1～#3 结果不变（证明走的是被 await 的 `modifyRunnerOpts`）。单测钉住「只注册 `modifyRunnerOpts`」，真实构建做一次并记进技术笔记                                                    | ✅   |
 | 9   | demo 改用插件                                                                                  | `pnpm nx run dev-rxdb-miniprogram:build`（带起 `verify-dist`）                           | 三个平台构建与产物断言绿；`config/` 里被搬走的插件已删除；微信、抖音、支付宝开发者工具走查结果与改前一致（CRUD、重连、启动持久化自检全部 passed）                                   | ⚠️   |
-| 10  | `local-registry` 起 verdaccio 并发布本仓库包；`taro init` 新建 React 与 Vue 两个 vite 模板项目 | 只经 npm 安装 `@aiao/rxdb`、adapter、`@aiao/rxdb-taro`，按 README 接入，构建 weapp 与 tt | 两个项目在微信与抖音开发者工具里建库、读写、重开通过。若因类私有成员失败，插件补上对 `@aiao/*` 产物的转换并在技术笔记写明原因；若不需要，在技术笔记写明「npm 路径不需要」及复验方式 | ⬜   |
+| 10  | `local-registry` 起 verdaccio 并发布本仓库包；`taro init` 新建 React 与 Vue 两个 vite 模板项目 | 只经 npm 安装 `@aiao/rxdb`、adapter、`@aiao/rxdb-taro`，按 README 接入，构建 weapp 与 tt | 两个项目在微信与抖音开发者工具里建库、读写、重开通过。若因类私有成员失败，插件补上对 `@aiao/*` 产物的转换并在技术笔记写明原因；若不需要，在技术笔记写明「npm 路径不需要」及复验方式 | ⚠️   |
 | 11  | —                                                                                              | `pnpm nx run-many -t lint test build --projects=rxdb-taro`                               | 零警告；单测用伪 `ctx` 覆盖 #4、#6、#7、#8 与钩子注册，覆盖率 ≥ 80%；公开导出全部有 TSDoc                                                                                           | ✅   |
 | 12  | `./vite` 子路径                                                                                | 单测 `miniProgramVitePlugins` 三个平台                                                   | weapp：glue + 构建目标 + 资产；tt / alipay：再加 realm；alipay 资产（另发 base64 副本与 Worker）；本包常量与 adapter 对拍一致                                                       | ✅   |
 | 13  | 发布产物                                                                                       | `node -e "require('@aiao/rxdb-taro')"` 于 Node 20.19+；读 README                         | 拿到的命名空间 `__esModule` 为真、`default` 是函数；adapter README「抖音」「打包器注意事项」不再指向 `apps/`，「支付宝」的 realm 与资产指向 `./vite`                                | ✅   |
@@ -184,7 +184,7 @@ AC#1～3、AC#5 在 demo 产物上由 `dev-rxdb-miniprogram:verify-dist` 断言�
 | `subframeSqliteWasmVitePlugin()`                       | 搬进 `./vite`，逻辑不改                                                          |
 | `realmVitePlugin()`                                    | 搬进 `./vite`，逻辑不改；Taro 插件只在 `tt` 挂，demo 的 alipay 经 `./vite` 挂    |
 | `miniProgramAssetsVitePlugin()`                        | 搬进 `./vite`，逻辑不改；app 根由 Taro 插件取 `ctx.paths.appPath`                |
-| `rxdbBuildTargetVitePlugin()`                          | 搬进 `./vite`，只在 Taro 写死的 `es6` 时生效（AC#4，2026-10-07 改判）            |
+| `buildTargetVitePlugin()`                              | 搬进 `./vite`，只在 Taro 写死的 `es6` 时生效（AC#4）                             |
 | `noBabelVitePlugin()`                                  | 暂留 demo；npm 路径保留 Taro babel 能否构建、运行待 AC#10 验证，不作为已成立前提 |
 | `lazyChunkVitePlugin()`、`labeledVarHoistVitePlugin()` | 不搬，留在 demo：支付宝进 Taro 插件白名单时另议（Out of Scope）                  |
 
@@ -221,30 +221,27 @@ AC#1～3、AC#5 在 demo 产物上由 `dev-rxdb-miniprogram:verify-dist` 断言�
 - **项目**：Taro 4.3.0 CLI 内置默认模板（React、Vue3 各一个；vite + TS + Sass；微信、抖音），等价于 `taro init` 选「CLI 内置默认模板」。
   交互式选择在 expect 下不稳，改为直接调 CLI 的 `Project.write()` 传同样的参数。pnpm 安装，只装 `@aiao/rxdb`、adapter、`@aiao/rxdb-taro`。
   接入只有三处：`plugins` 加 `'@aiao/rxdb-taro'`；tt 产物单独目录；页面里经 `@aiao/rxdb-taro/runtime` 取宿主后建库、写一条、读回。
-- **发现一：es6 构建失败** → 构建目标插件（见症状 2）。修复后两个项目只加一行插件即可构建 weapp / tt。
-- **发现二（与本包无关）**：React 模板在 pnpm 下找不到 `@babel/plugin-proposal-decorators`。纯模板、不装任何 rxdb 包时同样失败，
+- **构建目标**：`buildTargetVitePlugin()` 将 Taro 默认的 `es6` 调整为微信 / 抖音实测的 `es2020`（AC#4）；两个项目只加一行插件即可构建 weapp / tt。
+- **模板依赖限制（与本包无关）**：React 模板在 pnpm 下找不到 `@babel/plugin-proposal-decorators`。纯模板、不装任何 rxdb 包时同样失败，
   是 Taro 模板 + pnpm 严格隔离的问题；补装 `@babel/plugin-proposal-decorators@^7` 即可（装成 8.x 会报 `version` 选项缺失）。
 - **不需要私有成员转换**：带着 Taro 的 babel、es2020 目标构建，产物在微信开发者工具里正常运行，插件不另做转换。
 - **产物断言**：`VERIFY_DIST_APP_ROOT` 指向两个项目跑 `verify-dist` 同一套 11 条断言，全绿。
 - **微信开发者工具**：`miniprogram-automator` 启动 → 读页面写进 storage 的检查结果 → 关闭 → 再启动。React、Vue 两个项目都是
   建库成功、写入后读回 +1、重开后读到上次的记录数（adapter 回到 `@subframe7536/sqlite-wasm` 1.3.1 后重测，SQLite 3.53.2）。
 - **抖音开发者工具**：待手工走查（`dist-tt/`，测试 AppID）。
-- **demo 微信走查（AC#9 / AC#17 的微信半边，2026-10-07）**：`pnpm nx e2e-devtools dev-rxdb-miniprogram-e2e` 在阶段 A+B 代码上 16 条通过
+- **demo 微信走查（AC#9 / AC#17 的微信半边）**：`pnpm nx e2e-devtools dev-rxdb-miniprogram-e2e` 覆盖微信路径
   （运行时引导、CRUD、断开重连、跨启动持久化、安全随机池）；抖音、支付宝待手工走查。
 
-### iOS 微信真机初始化失败（随本 PR 修复，不属本故事范围）
+### iOS 微信的 WASM 版本约束
 
-走查时 iOS 微信真机报 `WXWebAssembly 无法实例化 wa-sqlite/wa-sqlite.wasm: undefined is not an object (evaluating 'e.$e.value')`。
-根因在 #88 的依赖升级：adapter 的 `@subframe7536/sqlite-wasm` 从 1.3.1 升到 1.4.0，新 glue 把 `_sqlite3_version` 改成读 wasm
-导出的 Global（`wasmExports["$e"].value`），而 iOS 的 `WXWebAssembly` 不导出 Global；开发者工具模拟器是标准 WebAssembly，测不出来。
-`_sqlite3_version` 在仓库里无人使用。修复：小程序 adapter、demo、`wa-sqlite-integrity` 审计与支付宝 wasm 指纹回到 1.3.1
-（US-211 真机证据跑的就是这个版本），浏览器用的 `rxdb-adapter-sqlite-wasm` 不动；adapter 新增
-`subframe-glue-exported-globals.spec.ts` 门禁，glue 里出现读导出 Global 的代码就红（在 1.4.0 上实测为红）。
-iOS 真机复验待做。
+小程序使用 `@subframe7536/sqlite-wasm` 1.3.1：iOS `WXWebAssembly` 不导出 Global，
+1.4.0 glue 的 `wasmExports["$e"].value` 读取不受支持。adapter、demo、`wa-sqlite-integrity` 审计与支付宝
+wasm 指纹必须一致；`subframe-glue-exported-globals.spec.ts` 拒绝 glue 读取导出 Global。
+开发者工具模拟器使用标准 WebAssembly，不能替代 iOS 真机复验；该真机复验仍待完成。
 
 ### 阶段 B 的判据为什么按标识符
 
-2026-10-07 实测：改造前的 weapp 产物 `dist/common.js` 就带抖音、支付宝宿主工厂的字符串（`"TTWebAssembly"`、
+weapp 产物 `dist/common.js` 就带抖音、支付宝宿主工厂的字符串（`"TTWebAssembly"`、
 `"tt.getFileSystemManager"`、`"my.getFileSystemManager"`），而 demo 自己的平台分支已被摇掉（`没有全局 tt` 文案不在产物里）。
 这些字符串来自 adapter 入口，与运行时入口无关；它们只占体积，不会在另一平台上触发 ReferenceError。真机风险来自对另一平台全局的
 **自由引用**，所以 AC#14/15 只判这个。裸 `tt.` / `wx.` 不作判据：压缩器会把局部变量命名成 `tt`、`wx`（产物里有 `function tt(e)`、`IR(wx,…)`），

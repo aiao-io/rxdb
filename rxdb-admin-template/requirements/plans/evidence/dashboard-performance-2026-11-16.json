@@ -1,0 +1,1334 @@
+{
+  "baselineCommit": "b52320402",
+  "baselineLogic": [
+    {
+      "framework": "react",
+      "size": 1000,
+      "readyMs": 52.09999996423721,
+      "heapDelta": 6150648,
+      "queries": [
+        {
+          "ms": 17.5,
+          "rows": 1
+        },
+        {
+          "ms": 9.100000023841858,
+          "rows": 1000
+        }
+      ],
+      "activities": [
+        {
+          "id": 1000,
+          "count": 1
+        },
+        {
+          "id": 999,
+          "count": 1
+        },
+        {
+          "id": 998,
+          "count": 1
+        },
+        {
+          "id": 997,
+          "count": 6
+        },
+        {
+          "id": 991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "size": 10000,
+      "readyMs": 374.30000001192093,
+      "heapDelta": 48704270,
+      "queries": [
+        {
+          "ms": 137.30000001192093,
+          "rows": 1
+        },
+        {
+          "ms": 63.59999996423721,
+          "rows": 10000
+        }
+      ],
+      "activities": [
+        {
+          "id": 10000,
+          "count": 1
+        },
+        {
+          "id": 9999,
+          "count": 1
+        },
+        {
+          "id": 9998,
+          "count": 1
+        },
+        {
+          "id": 9997,
+          "count": 6
+        },
+        {
+          "id": 9991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "size": 100000,
+      "readyMs": 3695.399999976158,
+      "heapDelta": 314182824,
+      "queries": [
+        {
+          "ms": 1335.5,
+          "rows": 1
+        },
+        {
+          "ms": 629.3000000119209,
+          "rows": 100000
+        }
+      ],
+      "activities": [
+        {
+          "id": 100000,
+          "count": 1
+        },
+        {
+          "id": 99999,
+          "count": 1
+        },
+        {
+          "id": 99998,
+          "count": 1
+        },
+        {
+          "id": 99997,
+          "count": 6
+        },
+        {
+          "id": 99991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 1000,
+      "readyMs": 48,
+      "heapDelta": 4419721,
+      "queries": [
+        {
+          "ms": 16.600000023841858,
+          "rows": 1
+        },
+        {
+          "ms": 8.199999988079071,
+          "rows": 1000
+        }
+      ],
+      "activities": [
+        {
+          "id": 1000,
+          "count": 1
+        },
+        {
+          "id": 999,
+          "count": 1
+        },
+        {
+          "id": 998,
+          "count": 1
+        },
+        {
+          "id": 997,
+          "count": 6
+        },
+        {
+          "id": 991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 10000,
+      "readyMs": 365,
+      "heapDelta": 50303550,
+      "queries": [
+        {
+          "ms": 130.80000001192093,
+          "rows": 1
+        },
+        {
+          "ms": 62.700000047683716,
+          "rows": 10000
+        }
+      ],
+      "activities": [
+        {
+          "id": 10000,
+          "count": 1
+        },
+        {
+          "id": 9999,
+          "count": 1
+        },
+        {
+          "id": 9998,
+          "count": 1
+        },
+        {
+          "id": 9997,
+          "count": 6
+        },
+        {
+          "id": 9991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 100000,
+      "readyMs": 3768.199999988079,
+      "heapDelta": 278368135,
+      "queries": [
+        {
+          "ms": 1346.5,
+          "rows": 1
+        },
+        {
+          "ms": 626.3000000119209,
+          "rows": 100000
+        }
+      ],
+      "activities": [
+        {
+          "id": 100000,
+          "count": 1
+        },
+        {
+          "id": 99999,
+          "count": 1
+        },
+        {
+          "id": 99998,
+          "count": 1
+        },
+        {
+          "id": 99997,
+          "count": 6
+        },
+        {
+          "id": 99991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 1000,
+      "readyMs": 49.19999998807907,
+      "heapDelta": 7035589,
+      "queries": [
+        {
+          "ms": 13.899999976158142,
+          "rows": 1
+        },
+        {
+          "ms": 9.800000011920929,
+          "rows": 1000
+        }
+      ],
+      "activities": [
+        {
+          "id": 1000,
+          "count": 1
+        },
+        {
+          "id": 999,
+          "count": 1
+        },
+        {
+          "id": 998,
+          "count": 1
+        },
+        {
+          "id": 997,
+          "count": 6
+        },
+        {
+          "id": 991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 10000,
+      "readyMs": 358.80000001192093,
+      "heapDelta": 50431526,
+      "queries": [
+        {
+          "ms": 128.19999998807907,
+          "rows": 1
+        },
+        {
+          "ms": 59.80000001192093,
+          "rows": 10000
+        }
+      ],
+      "activities": [
+        {
+          "id": 10000,
+          "count": 1
+        },
+        {
+          "id": 9999,
+          "count": 1
+        },
+        {
+          "id": 9998,
+          "count": 1
+        },
+        {
+          "id": 9997,
+          "count": 6
+        },
+        {
+          "id": 9991,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 100000,
+      "readyMs": 3668.899999976158,
+      "heapDelta": 293357627,
+      "queries": [
+        {
+          "ms": 1346.199999988079,
+          "rows": 1
+        },
+        {
+          "ms": 603.1999999880791,
+          "rows": 100000
+        }
+      ],
+      "activities": [
+        {
+          "id": 100000,
+          "count": 1
+        },
+        {
+          "id": 99999,
+          "count": 1
+        },
+        {
+          "id": 99998,
+          "count": 1
+        },
+        {
+          "id": 99997,
+          "count": 6
+        },
+        {
+          "id": 99991,
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "baselineUi": [
+    {
+      "framework": "react",
+      "size": 1000,
+      "readyMs": 198.60020800000007,
+      "heapDelta": 3710828,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:01.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "size": 10000,
+      "readyMs": 536.468875,
+      "heapDelta": 36148952,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:10.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "size": 100000,
+      "readyMs": 3876.619667,
+      "heapDelta": 338307376,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:40.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 1000,
+      "readyMs": 184.91645900000003,
+      "heapDelta": 3551360,
+      "activities": [
+        {
+          "text": " 批量变更 1 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:01.000Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.999Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.998Z"
+        },
+        {
+          "text": " 批量变更 6 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.997Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 10000,
+      "readyMs": 473.3894170000003,
+      "heapDelta": 29971300,
+      "activities": [
+        {
+          "text": " 批量变更 1 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:10.000Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.999Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.998Z"
+        },
+        {
+          "text": " 批量变更 6 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.997Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 100000,
+      "readyMs": 3824.052249999999,
+      "heapDelta": 338823216,
+      "activities": [
+        {
+          "text": " 批量变更 1 条记录 批量变更资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:40.000Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.999Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.998Z"
+        },
+        {
+          "text": " 批量变更 6 条记录 批量变更资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.997Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 1000,
+      "readyMs": 139.05691599999773,
+      "heapDelta": 3510124,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:01.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 10000,
+      "readyMs": 438.6370420000021,
+      "heapDelta": 29956216,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:10.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 100000,
+      "readyMs": 3680.776875000003,
+      "heapDelta": 354821888,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:40.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.991Z"
+        }
+      ]
+    }
+  ],
+  "date": "2026-11-16",
+  "legacyArchiveUpgrade": [
+    {
+      "framework": "react",
+      "size": 100000,
+      "connectionMs": 1639.5,
+      "readyMs": 240.5,
+      "activities": [
+        {
+          "changeId": 100000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:100000"
+        },
+        {
+          "changeId": 99999,
+          "count": 1,
+          "fingerprint": "INSERT:99999"
+        },
+        {
+          "changeId": 99998,
+          "count": 1,
+          "fingerprint": "INSERT:99998"
+        },
+        {
+          "changeId": 99997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:99997:99996:99995:99994:99993:99992"
+        },
+        {
+          "changeId": 99991,
+          "count": 1,
+          "fingerprint": "INSERT:99991"
+        }
+      ],
+      "nativeMs": 238.4000000357628,
+      "returnedRows": 5,
+      "processingMs": 0.10000002384185791,
+      "heapDelta": 214632,
+      "backingStorageDelta": 6057
+    },
+    {
+      "framework": "angular",
+      "size": 100000,
+      "connectionMs": 1638.9000000357628,
+      "readyMs": 240.39999997615814,
+      "activities": [
+        {
+          "changeId": 100000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:100000"
+        },
+        {
+          "changeId": 99999,
+          "count": 1,
+          "fingerprint": "INSERT:99999"
+        },
+        {
+          "changeId": 99998,
+          "count": 1,
+          "fingerprint": "INSERT:99998"
+        },
+        {
+          "changeId": 99997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:99997:99996:99995:99994:99993:99992"
+        },
+        {
+          "changeId": 99991,
+          "count": 1,
+          "fingerprint": "INSERT:99991"
+        }
+      ],
+      "nativeMs": 236.10000002384186,
+      "returnedRows": 5,
+      "processingMs": 0,
+      "heapDelta": 332592,
+      "backingStorageDelta": 14669
+    },
+    {
+      "framework": "vue",
+      "size": 100000,
+      "connectionMs": 1660.0999999642372,
+      "readyMs": 284.9000000357628,
+      "activities": [
+        {
+          "changeId": 100000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:100000"
+        },
+        {
+          "changeId": 99999,
+          "count": 1,
+          "fingerprint": "INSERT:99999"
+        },
+        {
+          "changeId": 99998,
+          "count": 1,
+          "fingerprint": "INSERT:99998"
+        },
+        {
+          "changeId": 99997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:99997:99996:99995:99994:99993:99992"
+        },
+        {
+          "changeId": 99991,
+          "count": 1,
+          "fingerprint": "INSERT:99991"
+        }
+      ],
+      "nativeMs": 281,
+      "returnedRows": 5,
+      "processingMs": 0.10000002384185791,
+      "heapDelta": 332972,
+      "backingStorageDelta": 14509
+    }
+  ],
+  "optimizedLogic": [
+    {
+      "framework": "react",
+      "size": 1000,
+      "connectionMs": 47.59999996423721,
+      "readyMs": 11.300000011920929,
+      "activities": [
+        {
+          "changeId": 1000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:1000"
+        },
+        {
+          "changeId": 999,
+          "count": 1,
+          "fingerprint": "INSERT:999"
+        },
+        {
+          "changeId": 998,
+          "count": 1,
+          "fingerprint": "INSERT:998"
+        },
+        {
+          "changeId": 997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:997:996:995:994:993:992"
+        },
+        {
+          "changeId": 991,
+          "count": 1,
+          "fingerprint": "INSERT:991"
+        }
+      ],
+      "nativeMs": 9.600000023841858,
+      "returnedRows": 5,
+      "processingMs": 0,
+      "baselineAggregationMs": 0.6000000238418579,
+      "heapDelta": 312848,
+      "backingStorageDelta": 92290
+    },
+    {
+      "framework": "react",
+      "size": 10000,
+      "connectionMs": 47,
+      "readyMs": 56.69999998807907,
+      "activities": [
+        {
+          "changeId": 10000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:10000"
+        },
+        {
+          "changeId": 9999,
+          "count": 1,
+          "fingerprint": "INSERT:9999"
+        },
+        {
+          "changeId": 9998,
+          "count": 1,
+          "fingerprint": "INSERT:9998"
+        },
+        {
+          "changeId": 9997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:9997:9996:9995:9994:9993:9992"
+        },
+        {
+          "changeId": 9991,
+          "count": 1,
+          "fingerprint": "INSERT:9991"
+        }
+      ],
+      "nativeMs": 53.89999997615814,
+      "returnedRows": 5,
+      "processingMs": 0,
+      "baselineAggregationMs": 2.699999988079071,
+      "heapDelta": 938060,
+      "backingStorageDelta": 727239
+    },
+    {
+      "framework": "react",
+      "size": 100000,
+      "connectionMs": 39.30000001192093,
+      "readyMs": 473.7999999523163,
+      "activities": [
+        {
+          "changeId": 100000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:100000"
+        },
+        {
+          "changeId": 99999,
+          "count": 1,
+          "fingerprint": "INSERT:99999"
+        },
+        {
+          "changeId": 99998,
+          "count": 1,
+          "fingerprint": "INSERT:99998"
+        },
+        {
+          "changeId": 99997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:99997:99996:99995:99994:99993:99992"
+        },
+        {
+          "changeId": 99991,
+          "count": 1,
+          "fingerprint": "INSERT:99991"
+        }
+      ],
+      "nativeMs": 471.5,
+      "returnedRows": 5,
+      "processingMs": 0.09999996423721313,
+      "baselineAggregationMs": 14.799999952316284,
+      "heapDelta": 986432,
+      "backingStorageDelta": 2932558
+    },
+    {
+      "framework": "angular",
+      "size": 1000,
+      "connectionMs": 55.80000001192093,
+      "readyMs": 14.399999976158142,
+      "activities": [
+        {
+          "changeId": 1000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:1000"
+        },
+        {
+          "changeId": 999,
+          "count": 1,
+          "fingerprint": "INSERT:999"
+        },
+        {
+          "changeId": 998,
+          "count": 1,
+          "fingerprint": "INSERT:998"
+        },
+        {
+          "changeId": 997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:997:996:995:994:993:992"
+        },
+        {
+          "changeId": 991,
+          "count": 1,
+          "fingerprint": "INSERT:991"
+        }
+      ],
+      "nativeMs": 10.400000035762787,
+      "returnedRows": 5,
+      "processingMs": 0,
+      "baselineAggregationMs": 0.5,
+      "heapDelta": 476148,
+      "backingStorageDelta": 96598
+    },
+    {
+      "framework": "angular",
+      "size": 10000,
+      "connectionMs": 54.200000047683716,
+      "readyMs": 60.5,
+      "activities": [
+        {
+          "changeId": 10000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:10000"
+        },
+        {
+          "changeId": 9999,
+          "count": 1,
+          "fingerprint": "INSERT:9999"
+        },
+        {
+          "changeId": 9998,
+          "count": 1,
+          "fingerprint": "INSERT:9998"
+        },
+        {
+          "changeId": 9997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:9997:9996:9995:9994:9993:9992"
+        },
+        {
+          "changeId": 9991,
+          "count": 1,
+          "fingerprint": "INSERT:9991"
+        }
+      ],
+      "nativeMs": 58.80000001192093,
+      "returnedRows": 5,
+      "processingMs": 0.10000002384185791,
+      "baselineAggregationMs": 2.799999952316284,
+      "heapDelta": 866852,
+      "backingStorageDelta": 727180
+    },
+    {
+      "framework": "angular",
+      "size": 100000,
+      "connectionMs": 51.19999998807907,
+      "readyMs": 489,
+      "activities": [
+        {
+          "changeId": 100000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:100000"
+        },
+        {
+          "changeId": 99999,
+          "count": 1,
+          "fingerprint": "INSERT:99999"
+        },
+        {
+          "changeId": 99998,
+          "count": 1,
+          "fingerprint": "INSERT:99998"
+        },
+        {
+          "changeId": 99997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:99997:99996:99995:99994:99993:99992"
+        },
+        {
+          "changeId": 99991,
+          "count": 1,
+          "fingerprint": "INSERT:99991"
+        }
+      ],
+      "nativeMs": 486,
+      "returnedRows": 5,
+      "processingMs": 0.10000002384185791,
+      "baselineAggregationMs": 18.600000023841858,
+      "heapDelta": 1139196,
+      "backingStorageDelta": 3002499
+    },
+    {
+      "framework": "vue",
+      "size": 1000,
+      "connectionMs": 43.89999997615814,
+      "readyMs": 13.100000023841858,
+      "activities": [
+        {
+          "changeId": 1000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:1000"
+        },
+        {
+          "changeId": 999,
+          "count": 1,
+          "fingerprint": "INSERT:999"
+        },
+        {
+          "changeId": 998,
+          "count": 1,
+          "fingerprint": "INSERT:998"
+        },
+        {
+          "changeId": 997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:997:996:995:994:993:992"
+        },
+        {
+          "changeId": 991,
+          "count": 1,
+          "fingerprint": "INSERT:991"
+        }
+      ],
+      "nativeMs": 9.700000047683716,
+      "returnedRows": 5,
+      "processingMs": 0,
+      "baselineAggregationMs": 0.699999988079071,
+      "heapDelta": 414164,
+      "backingStorageDelta": 96569
+    },
+    {
+      "framework": "vue",
+      "size": 10000,
+      "connectionMs": 42.30000001192093,
+      "readyMs": 59.30000001192093,
+      "activities": [
+        {
+          "changeId": 10000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:10000"
+        },
+        {
+          "changeId": 9999,
+          "count": 1,
+          "fingerprint": "INSERT:9999"
+        },
+        {
+          "changeId": 9998,
+          "count": 1,
+          "fingerprint": "INSERT:9998"
+        },
+        {
+          "changeId": 9997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:9997:9996:9995:9994:9993:9992"
+        },
+        {
+          "changeId": 9991,
+          "count": 1,
+          "fingerprint": "INSERT:9991"
+        }
+      ],
+      "nativeMs": 55.799999952316284,
+      "returnedRows": 5,
+      "processingMs": 0,
+      "baselineAggregationMs": 2.199999988079071,
+      "heapDelta": 277200,
+      "backingStorageDelta": 731455
+    },
+    {
+      "framework": "vue",
+      "size": 100000,
+      "connectionMs": 37.5,
+      "readyMs": 471.80000001192093,
+      "activities": [
+        {
+          "changeId": 100000,
+          "count": 1,
+          "fingerprint": "TRANSACTION:100000"
+        },
+        {
+          "changeId": 99999,
+          "count": 1,
+          "fingerprint": "INSERT:99999"
+        },
+        {
+          "changeId": 99998,
+          "count": 1,
+          "fingerprint": "INSERT:99998"
+        },
+        {
+          "changeId": 99997,
+          "count": 6,
+          "fingerprint": "TRANSACTION:99997:99996:99995:99994:99993:99992"
+        },
+        {
+          "changeId": 99991,
+          "count": 1,
+          "fingerprint": "INSERT:99991"
+        }
+      ],
+      "nativeMs": 468.30000001192093,
+      "returnedRows": 5,
+      "processingMs": 0.09999996423721313,
+      "baselineAggregationMs": 21.900000035762787,
+      "heapDelta": 1090564,
+      "backingStorageDelta": 2936963
+    }
+  ],
+  "optimizedUi": [
+    {
+      "framework": "react",
+      "size": 1000,
+      "readyMs": 187.77220799999998,
+      "heapDelta": 2056172,
+      "backingStorageDelta": 101960,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:01.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "size": 10000,
+      "readyMs": 253.7384579999998,
+      "heapDelta": 1316728,
+      "backingStorageDelta": 736867,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:10.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "react",
+      "size": 100000,
+      "readyMs": 864.1457919999993,
+      "heapDelta": 2558032,
+      "backingStorageDelta": 5117238,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:40.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 1000,
+      "readyMs": 158.57008300000052,
+      "heapDelta": 1086184,
+      "backingStorageDelta": 103977,
+      "activities": [
+        {
+          "text": " 批量变更 1 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:01.000Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.999Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.998Z"
+        },
+        {
+          "text": " 批量变更 6 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.997Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:00.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 10000,
+      "readyMs": 214.5270419999997,
+      "heapDelta": 1651112,
+      "backingStorageDelta": 738867,
+      "activities": [
+        {
+          "text": " 批量变更 1 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:10.000Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.999Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.998Z"
+        },
+        {
+          "text": " 批量变更 6 条记录 批量变更资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.997Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:00 ",
+          "time": "2026-01-01T00:00:09.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "angular",
+      "size": 100000,
+      "readyMs": 829.6553749999985,
+      "heapDelta": 2074608,
+      "backingStorageDelta": 4701700,
+      "activities": [
+        {
+          "text": " 批量变更 1 条记录 批量变更资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:40.000Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.999Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.998Z"
+        },
+        {
+          "text": " 批量变更 6 条记录 批量变更资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.997Z"
+        },
+        {
+          "text": " 创建资产分类 创建资产分类 2026年1月1日 08:01 ",
+          "time": "2026-01-01T00:01:39.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 1000,
+      "readyMs": 178.36449999999968,
+      "heapDelta": 770940,
+      "backingStorageDelta": 102206,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:01.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:00.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 10000,
+      "readyMs": 264.84412500000144,
+      "heapDelta": 1358696,
+      "backingStorageDelta": 737129,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:10.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:00",
+          "time": "2026-01-01T00:00:09.991Z"
+        }
+      ]
+    },
+    {
+      "framework": "vue",
+      "size": 100000,
+      "readyMs": 839.9983749999992,
+      "heapDelta": 2196628,
+      "backingStorageDelta": 4986441,
+      "activities": [
+        {
+          "text": "批量变更 1 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:40.000Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.999Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.998Z"
+        },
+        {
+          "text": "批量变更 6 条记录批量变更资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.997Z"
+        },
+        {
+          "text": "创建资产分类创建资产分类2026年1月1日 08:01",
+          "time": "2026-01-01T00:01:39.991Z"
+        }
+      ]
+    }
+  ]
+}

@@ -1,40 +1,71 @@
 /**
- * @fileoverview `discardWorkingTree()` —— 把当前分支的工作树整体退回当前 HEAD（FR-016）。
+ * @fileoverview `discardWorkingTree()` —— 把当前分支的工作树整体退回当前 HEAD，业务表一起退（FR-016、US-320）。
  *
  * @remarks
- * 四件事在这里被钉死：
+ * 五件事在这里被钉死：
  *
  * 1. **范围是整棵工作树，签名里没有 selection 入参。** 「只丢这几个单元」是硬裁决 1 在
  *    discard 一侧的同一个口子：留下的那一半立刻成为残量，而 v1 只有 `HEAD ↔ 工作树`
  *    一条 diff 轴，没有第二个参照物能描述「剩下的那条相对谁」。
  * 2. **clean 时是真正的 no-op：一格 revision 都不涨，一条写语句都不发。** 平白 +1 会让
  *    另一个 realm 手里刚读到的 revision 凭空作废——这次丢弃什么都没做，却让别人的
- *    `commit()` 失败一次（data-model.md §5 脚注）。
+ *    `commit()` 失败一次（data-model.md §5 脚注）。业务表同理：照样把同样的值回写一遍，
+ *    会推进 `updatedAt`、记一行变更日志、让撤销栈多出一步谁也没做过的操作。
  * 3. **三个捕获位的比较排在 no-op 判定之前。** 「反正没东西可丢，校验可以跳过」不成立：
  *    「有没有东西可丢」读的正是那一行可能已被别人改过的状态。别人刚提交完、工作树确实
  *    空了，而调用方手里那份 revision 早就过期——先判 no-op 会回一个成功，让调用方以为
  *    自己丢掉的是他看过的那些改动。
  * 4. **HEAD 一列都不动。** discard 不是 `reset --hard HEAD~1`：它不写提交历史，也不挪
  *    `baseHeadCommitId`。
+ * 5. **业务表逐行回到 HEAD（US-320）。** v1 只回滚「逻辑工作树」，业务表停在丢弃前的值：
+ *    `status()` 报 clean，列表与表单读到的却仍是被丢掉的草稿。现在回写与删条目、推 revision
+ *    在调用方的同一个写事务里：回写经登记表 #15（{@link rewriteProjectionToHead}）的那一次
+ *    `executor.mergeChanges`，任何一步抛错整笔回滚，业务表、条目与 revision 一起停在丢弃之前。
  *
- * **v1 的 discard 只回滚「逻辑工作树」，不在本命令内重写业务投影。** epic-006 的写入口
- * 语义矩阵把两件事分成两行，而 data-model.md §5 给 discard 列出的效果恰好是三条簿记
- * （revision +1、删条目、`entryCount` 归零）。投影重写只能经 `mergeChanges` / `switchBranch`
- * 两个原语，而它们要求调用点以「文件基名 + 符号 + 意图」登记在 `TRUSTED_CALLSITE_REGISTRY` 里——
- * 本文件没有登记行，`TrustedWriteIntent` 里也没有「丢弃」这一项。要跨这条线，得连同
- * epic-006「受信调用点登记表」、登记表、意图枚举与漂移用例一起显式改掉。
+ * ## 回写的三个裁决
+ *
+ * - **HEAD 上的值取自条目的 `inversePatch`，不按提交重放。** 折叠规则让 `inversePatch` 恒为首次捕获值，
+ *   后来才碰到的字段补进各自的 HEAD 值（`write-entry.ts` 的 `foldInversePatch`）——它存在就是为了这一步。
+ *   三种条目各自撤回：插入 → 删掉那一行；修改 → 把 `inversePatch` 写回去；删除 → 用 `inversePatch` 那一整行
+ *   插回来。条目按身份唯一，跨实体的一批撤回互不依赖，一次交给适配器：它在同一个事务里先删、再插、再改，
+ *   SQLite 家族在事务里推迟外键检查、PGlite 的关系外键建成 `DEFERRABLE INITIALLY DEFERRED`，一批里谁先谁后
+ *   不影响结果（多对多中间表的行与两端实体一起撤）。加密列在条目里是密文信封，解码不碰它，适配器解锁之后
+ *   解开再重新加密写回——与切分支、撤销同一条路径，这一层碰不到明文。簿记字段的处理见 `projection-actions.ts`。
+ * - **回写不被捕获成单元：入口是投影重写（`projection_rewrite`）。** 条目由本命令自己删；回写若按领域重算
+ *   （`domain_recompute`）被挂载点 2 捕获，刚丢掉的工作树立刻又多出一批条目，revision 一次推两格。
+ * - **触发器开着写（`disableTriggers = false`）。** 回写是当前分支上的一次新写入，变更日志要跟着它走：
+ *   切分支按日志撤投影、按日志重放（`compute_switch_branch_actions`），同步插件按日志推送，撤销栈也读它。
+ *   关掉的话日志里只剩被丢掉的那批编辑——切走再切回来，它们会被原样重放回业务表，而工作树报 clean；
+ *   同步会把它们推上远端；撤销栈里它们还在，Ctrl+Z 撤的是一笔早已不在业务表里的编辑。开着写的代价是
+ *   这次丢弃本身成了撤销栈上的一步（外层是带事务日志的受管事务，整次丢弃是一个 `TRANSACTION` 项）：
+ *   撤销它就是把草稿取回来，取回来的改动经撤销 / 重做入口重新落成工作树条目；它也会像任何一次新写入一样
+ *   作废 redo 栈。分支物化（#1 / #11）关触发器是另一回事：它们重放的是日志里已有的变更，再记一遍才是二次记录。
+ *
+ * ## 边界
+ *
+ * - **来源是 `remote_sync` 的条目一并退回**（硬裁决 6：不按来源豁免）。退回同样是一次本地写，会被同步推送——
+ *   等于用本地的 HEAD 值覆盖远端那次修改。不想如此的产品先 `commit()` 再丢。
+ * - **`updatedBy` / `createdBy` 写不回去。** 适配器的 UPDATE 路径把只读列过滤掉（`normalizeUpdateEntity`），
+ *   撤销与切分支走的是同一条路径、同一个限制：多人编辑过的行，丢弃之后 `updatedBy` 停在最后那次写入的主体上。
+ *   插回来的行整行取自 HEAD，不受影响。
+ * - **可写检出位上同一条路径。** 执行器落在那套影子表上（`executor.tableSet`），回写与它的变更日志记在持有分支名下，
+ *   主检出位一张表都不碰；删掉检出位、主检出位切过去读到的就是回写之后的数据（一致性套件钉了这一条）。
  *
  * 损坏守卫复用 `commit/commit-graph-guard.ts` 那一份（T038/T084），不在这里另写判定：
  * 三个入口拒绝码相同，调用方才有一个稳定的 catch 分支（FR-051）。
  */
 
-import type { TransactionExecutor } from '@aiao/rxdb';
+import type { SwitchVersionActions, TransactionExecutor } from '@aiao/rxdb';
+import { declareTrustedWrite, TrustedWriteIntent } from '@aiao/rxdb';
+import type { CommitWriteContext } from '../commit/commit-context.js';
 import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../commit/list-commits.js';
-import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
+import { readActiveBranchToken, readBranchEntries, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
+import { decodeWorkingTreeEntryUnit, hasProjectionWrites, projectionActionsOf } from './projection-actions.js';
 import { discardActiveRestoreSession } from './restore-session-transitions.js';
-import { WorkingTreeEntry } from './working-tree-entry.entity.js';
+import type { WorkingTreeEntry } from './working-tree-entry.entity.js';
+import { UnknownWorkingTreePatchEntityError } from './working-tree-patch-codec.js';
 import { buildWorkingTreeDiscardTransitionSql } from './working-tree-state-sql.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
 
@@ -57,7 +88,7 @@ export type WorkingTreeDiscardOptions = WorkingTreeCredentials;
  */
 export type WorkingTreeDiscardResult =
   | {
-      /** 工作树已经回到 HEAD */
+      /** 工作树已经回到 HEAD，业务表随之逐行回到 HEAD */
       readonly ok: true;
       /** 本次丢掉的单元数；`0` 即语义 no-op */
       readonly discardedCount: number;
@@ -72,25 +103,57 @@ export type WorkingTreeDiscardResult =
     };
 
 /**
- * 读当前分支的全部未提交条目。
+ * 把一批条目撤回 HEAD 要落的增删改。
+ *
+ * @param context - 解码条目补丁用的写上下文
+ * @param entries - 当前分支的全部未提交条目
+ * @returns 交给回写的增删改
+ * @throws {@link UnknownWorkingTreePatchEntityError} 有条目指向本客户端没注册的实体时
  *
  * @remarks
- * **带 `branchId`**：不带的话，这条 DELETE 在单分支的库上永远绿，在真实用户的库上一次
- * 就把另一条分支的工作成果抹掉——而那条分支此刻甚至不是 active，没人在看。
+ * 认不出的实体**整次拒绝**，排在任何写之前：没有元数据就写不了那张表，只退认得的那一半再报成功，
+ * 等于把「回到 HEAD」悄悄降级成「大部分回到 HEAD」，而 `status()` 会报 clean。
  */
-const readBranchEntries = (executor: TransactionExecutor, branchId: string): Promise<WorkingTreeEntry[]> =>
-  executor.getRepository(WorkingTreeEntry).find({
-    where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branchId }] }
-  });
+const revertActionsOf = (context: CommitWriteContext, entries: readonly WorkingTreeEntry[]): SwitchVersionActions => {
+  const unknown = entries.find(entry => !context.codec.resolveTargetMetadata(entry.entity, entry.namespace));
+  if (unknown) throw new UnknownWorkingTreePatchEntityError(unknown);
+  return projectionActionsOf(
+    entries.map(entry => decodeWorkingTreeEntryUnit(context.codec, entry)),
+    'revert'
+  );
+};
 
 /**
- * 把当前分支的工作树整体退回当前 HEAD（FR-016）。
+ * 把业务表撤回 HEAD：受信调用点登记表 #15。
+ *
+ * @param executor - 调用方那个写事务的执行器；声明挂在它上面，由挂载点 2 当场取走
+ * @param actions - {@link revertActionsOf} 算出的增删改
+ *
+ * @remarks
+ * 声明绑执行器而不是适配器：`mergeChanges` 的声明在排队拿到事务之后才被取走，绑适配器实例的话两个并发的
+ * 回写会互相覆盖（登记表「`mergeChanges` 一律绑执行器」那条）。没有要写的（只剩簿记字段的 UPDATE 被剥空）
+ * 就连声明都不留——没有写的调用也会取走声明，却什么都不落。
+ */
+const rewriteProjectionToHead = async (executor: TransactionExecutor, actions: SwitchVersionActions): Promise<void> => {
+  if (!hasProjectionWrites(actions)) return;
+  declareTrustedWrite(executor, {
+    file: 'discard-command.ts',
+    symbol: 'rewriteProjectionToHead',
+    intent: TrustedWriteIntent.working_tree_projection
+  });
+  await executor.mergeChanges(actions, undefined, false);
+};
+
+/**
+ * 把当前分支的工作树整体退回当前 HEAD，业务表一起退（FR-016、US-320）。
  *
  * @param executor - 调用方那个写事务的执行器；本函数**不自己开事务**
+ * @param context - 见 {@link CommitWriteContext}：解码条目补丁要的实体元数据，与 `commit()` / `restore()` 同源
  * @param options - 见 {@link WorkingTreeDiscardOptions}；三个捕获位全部必填
  * @returns 见 {@link WorkingTreeDiscardResult}
  * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏时（FR-051）
  * @throws {@link NoActiveBranchError} 零 active 分支时
+ * @throws {@link UnknownWorkingTreePatchEntityError} 有条目指向本客户端没注册的实体时；一个字节都没写
  *
  * @remarks
  * 损坏分支上**先拒绝再说**：「反正这个分支坏了，顺手清干净」会让用户在唯一还能导出
@@ -100,6 +163,9 @@ const readBranchEntries = (executor: TransactionExecutor, branchId: string): Pro
  * 判会把一批真实存在的条目永久留在表里（而 `status()` 报干净），按行数判则顺带把冗余列
  * 收敛回真实值。真正发现分岔是 {@link assertWorkingTreeEntryCountIntact} 的职责。
  *
+ * **先回写业务表，再删条目、推 revision。** 原子性来自调用方的事务，顺序决定的是回写抛错时手上还剩什么：
+ * 排在前面，一条簿记语句都还没发；排在后面，失败之前条目已经删了、revision 已经推了，全靠回滚兜着。
+ *
  * 恢复会话与条目**一并清除**（US-307 AC5）：丢弃掉的正是那次恢复写进工作树的全部内容，
  * 留着会话会让 `status()` 继续报 `restoring`，而它指向的那批变更已经不在库里了。
  * {@link discardActiveRestoreSession} 排在状态行 UPDATE 之后，且只在非 no-op 路径上——
@@ -107,6 +173,7 @@ const readBranchEntries = (executor: TransactionExecutor, branchId: string): Pro
  */
 export const discardWorkingTree = async (
   executor: TransactionExecutor,
+  context: CommitWriteContext,
   options: WorkingTreeDiscardOptions
 ): Promise<WorkingTreeDiscardResult> => {
   const token = await readActiveBranchToken(executor);
@@ -121,11 +188,14 @@ export const discardWorkingTree = async (
   });
   if (conflict) return { ok: false, conflict };
 
+  // 带 `branchId` 读：不带的话这条 DELETE 在单分支的库上永远绿，在真实用户的库上一次就把另一条分支的
+  // 工作成果抹掉——而那条分支此刻甚至不是 active，没人在看。
   const entries = await readBranchEntries(executor, token.branchId);
   if (entries.length === 0) {
     return { ok: true, discardedCount: 0, workingTreeRevision: state.workingTreeRevision };
   }
 
+  await rewriteProjectionToHead(executor, revertActionsOf(context, entries));
   await executor.removeMany(entries);
   const workingTreeRevision = state.workingTreeRevision + 1;
   await executor.query(

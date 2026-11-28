@@ -41,7 +41,7 @@ apps/<app>/
     └── code-scanning/
 ```
 
-多个 Nx 应用共同组成一个产品时，使用产品根目录统一管理产品需求：
+多个 Nx 应用共同组成一个产品时，使用产品根目录统一管理产品需求。产品目录位于仓库根，与 `apps/`、`packages/`、`requirements/` 同级，例如 `rxdb-admin-template/`；成员应用放在产品自己的 `apps/` 下：
 
 ```text
 <product>/
@@ -185,7 +185,7 @@ type:e2e
 - Nx project discovery：项目名称、root、sourceRoot、tags 和 targets 可被 `pnpm nx show project` 读取；
 - 代码门禁：lint、typecheck、unit test、build；
 - 运行时门禁：按应用类型执行浏览器、桌面、服务端或真实供应商验收；
-- 影响范围门禁：产品私有包变化能够通过 `nx affected` 找到依赖应用；
+- 影响范围门禁：产品需求、治理脚本和产品私有包变化能够通过 `nx affected` 找到对应成员应用及其 E2E；
 - 安全边界门禁：前端不包含 server secret，服务端授权不依赖前端隐藏入口；
 - 需求证据：每条 Done AC 指向对应测试、构建产物、部署验证或真实环境记录。
 
@@ -196,3 +196,5 @@ type:e2e
 应用初始化模板位于 [`requirements/app-template/`](app-template/)。它提供应用级目录、增量约定和模板文件，不重复根规则。
 
 具体产品的应用需求应位于对应产品根目录的 `requirements/`，由产品自己的需求前缀管理。
+
+[RxDB Admin Template](../rxdb-admin-template/README.md) 是多应用产品的落地示例：三端共用 `ADMIN-*` 需求和产品根门禁，应用测试依赖同一产品任务，并对需求副本和 affected 范围进行校验。需求统一验收记录见 [产品迁移验证](../rxdb-admin-template/requirements/plans/product-requirements-verification.md)。

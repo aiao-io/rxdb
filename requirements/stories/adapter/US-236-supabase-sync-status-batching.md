@@ -1,7 +1,7 @@
 ---
 id: US-236
 title: Supabase 同步状态一轮问完：打开页面不再为每个仓库各发三个请求，频道订阅上只重算一次
-status: In Review
+status: Done
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-28

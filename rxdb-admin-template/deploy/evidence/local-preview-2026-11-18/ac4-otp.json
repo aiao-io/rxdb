@@ -1,0 +1,21 @@
+{
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据；验证码邮件经本地收件服务（inbucket）读取，不是真实邮箱",
+  "runs": [
+    {
+      "kind": "otp",
+      "release": "r20261118-065714-121bbf2",
+      "functions": "r20261118-065714-121bbf2",
+      "startedAt": "2026-11-18T07:27:23.003Z",
+      "finishedAt": "2026-11-18T07:29:04.937Z",
+      "args": ["--project", "otp-react", "--project", "otp-angular", "--project", "otp-vue"],
+      "otpExpirySeconds": 20,
+      "report": "acceptance/e2e-r20261118-065714-121bbf2-20261118T072723.json",
+      "expected": 3,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "durationMs": 83206,
+      "failures": []
+    }
+  ]
+}

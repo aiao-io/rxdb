@@ -1,10 +1,10 @@
 /**
- * @fileoverview `restore(target, options)` —— 把一个**可达**历史 commit 的内容作为新的未提交
- * 变更写回当前工作树；HEAD 不动、历史不改、产物就是普通条目
- * （FR-013/014/015/033/034/042/043/050/051，contracts/core-api.md §5）。
+ * @fileoverview `restore(target, options)` —— 把业务表恢复成一个**可达**历史 commit 的数据，与 HEAD 的差异
+ * 作为新的未提交变更写进当前工作树；HEAD 不动、历史不改、产物就是普通条目
+ * （FR-013/014/015/033/034/042/043/050/051、US-320，contracts/core-api.md §5）。
  *
  * @remarks
- * 六件事在这里被钉死，每一件都对应一种会安静退化的写法：
+ * 七件事在这里被钉死，每一件都对应一种会安静退化的写法：
  *
  * 1. **不移动 HEAD，也不删目标之后的节点。** 「恢复到某个历史版本」在 git 的肌肉记忆里是移动
  *    HEAD，而硬裁决 5 把这条路封死：HEAD 一旦能停在历史节点上，`status()` 的「相对 HEAD」与
@@ -13,39 +13,55 @@
  *    一份不可变记录没了（FR-013）。
  * 2. **dirty 工作树上直接拒绝，没有 `force`。** 放行等于把用户手写的那批变更与恢复出来的那批
  *    混进同一棵工作树，而 `commit()` 提交的是**全部**未提交单元，没有任何入参能把两批再分开
- *    （FR-014、FR-015 末句）。「显式处理」指的是先 commit 或先 discard。
- * 3. **判空发生在写之前。** 重放路径为空（目标就在 HEAD 的保留集里）时整条写路径都不跑：照写再
- *    回滚在行数上看不出区别，但 revision 与自增序列留下的痕迹不同，而 FR-042 的措辞是「不递增」，
- *    不是「递增后回滚」。凭空多出来的那行 active 会话还会占住 `activeKey` 的唯一索引，让
- *    `status().restoring` 从此恒为 true。
- * 4. **兼容性预检覆盖整条重放路径，外加目标节点自己。** 预检导出的 `path` 按定义不含目标（见
- *    `restore-precheck.ts`），而**物化读的恰好是目标自己的 ChangeSet**——漏掉它的话，一个引用了
- *    本客户端不认识的实体的目标会让 `encodeWorkingTreePatch()` 抛出来，而 FR-033 要的是一个
- *    失败**出口**，不是异常。
- * 5. **CAS 的那条 UPDATE 排在任何 `saveMany()` 之前。** 反过来的话，`rowsAffected = 0` 时条目与
- *    会话已经落库，而「那就回滚」只在一个真的会回滚的事务里成立——此处的顺序本身就是保证
- *    （conformance-suites.md §2.4、FR-034）。
- * 6. **诊断里不出现内容。** 失败出口只带 `reason` 与身份/枚举值，会话行只记「来自哪个 commit、
+ *    （FR-014、FR-015 末句）。「显式处理」指的是先 commit 或先 discard。clean 还是回写成立的前提：
+ *    此刻业务表等于 HEAD，叠上「HEAD → 目标」的差异才等于目标。
+ * 3. **判空发生在写之前。** 重放路径为空（目标就是 HEAD）、或者路径撤销完之后与 HEAD 一模一样（改过又改回、
+ *    新建又删掉），整条写路径都不跑：照写再回滚在行数上看不出区别，但 revision 与自增序列留下的痕迹不同，
+ *    而 FR-042 的措辞是「不递增」，不是「递增后回滚」。凭空多出来的那行 active 会话还会占住 `activeKey`
+ *    的唯一索引，让 `status().restoring` 从此恒为 true。
+ * 4. **兼容性预检覆盖物化真正读的那些节点：重放路径。** 预检导出的 `path` 不含目标节点，物化也不读它——
+ *    目标的数据就是「路径撤销完」之后的状态（见第 6 条）。v1 物化读的是目标节点自己的 ChangeSet，于是
+ *    把它也算进预检；照旧检查它，等于拿一个用不到的节点拒掉一次合法的恢复。与提交视图
+ *    （`checkout/worktree-commit-view.ts` 的 `planCommitView`）同一口径。
+ * 5. **CAS 的那条 UPDATE 排在任何写之前。** 反过来的话，`rowsAffected = 0` 时业务表、条目与会话已经落库，
+ *    而「那就回滚」只在一个真的会回滚的事务里成立——此处的顺序本身就是保证（conformance-suites.md §2.4、FR-034）。
+ * 6. **业务表与工作树写的是同一份差异（US-320）。** v1 只把目标节点自己的单元抄进工作树、业务表一行不动：
+ *    列表读到的仍是 HEAD，而那批条目既不是「HEAD → 目标」的差异（`inversePatch` 不是 HEAD 上的值，恢复之后
+ *    再 discard 会退到别处），也重放不回目标——恢复到 `HEAD~2` 时 `HEAD~1` 改过的行根本不在里面。现在从 HEAD
+ *    沿路径逐个撤销单元，按捕获同一份折叠规则折成差异（`projection-actions.ts` 的 `foldRestoreDelta`），条目落
+ *    这一份，业务表回写也由这一份推出来（登记表 #16，{@link rewriteProjectionToTarget}）：两份各算的话，迟早在
+ *    「删了又重建」这种边角上一份对、一份错，而 discard 读的是条目那一份。
+ * 7. **诊断里不出现内容。** 失败出口只带 `reason` 与身份/枚举值，会话行只记「来自哪个 commit、
  *    当时两个 revision 是多少」。多一个承载 patch 的字段就等于把加密列的密文复制进一张没人拿它
  *    当机密对待的表（FR-043）。
+ *
+ * 回写的入口与触发器与 discard 同一个裁决（理由写在 `discard-command.ts` 的「回写的三个裁决」）：投影重写、
+ * 不被捕获成单元；触发器开着——恢复是当前分支上的一次新写入，日志要跟着它，切走再切回来读到的才仍是目标的数据。
+ * 可写检出位上同一条路径，落在那套影子表上。
  *
  * 损坏守卫复用 `commit/commit-graph-guard.ts` 的那一份（T038），**不在这里另写判定**：两份判定
  * 迟早分岔，而分岔的表现是同一条损坏链在 `commit()` 与 `restore()` 里得到两种结论（FR-051）。
  * 解码同理，走 `commit/commit-codec.ts` 的 {@link decodeCommitChangeSetUnit}。
  */
 
-import type { TransactionExecutor } from '@aiao/rxdb';
-import { uuid } from '@aiao/rxdb';
+import type { SwitchVersionActions, TransactionExecutor } from '@aiao/rxdb';
+import { declareTrustedWrite, TrustedWriteIntent, uuid } from '@aiao/rxdb';
+import { resolveFirstParentReplayPath } from '../commit/commit-ancestry.js';
 import { CommitChangeSet } from '../commit/commit-change-set.entity.js';
 import { decodeCommitChangeSetUnit } from '../commit/commit-codec.js';
 import type { CommitWriteContext } from '../commit/commit-context.js';
 import { assertCommitGraphIntact } from '../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../commit/list-commits.js';
-import { fingerprintOf, readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
+import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
 import {
+  decodeWorkingTreeEntryUnit,
+  foldRestoreDelta,
+  projectionActionsOf,
+  type WorkingTreeProjectionUnit
+} from './projection-actions.js';
+import {
   findFirstReplayIncompatibility,
-  selectRestoreReplayPath,
   type RestoreIncompatibility,
   type WorkingTreeRestoreTarget
 } from './restore-precheck.js';
@@ -55,6 +71,7 @@ import { encodeWorkingTreePatch } from './working-tree-patch-codec.js';
 import { WorkingTreeRestoreSession } from './working-tree-restore-session.entity.js';
 import { buildWorkingTreeRestoreTransitionSql } from './working-tree-state-sql.js';
 import { WorkingTreeState } from './working-tree-state.entity.js';
+import type { WorkingTreeEntryRow } from './write-entry.js';
 
 export type { WorkingTreeRestoreTarget } from './restore-precheck.js';
 
@@ -83,10 +100,19 @@ export type WorkingTreeRestoreFailureReason =
   | 'conflict'
   /** 工作树里还有未提交条目；先 commit 或先 discard（FR-014，**没有** force） */
   | 'dirty_working_tree'
-  /** 重放路径上（含目标节点自身）有 ChangeSet 的目标实体在本客户端解析不到（FR-050） */
+  /** 重放路径上有 ChangeSet 的目标实体在本客户端解析不到（FR-050） */
   | 'incompatible_schema'
   /** 目标不在当前分支 HEAD 的可达父链上（FR-033） */
-  | 'unreachable_target';
+  | 'unreachable_target'
+  /**
+   * 目标在历史里，但只经由某个合并提交的**非第一父**可达（US-319）
+   *
+   * @remarks
+   * 与 `unreachable_target` 分开：这个提交在 `listCommits()` 里看得见、点得到，只是从这条分支的数据退不到它——
+   * 每个提交的 ChangeSet 是相对第一父的增量，侧枝上的提交从没直接落到这条分支的业务表上，沿第一父链撤销到不了它，
+   * 而 restore 只会撤销。要那份数据，从它建一条分支（`createBranchFromCommit()`，它有分叉点时）或在服务端处理。
+   */
+  | 'side_branch_target';
 
 /**
  * 一次 `restore()` 的结果。
@@ -101,9 +127,9 @@ export type WorkingTreeRestoreFailureReason =
  */
 export type WorkingTreeRestoreResult =
   | {
-      /** 本次恢复已落库；`restoredCount: 0` 时是一次什么都没写的 no-op */
+      /** 本次恢复已落库：业务表是目标的数据；`restoredCount: 0` 时是一次什么都没写的 no-op */
       readonly ok: true;
-      /** 写进工作树的条目数 */
+      /** 写进工作树的条目数，即业务表上与 HEAD 不同的行数 */
       readonly restoredCount: number;
       /** 本次建立的恢复会话 id；no-op 时为 `null`（没建会话） */
       readonly sessionId: string | null;
@@ -137,6 +163,12 @@ export type WorkingTreeRestoreResult =
       readonly ok: false;
       /** 判别位 */
       readonly reason: 'unreachable_target';
+    }
+  | {
+      /** 目标只在合并提交带进来的侧枝上，沿第一父链退不到；持久状态零变化（US-319） */
+      readonly ok: false;
+      /** 判别位 */
+      readonly reason: 'side_branch_target';
     };
 
 /**
@@ -145,7 +177,7 @@ export type WorkingTreeRestoreResult =
  * @remarks
  * 与 `restore-precheck.ts` 里那份同形而**各自一份**：那一份是私有的，把它导出来给这里用等于让
  * 预检的内部实现变成两个模块之间的契约。排序在 JS 侧做、不依赖后端默认返回顺序：`sequence`
- * 决定物化次序，而条目的落库顺序与指纹都吃这个顺序。
+ * 决定重放次序，撤销要倒着走它。
  */
 const readChangeSetsOf = async (executor: TransactionExecutor, commitId: string): Promise<CommitChangeSet[]> => {
   const rows = await executor.getRepository(CommitChangeSet).find({
@@ -159,20 +191,69 @@ const identityKeyOf = (row: { namespace: string; entity: string; entityId: strin
   `${row.namespace} ${row.entity} ${row.entityId}`;
 
 /**
- * 按 `target.entities` 挑出要物化的那些单元；缺省即全部。
+ * 按 `target.entities` 挑出要恢复的那些行；缺省即全部。
  *
  * @remarks
  * 这里的「挑」与硬裁决 1 方向相反：硬裁决 1 禁的是 `commit()` / `discard()` 挑一部分**未提交
- * 变更**，而这里挑的是**要往工作树里写什么**——写完之后它们和手写变更一样是整棵工作树的一部分，
- * 下一次 `commit()` 照样全量提交（FR-015 末句）。
+ * 变更**，而这里挑的是**要把哪些行恢复到目标时的状态**——写完之后它们和手写变更一样是整棵工作树的一部分，
+ * 下一次 `commit()` 照样全量提交（FR-015 末句）。没点名的行留在 HEAD。
+ *
+ * 在折叠之前按身份筛单元，与折叠之后再筛差异等价：每个身份的差异只取决于它自己那几条单元。
  */
-const selectTargetUnits = (
-  rows: readonly CommitChangeSet[],
+const selectTargetUnits = <T extends { namespace: string; entity: string; entityId: string }>(
+  units: readonly T[],
   entities: WorkingTreeRestoreTarget['entities']
-): CommitChangeSet[] => {
-  if (!entities) return [...rows];
+): T[] => {
+  if (!entities) return [...units];
   const wanted = new Set(entities.map(identityKeyOf));
-  return rows.filter(row => wanted.has(identityKeyOf(row)));
+  return units.filter(unit => wanted.has(identityKeyOf(unit)));
+};
+
+/**
+ * 把一行历史 ChangeSet 还原成**本客户端的落库形态**的单元。
+ *
+ * @remarks
+ * **decode 再 encode 走一个来回**，而不是把落库形态原样拿来折。两者在等值断言下看起来一样，区别在
+ * codec 版本：抄一份原值等于赌「历史行的形态恰好就是本客户端现在要的形态」，而这个赌注在 codec 版本
+ * 变过一次之后就不成立了（FR-043）。加密列两步都被 codec 跳过，信封原样穿过。
+ */
+const restoreUnitOf = (context: CommitWriteContext, row: CommitChangeSet): WorkingTreeProjectionUnit => {
+  const unit = decodeCommitChangeSetUnit(context.codec, row);
+  const target = { namespace: unit.namespace, entity: unit.entity };
+  return {
+    namespace: unit.namespace,
+    entity: unit.entity,
+    entityId: unit.entityId,
+    operation: unit.operation,
+    patch: encodeWorkingTreePatch(context.codec, target, unit.patch),
+    inversePatch: encodeWorkingTreePatch(context.codec, target, unit.inversePatch)
+  };
+};
+
+/**
+ * 读重放路径上的全部单元，按**撤销顺序**排好：HEAD 那个提交在前，提交内按 `sequence` 倒序。
+ *
+ * @remarks
+ * 路径是 HEAD 沿**第一父链**回溯到目标之前的那些提交（`resolveFirstParentReplayPath()`，US-319），它的次序就是撤销次序：
+ * 每个提交的 ChangeSet 是相对第一父的增量，撤掉 HEAD 那一份业务表就等于第一父的数据，再撤下一份，依此类推。
+ * 合并提交在这条路上与普通提交没有区别——撤掉它就回到它的第一父；它带进来的侧枝不在路上，侧枝的 ChangeSet
+ * 从没直接落到本分支的业务表上，撤它们就是把合并那份增量里已经撤过的东西再撤一遍。US-320 那条「引入多父提交后
+ * 要重看」的顺延到这里落地：顺序问题不存在了，因为这条路上每个节点恰好一个前驱。
+ *
+ * 提交内今天每个身份至多一条单元（本地提交取的是工作树条目），倒着走 `sequence` 让「一个提交里同一行写了
+ * 两次」也撤得对——导入的提交不保证这一点，服务端的合并结果可以对同一行写两条。
+ */
+const readUnitsToUndo = async (
+  executor: TransactionExecutor,
+  context: CommitWriteContext,
+  path: readonly string[]
+): Promise<WorkingTreeProjectionUnit[]> => {
+  const units: WorkingTreeProjectionUnit[] = [];
+  for (const commitId of path) {
+    const rows = await readChangeSetsOf(executor, commitId);
+    for (const row of rows.reverse()) units.push(restoreUnitOf(context, row));
+  }
+  return units;
 };
 
 /** {@link toRestoredEntry} 里那两个与行无关的值，单列成型只为把参数表压短。 */
@@ -184,72 +265,75 @@ interface RestoredEntryIdentity {
 }
 
 /**
- * 把一行历史 ChangeSet 物化成一条**普通**工作树条目。
+ * 把一行差异落成一条**普通**工作树条目。
  *
  * @remarks
- * **decode 再 encode 走一个来回**，而不是把落库形态抄一份过去。两者在等值断言下看起来一样，
- * 区别在加密列：codec 对 `encrypted === true` 的列一律跳过，对同类型但不加密的列则包
- * `$rxdbChangeValue` 信封。抄一份原值等于赌「历史行的形态恰好就是本客户端现在要的形态」，而这个
- * 赌注在 codec 版本变过一次之后就不成立了（FR-043）。它同时顺带保证了**不共享引用**：条目在
- * `commit()` 之后会被清理，与历史行共享同一个对象的话，清理会顺手改掉已经不可变的历史
- * （data-model.md §2.4）。
+ * **`origin` 写死 `'local'`。** 恢复是此刻这个用户做的一次本地改动，不是一次同步下行；记成远端来源的话，
+ * 一棵由恢复产生的工作树会在 `status().byOrigin` 里显示成「远端同步来的」，而硬裁决 6 已经说明这两个桶
+ * 都不豁免 dirty 判定——分不清来源只会让用户更难解释眼前这批变更是哪来的。
  *
- * **`origin` 写死 `'local'`，不抄历史行的那一列。** 恢复是此刻这个用户做的一次本地改动，不是一次
- * 同步下行；抄过来的话，一棵由恢复产生的工作树会在 `status().byOrigin` 里显示成「远端同步来的」，
- * 而硬裁决 6 已经说明这两个桶都不豁免 dirty 判定——分不清来源只会让用户更难解释眼前这批变更
- * 是哪来的。
+ * **`sourceChangeId` 恒为 `null`。** 它是指向 `rxdb_change` 的诊断线索，而这批条目的数据源是历史 ChangeSet；
+ * 随手填一个 id 进去等于造一条指向别的表、别的语义的假线索。`transactionId` 同理。
  *
- * **`sourceChangeId` 恒为 `null`。** 它是指向 `rxdb_change` 的诊断线索，而这条路径的数据源是历史
- * ChangeSet，压根没有对应的变更日志行；随手填一个历史 id 进去等于造一条指向别的表、别的语义的
- * 假线索。`transactionId` 同理：恢复不是从某次业务事务折出来的。
+ * 补丁不与历史行共享引用：编码是一次浅拷贝，折叠与净差异又各拷一次。条目在 `commit()` 之后会被清理，
+ * 与历史行共享同一个对象的话，清理会顺手改掉已经不可变的历史（data-model.md §2.4）。
  */
 const toRestoredEntry = (
   context: CommitWriteContext,
   identity: RestoredEntryIdentity,
-  row: CommitChangeSet
+  row: WorkingTreeEntryRow
 ): WorkingTreeEntry => {
-  const unit = decodeCommitChangeSetUnit(context.codec, row);
-  const target = { namespace: unit.namespace, entity: unit.entity };
-  const patch = encodeWorkingTreePatch(context.codec, target, unit.patch);
   const entry = context.entityManager.instantiate(WorkingTreeEntry);
   entry.id = uuid();
   entry.branchId = identity.branchId;
   entry.unitId = identity.unitId;
   entry.transactionId = null;
-  entry.namespace = unit.namespace;
-  entry.entity = unit.entity;
-  entry.entityId = unit.entityId;
-  entry.operation = unit.operation;
-  entry.patch = patch;
-  entry.inversePatch = encodeWorkingTreePatch(context.codec, target, unit.inversePatch);
-  entry.fingerprint = fingerprintOf(unit.operation, patch);
+  entry.namespace = row.namespace;
+  entry.entity = row.entity;
+  entry.entityId = row.entityId;
+  entry.operation = row.operation;
+  entry.patch = row.patch === null ? null : { ...row.patch };
+  entry.inversePatch = row.inversePatch === null ? null : { ...row.inversePatch };
+  entry.fingerprint = row.fingerprint;
   entry.origin = 'local';
   entry.sourceChangeId = null;
   return entry;
 };
 
+/** 一次恢复要落的两样东西：同一份差异的两种形态。 */
+interface RestorePlan {
+  /** 写进工作树的条目（落库形态） */
+  readonly entries: readonly WorkingTreeEntry[];
+  /** 回写业务表的增删改（解码形态），由 {@link RestorePlan.entries} 推出 */
+  readonly actions: SwitchVersionActions;
+}
+
 /**
- * 读目标 commit 自己的单元并物化成条目行（尚未落库）。
+ * 算出这次恢复：HEAD → 目标的差异，落成条目，再由条目推出业务表回写。
  *
  * @remarks
- * 数据源是**目标节点自己的** ChangeSet，不是重放路径上那些节点的 `inversePatch`。后者算出的是
- * 「把工作树退回目标状态所需的增量」，而 FR-013 要的是「把目标 commit 的**内容**作为新的未提交
- * 变更写回」——两者在目标是基线节点（没有父节点、路径上的节点与它内容无关）时结论完全不同，
- * 而那正是最常见的「恢复到最初那一版」。
- *
  * 整次恢复共享**一个** `unitId`：它就是一次事务（adapter-contract.md §5）。逐行各发一个的话，提交时
  * 这批条目会摊成多个互不相干的单元，而它们本属同一次操作；沿用历史行的 `unitId` 则会让新条目与
  * 一段已经不可变的历史共用标识。
+ *
+ * 回写由条目推出来，而不是另跑一遍逆向折叠：业务表叠上的必须**恰好**是工作树里记下的那份差异，
+ * 冷重放（`HEAD + 条目 = 业务表`）才在恢复之后成立。
  */
-const materializeTarget = async (
+const planRestore = async (
   executor: TransactionExecutor,
   context: CommitWriteContext,
   branchId: string,
-  target: WorkingTreeRestoreTarget
-): Promise<WorkingTreeEntry[]> => {
-  const rows = selectTargetUnits(await readChangeSetsOf(executor, target.commitId), target.entities);
+  path: readonly string[],
+  entities: WorkingTreeRestoreTarget['entities']
+): Promise<RestorePlan> => {
+  const units = selectTargetUnits(await readUnitsToUndo(executor, context, path), entities);
   const identity: RestoredEntryIdentity = { branchId, unitId: uuid() };
-  return rows.map(row => toRestoredEntry(context, identity, row));
+  const entries = foldRestoreDelta(units, identity).map(row => toRestoredEntry(context, identity, row));
+  const actions = projectionActionsOf(
+    entries.map(entry => decodeWorkingTreeEntryUnit(context.codec, entry)),
+    'apply'
+  );
+  return { entries, actions };
 };
 
 /**
@@ -280,8 +364,8 @@ interface RestoreWriteInput {
   readonly headRevision: number;
   /** 恢复来源 commit */
   readonly targetCommitId: string;
-  /** 待落库的条目行 */
-  readonly entries: readonly WorkingTreeEntry[];
+  /** 这次恢复的条目与回写 */
+  readonly plan: RestorePlan;
 }
 
 /**
@@ -314,29 +398,54 @@ const newRestoreSession = (
 };
 
 /**
- * 落盘：先打 CAS，命中了才写条目与会话。
+ * 把业务表回写成目标的数据：受信调用点登记表 #16。
+ *
+ * @param executor - 调用方那个写事务的执行器；声明挂在它上面，由挂载点 2 当场取走
+ * @param actions - {@link planRestore} 由条目推出的增删改
  *
  * @remarks
- * **顺序就是保证。** 反过来先写再 CAS 的话，`rowsAffected = 0` 时条目与会话已经落库，而「那就回滚」
+ * 声明绑执行器、入口是投影重写、触发器开着，三条理由与 discard 那一处（登记表 #15）相同，写在
+ * `discard-command.ts` 的「回写的三个裁决」里。不判空：条目非空时增删改必然非空（每条 UPDATE 差异
+ * 至少留着一个 tracked 字段），判了也是一条走不到的分支。
+ */
+const rewriteProjectionToTarget = async (
+  executor: TransactionExecutor,
+  actions: SwitchVersionActions
+): Promise<void> => {
+  declareTrustedWrite(executor, {
+    file: 'restore-command.ts',
+    symbol: 'rewriteProjectionToTarget',
+    intent: TrustedWriteIntent.working_tree_projection
+  });
+  await executor.mergeChanges(actions, undefined, false);
+};
+
+/**
+ * 落盘：先打 CAS，命中了才回写业务表、写条目与会话。
+ *
+ * @remarks
+ * **顺序就是保证。** 反过来先写再 CAS 的话，`rowsAffected = 0` 时业务表、条目与会话已经落库，而「那就回滚」
  * 只在一个真的会回滚的事务里成立——恢复的整条路径同样要在没有回滚的观测下表现为零变化（FR-034）。
  *
- * 条目与会话分两次 `saveMany` 而不是拼成一批：两张表的写入顺序在这里是有意义的。条目先落、会话
- * 后落，中途失败留下的是「多了一批条目、没有会话」——那是一棵 dirty 工作树，用户 discard 得掉；
- * 反过来留下的是一个指向从未发生过的恢复的 active 会话，它占住唯一索引，而没有任何入口能结束它。
+ * 回写排在条目之前：它是这一步里唯一可能因为业务数据本身失败的写（存储约束、外键），先跑它，抛错时
+ * 一条条目都还没落。条目与会话分两次 `saveMany` 而不是拼成一批：条目先落、会话后落，中途失败留下的是
+ * 「多了一批条目、没有会话」——那是一棵 dirty 工作树，用户 discard 得掉；反过来留下的是一个指向从未发生过
+ * 的恢复的 active 会话，它占住唯一索引，而没有任何入口能结束它。三步都在调用方那一个事务里，真实后端上
+ * 任何一步抛错都是整笔回滚（AC4）。
  */
 const writeRestore = async (
   executor: TransactionExecutor,
   context: CommitWriteContext,
   input: RestoreWriteInput
 ): Promise<WorkingTreeRestoreResult> => {
-  const { entries, state } = input;
+  const { plan, state } = input;
   const workingTreeRevision = state.workingTreeRevision + 1;
   const outcome = await executor.query(
     buildWorkingTreeRestoreTransitionSql(executor.tableRef(WorkingTreeState), {
       branchId: input.branchId,
       expectedWorkingTreeRevision: state.workingTreeRevision,
       workingTreeRevision,
-      entryCount: entries.length
+      entryCount: plan.entries.length
     })
   );
   if (outcome.rowsAffected === 0) {
@@ -347,12 +456,13 @@ const writeRestore = async (
     };
   }
 
+  await rewriteProjectionToTarget(executor, plan.actions);
   const session = newRestoreSession(context, input, workingTreeRevision);
-  await executor.saveMany([...entries]);
+  await executor.saveMany([...plan.entries]);
   await executor.saveMany([session]);
   state.workingTreeRevision = workingTreeRevision;
-  state.entryCount = entries.length;
-  return { ok: true, restoredCount: entries.length, sessionId: session.id, workingTreeRevision };
+  state.entryCount = plan.entries.length;
+  return { ok: true, restoredCount: plan.entries.length, sessionId: session.id, workingTreeRevision };
 };
 
 /** 什么都没写的那个成功出口（FR-042）。 */
@@ -364,11 +474,11 @@ const noopRestore = (state: WorkingTreeState): WorkingTreeRestoreResult => ({
 });
 
 /**
- * 把目标 commit 的内容作为新的未提交变更写回当前工作树（FR-013）。
+ * 把业务表恢复成目标 commit 的数据，与 HEAD 的差异作为新的未提交变更写进工作树（FR-013、US-320）。
  *
  * @param executor - 调用方那个写事务的执行器；本函数**不自己开事务**
  * @param context - 见 {@link CommitWriteContext}：造条目行的实体管理器与 codec 解析上下文
- * @param target - 见 {@link WorkingTreeRestoreTarget}；`entities` 缺省即整个 commit
+ * @param target - 见 {@link WorkingTreeRestoreTarget}；`entities` 缺省即全部行
  * @param options - 见 {@link WorkingTreeRestoreOptions}；三个捕获位全部必填
  * @returns 见 {@link WorkingTreeRestoreResult}
  * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏时（FR-051）
@@ -381,17 +491,17 @@ const noopRestore = (state: WorkingTreeState): WorkingTreeRestoreResult => ({
  *    A 分支上点的恢复落进了 B 分支的工作树。
  * 2. **损坏守卫先于一切。** 反过来的话，一条已损坏的链上、凭据又恰好对得上的恢复会直接落库，
  *    把历史里一段自己都校验不过的内容物化进工作树（FR-051）。
- * 3. **三次比较、dirty 守卫、可达性、判空、兼容性预检**，全部先于任何写入。任一不过即返回失败
+ * 3. **三次比较、dirty 守卫、可达性、兼容性预检、判空**，全部先于任何写入。任一不过即返回失败
  *    出口，此时没有任何东西需要回滚——这正是它们做成返回值而非异常的原因（FR-033 的「零变化」
  *    在这里的物理含义就是这个顺序）。
- * 4. **CAS、写条目、写会话**，全在调用方那一个事务里（见 {@link writeRestore}）。
+ * 4. **CAS、回写业务表、写条目、写会话**，全在调用方那一个事务里（见 {@link writeRestore}）。
  *
  * dirty 判据读的是 `state.entryCount`——与 `status().clean` **同一个表达式**。分头实现的话两者迟早在
  * 某次改动里分岔，而分岔的症状是「界面显示干净，恢复却说脏」，用户没有任何手段能查出差在哪
  * （FR-014）。
  *
- * 物化结果为空（`entities` 一个都没命中）与重放路径为空走**同一个** no-op 出口：两者要写的东西都是
- * 零，而为一次零写入建一行 active 会话，正是 FR-042 点名的那个死角。
+ * 差异为空（路径撤销完与 HEAD 一模一样，或 `entities` 点名的行都没变过）与重放路径为空走**同一个**
+ * no-op 出口：两者要写的东西都是零，而为一次零写入建一行 active 会话，正是 FR-042 点名的那个死角。
  */
 export const restoreWorkingTree = async (
   executor: TransactionExecutor,
@@ -412,23 +522,23 @@ export const restoreWorkingTree = async (
   if (conflict) return { ok: false, reason: 'conflict', conflict };
   if (state.entryCount !== 0) return { ok: false, reason: 'dirty_working_tree' };
 
-  const path = await selectRestoreReplayPath(executor, ref.headCommitId, target.commitId);
-  if (!path) return { ok: false, reason: 'unreachable_target' };
+  const resolved = await resolveFirstParentReplayPath(executor, ref.headCommitId, target.commitId);
+  if (resolved.kind === 'unreachable') return { ok: false, reason: 'unreachable_target' };
+  if (resolved.kind === 'side_branch') return { ok: false, reason: 'side_branch_target' };
+  const { path } = resolved;
   if (path.length === 0) return noopRestore(state);
 
-  // 预检的 `path` 按定义不含目标节点，而物化读的恰好是目标自己的 ChangeSet——补上这一个，
-  // 「认不出的实体」才在两处都是失败出口，而不是一次 encode 抛错。
-  const incompatible = await findFirstReplayIncompatibility(executor, context.codec, [...path, target.commitId]);
+  const incompatible = await findFirstReplayIncompatibility(executor, context.codec, path);
   if (incompatible) return { ok: false, reason: 'incompatible_schema', incompatible };
 
-  const entries = await materializeTarget(executor, context, token.branchId, target);
-  if (entries.length === 0) return noopRestore(state);
+  const plan = await planRestore(executor, context, token.branchId, path, target.entities);
+  if (plan.entries.length === 0) return noopRestore(state);
   return writeRestore(executor, context, {
     branchId: token.branchId,
     state,
     headRevision: ref.headRevision,
     targetCommitId: target.commitId,
-    entries
+    plan
   });
 };
 

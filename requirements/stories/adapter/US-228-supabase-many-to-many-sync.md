@@ -1,7 +1,7 @@
 ---
 id: US-228
 title: 多对多关联在 Supabase 上可同步：中间表按实体形状建表，关联行 id 由两端确定
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-11-25

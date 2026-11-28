@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, postgres]
 ---
 
@@ -50,6 +50,6 @@ tags: [adapter, postgres]
 - `packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.spec.ts` — 核心功能测试
 - `packages/rxdb-adapter-pglite/src/__tests__/transaction_pglite_result.spec.ts` — 事务测试
 
-## 参考
+## References
 
 - [文档: PGlite 适配器](../../../website/docs/adapters/pglite.md)

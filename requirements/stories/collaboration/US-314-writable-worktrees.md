@@ -5,14 +5,14 @@ status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-17
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [collaboration, branch, worktree, history, tri-framework]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent (独立): 建在 US-313 的检出位登记与生命周期之上；后台写入产品闭环不是本故事前置
-- [x] Negotiable (可协商): 存储方案已定为库内影子表（[对比](US-314-storage-options.md)）；多检出位下只有主检出位同步（owner 2026-10-21 定）
+- [x] Negotiable (可协商): 存储方案已定为库内影子表（[对比](US-314-storage-options.md)）；多检出位下只有主检出位同步（owner 确定的范围）
 - [x] Valuable (有价值): 支持多条工作线同时编辑与提交，并能从可达历史提交新建分支
 - [x] Estimable (可估算): 范围由阶段 A/B/C 与各自 AC 确定；存储代价见 [方案边界](US-314-storage-options.md#代价与边界)
 - [ ] Small (小): 按交付阶段 A～C 拆
@@ -132,7 +132,8 @@ INVEST 检查清单:
 失败保留输入与错误；换挂清除旧详情、对比和选择。删除先确认并说明未提交改动留在分支；焦点、键盘、IME 与明暗主题可访问性由三端 e2e 守护。
 
 复验方式：下方实现文件中的检出位一致性套件、表集隔离/重建、共享连接、草稿、搜索与三端管理用例；不以一次执行数字作为当前通过证明。
-A/B/C 的代码交付事实不作为新场景的准入豁免；唯一留有明确例外记录的是 owner 对 B1 底座的先行解锁，不补造 B2/C 的价值评审记录。
+A/B/C 的代码交付事实不作为新场景的准入豁免；现有授权只覆盖阶段 B 的表集与持有键底座，
+后台持续写入等产品场景仍须按 epic-006 的准入条件独立评审，不从底座实现推导产品授权。
 
 ## 实现文件
 

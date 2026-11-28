@@ -22,11 +22,13 @@ import type { Mock } from 'vitest';
 import { vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
+import type { CommitExchangeRecord, CommitExportOptions, CommitExportPage } from '../../commit/commit-exchange.js';
 import type { CommitLogPage } from '../../commit/commit-log.js';
 import type { CommitResult } from '../commit-command.js';
 import type { WorkingTreeCredentials } from '../commit-conflict.js';
 import type { WorkingTreeDiff } from '../diff.js';
 import type { WorkingTreeDiscardResult } from '../discard-command.js';
+import type { CommitImportOptions, CommitImportResult } from '../import-command.js';
 import type { WorkingTreeRestoreResult, WorkingTreeRestoreSessionInfo } from '../restore-command.js';
 import type { WorkingTreeRestoreTarget } from '../restore-precheck.js';
 import type { WorkingTreeStatus } from '../status.js';
@@ -155,12 +157,13 @@ export const RESTORE_OK = {
 } satisfies WorkingTreeRestoreResult;
 
 /**
- * 四个被拒出口各一份**完整**载荷。
+ * 五个被拒出口各一份**完整**载荷。
  *
  * @remarks
- * 四种全列而不是挑一种代表：`reason` 是判别位，而 `conflict` / `incompatible` 只挂在其中两个
+ * 五种全列而不是挑一种代表：`reason` 是判别位，而 `conflict` / `incompatible` 只挂在其中两个
  * 分支上。只测 `dirty_working_tree` 的话，「带载荷的那两种有没有被原样带到 `success` 相位里」
- * 在本端永远没人问过——而界面要显示的恰恰是那两份载荷。
+ * 在本端永远没人问过——而界面要显示的恰恰是那两份载荷。`side_branch_target` 是 US-319 加的：
+ * 目标只在合并提交带进来的侧枝上，沿第一父链退不到。
  */
 export const REJECTED_RESTORES = [
   {
@@ -180,8 +183,100 @@ export const REJECTED_RESTORES = [
       manifest: { codecVersion: 1, entityResolved: false }
     }
   },
-  { ok: false, reason: 'unreachable_target' }
+  { ok: false, reason: 'unreachable_target' },
+  { ok: false, reason: 'side_branch_target' }
 ] as const satisfies readonly WorkingTreeRestoreResult[];
+
+/**
+ * 一条交换记录：导入批次与导出页里都是这一种（US-319）。
+ *
+ * @remarks
+ * 内容不重要（桩不校验指纹），形状重要：`satisfies` 让核心改了记录的字段名时三端一起红。
+ */
+export const IMPORT_RECORD = {
+  commitId: 'commit-remote-1',
+  parentIds: ['commit-1'],
+  kind: 'normal',
+  message: '远端提交',
+  authorId: 'server-alice',
+  createdAt: new Date(0),
+  contentFingerprint: '0'.repeat(64),
+  units: [
+    {
+      unitId: 'unit-remote-1',
+      transactionId: null,
+      namespace: 'app',
+      entity: 'Note',
+      entityId: 'note-remote-1',
+      operation: 'insert',
+      patch: { title: '远端' },
+      inversePatch: null,
+      origin: 'local'
+    }
+  ]
+} as const satisfies CommitExchangeRecord;
+
+/** 一次快进了一个提交的成功导入。 */
+export const IMPORT_OK = {
+  ok: true,
+  headCommitId: 'commit-remote-1',
+  headRevision: 3,
+  importedCount: 1,
+  appliedCount: 1
+} satisfies CommitImportResult;
+
+/**
+ * 导入被拒的出口，每种带载荷的各一份。
+ *
+ * @remarks
+ * 与 {@link REJECTED_RESTORES} 同一个理由全列：判别位之外的载荷（`conflict`、`problem`、`commitId`）只挂在部分分支上，
+ * 挑一种代表的话，「那几份载荷有没有原样落到 `success` 相位里」在本端没人问过。
+ */
+export const REJECTED_IMPORTS = [
+  {
+    ok: false,
+    reason: 'conflict',
+    conflict: { kind: 'head_revision', expected: 2, actual: 3, branchId: 'main' }
+  },
+  { ok: false, reason: 'not_main_checkout' },
+  { ok: false, reason: 'dirty_working_tree' },
+  { ok: false, reason: 'invalid_batch', problem: 'not_topological', commitId: 'commit-remote-1' },
+  {
+    ok: false,
+    reason: 'unsupported_entity',
+    problem: 'synced',
+    commitId: 'commit-remote-1',
+    namespace: 'app',
+    entity: 'Note'
+  },
+  { ok: false, reason: 'fingerprint_mismatch', commitId: 'commit-remote-1' },
+  { ok: false, reason: 'commit_id_conflict', commitId: 'commit-remote-1' },
+  { ok: false, reason: 'missing_parent', commitId: 'commit-remote-1', parentId: 'commit-0' },
+  { ok: false, reason: 'not_fast_forward', headCommitId: 'commit-1' },
+  {
+    ok: false,
+    reason: 'precondition_mismatch',
+    commitId: 'commit-remote-1',
+    unitId: 'unit-remote-1',
+    namespace: 'app',
+    entity: 'Note',
+    entityId: 'note-1',
+    operation: 'update'
+  }
+] as const satisfies readonly CommitImportResult[];
+
+/**
+ * 一页导出；`count` 为 0 即「那个提交之后没有新提交」。
+ *
+ * @param count - 记录数
+ * @returns 对应记录数的 {@link CommitExportPage}
+ */
+export const exportWith = (count: number): CommitExportPage => ({
+  branchId: 'main',
+  headCommitId: 'commit-1',
+  headRevision: 2,
+  commits: Array.from({ length: count }, (_, index) => ({ ...IMPORT_RECORD, commitId: `commit-export-${index}` }))
+});
 
 /**
  * 一组调用方捕获的凭据。
@@ -231,6 +326,12 @@ export interface WorkingTreeManagerStub {
   readonly restore: Mock<() => Promise<WorkingTreeRestoreResult>>;
   /** 读当前未结束的恢复会话。 */
   readonly restoreSession: Mock<() => Promise<WorkingTreeRestoreSessionInfo | null>>;
+  /** 导入一段远端提交（US-319）。 */
+  readonly importCommits: Mock<
+    (commits: readonly CommitExchangeRecord[], options: CommitImportOptions) => Promise<CommitImportResult>
+  >;
+  /** 导出某个提交之后的提交（US-319）。 */
+  readonly exportCommits: Mock<(options?: CommitExportOptions) => Promise<CommitExportPage>>;
   /** 提交后事件流；桩上永不发值——三端入口目前都不订阅它。 */
   readonly commits$: Observable<WorkingTreeCommitEvent>;
 }
@@ -285,6 +386,9 @@ export const createWorkingTreeHookStubs = (): WorkingTreeHookStubs => {
     discard: vi.fn<() => Promise<WorkingTreeDiscardResult>>(),
     restore: vi.fn<() => Promise<WorkingTreeRestoreResult>>(),
     restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>(),
+    importCommits:
+      vi.fn<(commits: readonly CommitExchangeRecord[], options: CommitImportOptions) => Promise<CommitImportResult>>(),
+    exportCommits: vi.fn<(options?: CommitExportOptions) => Promise<CommitExportPage>>(),
     commits$: NEVER
   };
   workingTree.status.mockResolvedValue(statusWith(0));

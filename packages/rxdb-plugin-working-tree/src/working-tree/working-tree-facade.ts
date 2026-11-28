@@ -31,7 +31,13 @@ import {
 import { readCommitChangeSetPage, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import { createCommitWriteContext } from '../commit/commit-context.js';
 import { CommitErrorCode } from '../commit/commit-error-codes.js';
-import { latchBranchCorruption } from '../commit/commit-graph-guard.js';
+import {
+  readCommitExportPage,
+  type CommitExchangeRecord,
+  type CommitExportOptions,
+  type CommitExportPage
+} from '../commit/commit-exchange.js';
+import { assertCommitGraphIntact, latchBranchCorruption } from '../commit/commit-graph-guard.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import {
@@ -43,12 +49,19 @@ import {
 import { installWorkingTreeCapture } from './capture-install.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import { runCommitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
+import { buildDatabaseVersionedDomain, businessEntitiesOf } from './database-versioned-domain.js';
 import { readWorkingTreeDiff, type WorkingTreeDiff, type WorkingTreeDiffOptions } from './diff.js';
 import {
   discardWorkingTree,
   type WorkingTreeDiscardOptions,
   type WorkingTreeDiscardResult
 } from './discard-command.js';
+import {
+  importWorkingTreeCommits,
+  type CommitImportEnvironment,
+  type CommitImportOptions,
+  type CommitImportResult
+} from './import-command.js';
 import {
   readActiveRestoreSession,
   restoreWorkingTree,
@@ -94,6 +107,24 @@ export class WorkingTreeCapabilityDisabledError extends RxDBError {
     Object.setPrototypeOf(this, WorkingTreeCapabilityDisabledError.prototype);
   }
 }
+
+/**
+ * 导入要向库问的三件事，从本纪元的适配器与宿主上现取（US-319）。
+ *
+ * @param rxdb - 宿主实例；取实体登记与同步配置解析器
+ * @param adapter - 这一笔受管事务用的那个适配器；版本化域问它物理表名
+ * @returns 见 {@link CommitImportEnvironment}
+ *
+ * @remarks
+ * 版本化域走捕获运行时同一个构造函数（`buildDatabaseVersionedDomain`），不另判：两份清单分叉的话，某个实体会被导入写进
+ * 业务表与变更日志，却在捕获那边算 untracked、从不进任何人的工作树。同步配置取实例解析器 `rxdb.entitySync`
+ * （含实例覆盖），与同步插件判「这个仓库推不推」是同一份。
+ */
+const importEnvironmentOf = (rxdb: RxDB, adapter: LocalRxDBAdapter): CommitImportEnvironment => ({
+  domain: buildDatabaseVersionedDomain(adapter, rxdb.config.entities, rxdb.entitySync),
+  businessEntities: businessEntitiesOf(rxdb.config.entities),
+  entitySync: rxdb.entitySync
+});
 
 /**
  * {@link WorkingTreeManager.enableIfEmpty} 的三种结局。
@@ -145,8 +176,9 @@ export class WorkingTreeManager {
    * - **何时发**：事务已提交、`commit()` 的 Promise resolve 之前，同步发出——`await commit()`
    *   之后订阅者一定已经收到，回调里 `listCommits()` 一定读得到这个 `commitId`。
    * - **何时不发**：`ok: false`（凭据冲突 / CAS 落败）、抛错、同一 `operationId` 的幂等重放、
-   *   `enable()` 的基线、`restore()` / `discard()`。幂等重放同样回 `ok: true`，按返回值判断的
-   *   订阅者会把同一个 commit 记两次——这条流的存在就是为了让订阅者不必自己判断。
+   *   `enable()` 的基线、`restore()` / `discard()`、`importCommits()` 导入的提交。幂等重放同样回 `ok: true`，
+   *   按返回值判断的订阅者会把同一个 commit 记两次——这条流的存在就是为了让订阅者不必自己判断。导入的提交本就来自
+   *   服务端，这条流的订阅者通常是上传逻辑，再发一次就是回声（US-319）。
    * - **订阅者隔离**：回调抛错不影响 `commit()` 的返回值，也不影响其他订阅者，错误走 RxJS 的
    *   未处理错误路径（`config.onUnhandledError`，缺省异步重抛）。
    * - **不经门禁**：未启用的库上也能订阅，只是永远不发。流不 `error`、不 `complete`。
@@ -346,12 +378,13 @@ export class WorkingTreeManager {
   }
 
   /**
-   * 把当前分支的工作树整体退回当前 HEAD（FR-016）。
+   * 把当前分支的工作树整体退回当前 HEAD，业务表逐行一起退（FR-016、US-320）。
    *
    * @param options - 见 {@link WorkingTreeDiscardOptions}；三个捕获位必填
    * @returns 见 {@link WorkingTreeDiscardResult}；干净工作树上是 `discardedCount: 0` 的 no-op
    * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
    * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   * @throws {@link UnknownWorkingTreePatchEntityError} 有条目指向本客户端没注册的实体；一个字节都没写
    *
    * @remarks
    * **恰好一个必填位置参数。** 做成可选的话，「缺省时由本次调用内部读取 revision」就成了
@@ -359,9 +392,14 @@ export class WorkingTreeManager {
    *
    * 参数本身**不在这里校验**：未启用的库该听到的是「去 enable()」，而不是
    * 「expectedBranch 不能为空」——后者在这个库上根本无从谈起。
+   *
+   * 与 v1 的差别只有一处：业务表现在跟着退回 HEAD（回写与删条目、推 revision 同一笔事务，见
+   * `discard-command.ts`）。只想清掉「未提交」标记、留下业务表现值的调用方要改用 {@link commit}。
    */
   async discard(options: WorkingTreeDiscardOptions): Promise<WorkingTreeDiscardResult> {
-    return this.runEnabled(executor => discardWorkingTree(executor, options));
+    return this.runEnabled((executor, adapter) =>
+      discardWorkingTree(executor, createCommitWriteContext(adapter), options)
+    );
   }
 
   /**
@@ -409,11 +447,69 @@ export class WorkingTreeManager {
   }
 
   /**
-   * 把一个可达历史 commit 的内容作为新的未提交变更写回当前工作树（FR-013）。
+   * 列出当前分支某个提交之后的提交，摊成交换记录，供上传（US-319 的导出侧）。
    *
-   * @param target - 见 {@link WorkingTreeRestoreTarget}；`entities` 缺省即整个 commit
+   * @param options - 见 {@link CommitExportOptions}；不给 `afterCommitId` 就是整条可达历史
+   * @returns 见 {@link CommitExportPage}；没有新提交时是 `commits` 为空的一页
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   * @throws {@link RxDBError} `afterCommitId` 在本库里不存在时
+   *
+   * @remarks
+   * `commits$` 只回答「刚才提交了哪个」，`commitChanges()` 交的是解码后的明细（`bigint` 过不了 JSON、指纹也复算不出来），
+   * 两者拼不出一份可以上传的东西；这里交的是导入收的同一种记录，落库形态、带内容指纹、父先于子。
+   *
+   * 与 {@link listCommits} 一样**不收 `branchId`**，读的恒为当前 active 分支（FR-048）。**先跑损坏守卫**：把一段自己都
+   * 校验不过的历史传上服务端，等于把损坏复制到每一台导入它的设备上。
+   */
+  async exportCommits(options: CommitExportOptions = {}): Promise<CommitExportPage> {
+    return this.runEnabled(async executor => {
+      const token = await readActiveBranchToken(executor);
+      await assertCommitGraphIntact(executor, token.branchId);
+      return readCommitExportPage(executor, token.branchId, options);
+    });
+  }
+
+  /**
+   * 把服务端下发的一段提交原样导入当前分支，分支头快进到最后一个（US-319）。
+   *
+   * @param commits - 批次：父先于子，最后一个是新头；记录形状见 {@link CommitExchangeRecord}
+   * @param options - 见 {@link CommitImportOptions}；三个捕获位必填，与 `discard()` / `restore()` 同一组
+   * @returns 见 {@link CommitImportResult}；被拒的每一种都是 `ok: false` 的**返回值**，持久状态零变化
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   * @throws {@link CommitEncryptedAtRestError} 某个单元的加密列里躺着明文时
+   *
+   * @remarks
+   * **恰好两个必填位置参数**，与 {@link restore} 同形：`options` 做成可选的话，「缺省时由本次调用内部读 revision」就成了
+   * 合法用法，而内部读到的恒等于当前值，HEAD 的 CAS 永远命中。
+   *
+   * 导入的提交保留原 id、父链、作者、消息、时间与内容指纹；第一父链上新到的提交依次把 ChangeSet 叠到业务表上，
+   * 合并提交带进来的侧枝只作为历史节点入库；工作树前后都是 clean。之后本地的 `commit()` 以导入的头为父。
+   * 只在主检出位导入；写不了走通用实体同步推送的实体（理由见 `import-command.ts`）。**不经 {@link commits$} 发事件**：
+   * 那条流的订阅者通常是上传逻辑，导入的提交本就来自服务端。
+   */
+  async importCommits(
+    commits: readonly CommitExchangeRecord[],
+    options: CommitImportOptions
+  ): Promise<CommitImportResult> {
+    return this.runEnabled((executor, adapter) =>
+      importWorkingTreeCommits(
+        executor,
+        createCommitWriteContext(adapter),
+        importEnvironmentOf(this.#rxdb, adapter),
+        commits,
+        options
+      )
+    );
+  }
+
+  /**
+   * 把业务表恢复成一个可达历史 commit 的数据，与 HEAD 的差异作为新的未提交变更（FR-013、US-320）。
+   *
+   * @param target - 见 {@link WorkingTreeRestoreTarget}；`entities` 缺省即全部行
    * @param options - 见 {@link WorkingTreeRestoreOptions}；三个捕获位必填
-   * @returns 见 {@link WorkingTreeRestoreResult}；不可达 / 脏工作树 / 不兼容都是 `ok: false` 的**返回值**
+   * @returns 见 {@link WorkingTreeRestoreResult}；不可达 / 只在侧枝上 / 脏工作树 / 不兼容都是 `ok: false` 的**返回值**
    * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
    * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
    *
@@ -423,8 +519,8 @@ export class WorkingTreeManager {
    * 的那半句当场失效。
    *
    * **没有 `checkout()`，也没有游离 HEAD**（硬裁决 5）：这个成员是「把历史内容搬进工作树」，
-   * 不是「把 HEAD 挪过去」。恢复完的工作树是脏的，下一步是 `commit()` 或 `discard()`，与手写变更
-   * 走同一条路（FR-015）。
+   * 不是「把 HEAD 挪过去」。恢复完的工作树是脏的，业务表读到的已经是目标的数据；下一步是 `commit()`
+   * （新 HEAD 的数据就是目标的数据）或 `discard()`（业务表退回 HEAD），与手写变更走同一条路（FR-015）。
    */
   async restore(
     target: WorkingTreeRestoreTarget,

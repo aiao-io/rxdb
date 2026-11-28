@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-10-20
+updated: 2026-11-16
 tags: [adapter, miniprogram, wechat, wa-sqlite, experimental]
 ---
 
@@ -95,10 +95,8 @@ INVEST 检查清单:
 - **AC#7 覆盖率登记**：`node scripts/audit/coverage-check.mjs --update --projects=rxdb-adapter-miniprogram`
   把本包写入 [coverage-baseline.json](../../../scripts/audit/coverage-baseline.json)
   （数值见 `coverage-baseline.json`，baseline 存向下取整值）。
-  **修正原 AC 的措辞**：本包此前并非「不受门禁保护」——`coverage-check.mjs` 的硬门槛是固定阈值
-  （核心包 90%、其余 80%），作用于 `packages/` 下所有非 private 包，与是否在 baseline 中无关；
-  本包是公开包、`reportsDirectory` 落点正确、在 `plan-test-lanes.mjs` 有分道，因此一直被卡着。
-  baseline **不是硬门槛**（见脚本头注释），登记的实际收益是：从此有了「比上次低」的趋势回归警告参照值。
+  覆盖率硬门槛作用于 `packages/` 下所有非 private 包：核心 90%、其余 80%，不以 baseline 登记为前提。
+  baseline 仅提供相对上次值的趋势回归警告，不能替代硬阈值；本包的报告目录与测试分道须同时保持正确。
 - **AC#8 子路径决策 = 纳入 API 基线**：`./runtime` 与主入口同等受 `api-surface.mjs` 守护
   （基线见 `requirements/api-baseline/rxdb-adapter-miniprogram.json`，由 [US-601](../tooling/US-601-subpath-api-surface-baseline.md) 交付）。
   `api-surface.mjs` 的 `ASSET_SUBPATHS` 只登记无 TS 导出表面的资产入口（本包仅 `./alipay-random-worker.js`），

@@ -38,8 +38,22 @@ export default function EntityListPage(): React.JSX.Element {
 | `mode`                                          | `'default'` 或 `'select'`（多对多选择模式，配合 `onSelectionConfirmed`）          |
 | `onSelectionConfirmed` / `onSelectionCancelled` | 选择模式确认 / 取消                                                               |
 | `creationChain` / `editChain`                   | 级联新增与关系下钻的防环链路                                                      |
+| `onDirtyChange`                                 | 新增 / 编辑对话框里是否有未保存输入，状态变化时调用（见下方「未保存输入」）       |
 
 「查看」行 → 组件内置打开 edit 详情对话框（关系 Tab 内同理可无限下钻，`editChain` 防环）。
+
+### 未保存输入
+
+列表打开的新增 / 编辑对话框里还没点保存的取值，组件经 `onDirtyChange(dirty)` 交给宿主，用来在离开页面前提示、在同步或切换前拦下：
+
+```tsx
+<EntityList name={name} namespace={namespace} onDirtyChange={dirty => setUnsaved(dirty)} />
+```
+
+- 只在状态真正变化时调用：输入后报 `true`，改回原值（含把新建表单的字段清空）报 `false`；保存成功、取消、关闭对话框（Escape、遮罩）都回到 `false`。
+- 关系 Tab 里嵌套列表的同类输入、级联新增进本地草稿（随父实体一起保存）的子记录也算未保存，父实体保存或取消之后才回到 `false`。
+- 组件卸载（含 StrictMode 回放、`<Activity>` 隐藏）时仍是 `true` 就补报一次 `false`，宿主不会停在 `true`；重显时若仍有未保存输入再报 `true`。
+- `EntityDetail` 有同名的 `onDirtyChange`，独立使用详情时同样可用；判定规则在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`（见 [Headless](headless.md#未保存输入)），三端一致。
 
 ## 实体详情
 
@@ -67,7 +81,7 @@ export default function EntityDetailPage(): React.JSX.Element {
 }
 ```
 
-主要 props：`namespace` / `name` / `entityId`（路由输入通道，与 `metadata` 二选一）、`metadata` / `formFields` / `formData` / `formMode`（直接传入元数据与表单数据）、`onFormSubmitted` / `onFormCancelled` / `onFieldChanged` / `onValidationErrors`。
+主要 props：`namespace` / `name` / `entityId`（路由输入通道，与 `metadata` 二选一）、`metadata` / `formFields` / `formData` / `formMode`（直接传入元数据与表单数据）、`onFormSubmitted` / `onFormCancelled` / `onFieldChanged` / `onValidationErrors`、`onDirtyChange`（是否有未保存输入；保存成功、把输入交给宿主、取消或换了编辑目标都回到 `false`）。
 
 组件树里没有 `RxDBProvider` 时按独立表单运行，create 与 edit 都把表单数据经 `onFormSubmitted` 交给调用方。有 Provider 但数据库还没到（含异步 source 创建失败）时，create 的保存禁用，等待期间的输入在库到了之后并进草稿。编辑目标未就绪（数据库未到、按 `entityId` 加载中或加载失败）时，表单内部动作隐藏、tabs 下方只留「取消」，提交被拦截；就绪后表单按加载到的实例重置，未就绪期间的输入不保留。`fixedFormData` 只合入 create 草稿与无实例的透传表单；已加载实例的 edit 模式下只把对应字段设为只读、显示实例自身的值。这两点与 Angular 一致，Vue 不同（见 Vue 页的「实体详情」）。
 

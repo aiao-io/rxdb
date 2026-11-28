@@ -6,8 +6,10 @@
  * 「归档不依赖源应用数据目录仍存在」）；目标 host 恢复后关掉、再在同一根目录上起一个新 host
  * 重新连接，等同于退出应用后重新启动。同步类型为 None 的本地库没有远端可推拉，「适用的同步
  * 操作」落到同步所依赖的本地状态：`rxdb_change` 历史逐行一致、恢复不追加历史、新写入接着记账。
+ *
+ * 身份绑定（US-040）：校验在 host 的私有实例上执行，库里绑定了别的身份时同样在提交之前拒绝。
  */
-import { isRxDBBackupError, type RxDB } from '@aiao/rxdb';
+import { isRxDBBackupError, type RxDB, type RxDBIdentity } from '@aiao/rxdb';
 import { existsSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -57,12 +59,15 @@ const start = (options?: BackupHostOptions): BackupHost => {
   return host;
 };
 
-/** 在一台独立的 host 上播种并备份，随后连 host 带根目录一起删掉。 */
-const backupSeeded = async (options: BackupHostOptions = {}) => {
+/** 在一台独立的 host 上播种并备份，随后连 host 带根目录一起删掉；给了身份时源库绑定到它。 */
+const backupSeeded = async (options: BackupHostOptions = {}, identity?: RxDBIdentity) => {
   const host = start(options);
-  const source = createElectronBackupRxDB(uniqueDbName('electron-pg-src'), PLAIN_ENTITIES, {
-    transport: host.transportFor(OWNER)
-  });
+  const source = createElectronBackupRxDB(
+    uniqueDbName('electron-pg-src'),
+    PLAIN_ENTITIES,
+    { transport: host.transportFor(OWNER) },
+    identity
+  );
   opened.push(source.rxdb);
   const adapter = await source.connect();
   await seedNotes(source.entities);
@@ -75,9 +80,9 @@ const backupSeeded = async (options: BackupHostOptions = {}) => {
   return { bytes: out.bytes(), result, changes, objects, sourceRoot: host.root };
 };
 
-/** 目标 host 上一个尚未连接的实例。 */
-const targetOn = (host: BackupHost, dbName = uniqueDbName('electron-pg-dst')) => {
-  const target = createElectronBackupRxDB(dbName, PLAIN_ENTITIES, { transport: host.transportFor(OWNER) });
+/** 目标 host 上一个尚未连接的实例；给了身份时它声明这个身份。 */
+const targetOn = (host: BackupHost, dbName = uniqueDbName('electron-pg-dst'), identity?: RxDBIdentity) => {
+  const target = createElectronBackupRxDB(dbName, PLAIN_ENTITIES, { transport: host.transportFor(OWNER) }, identity);
   opened.push(target.rxdb);
   return { target, dataDirectoryName: dataDirectoryNameOf(target.rxdb) };
 };
@@ -172,5 +177,37 @@ describe('restoreElectronPGliteDatabase round-trip', { timeout: PGLITE_TEST_TIME
 
     expect(await cleanupIncompleteElectronPGliteRestore(target)).toBe(false);
     expect(await host.targetState(dataDirectoryName)).toEqual({ empty: true, marker: false });
+  });
+});
+
+describe('restoreElectronPGliteDatabase identity binding (US-040)', { timeout: PGLITE_TEST_TIMEOUT }, () => {
+  const alice: RxDBIdentity = { scope: 'https://backup.test', subject: 'alice' };
+  const bob: RxDBIdentity = { scope: 'https://backup.test', subject: 'bob' };
+
+  it('refuses an archive bound to another identity before committing; the target stays empty and opens as its own identity', async () => {
+    const { bytes } = await backupSeeded({}, alice);
+    const host = start();
+    const { target, dataDirectoryName } = targetOn(host, undefined, bob);
+
+    const error = await restoreElectronPGliteDatabase(chunkedSource(bytes).stream, target).catch(
+      (caught: unknown) => caught
+    );
+
+    expect(isRxDBBackupError(error) && error.code).toBe('incompatible_archive');
+    expect(isRxDBBackupError(error) && error.details.field).toBe('identity');
+    expect(host.host.openRestoreCount).toBe(0);
+    expect(await host.targetState(dataDirectoryName)).toEqual({ empty: true, marker: false });
+    const adapter = await target.connect();
+    expect(await readNotes(adapter, target.entities)).toEqual([]);
+  });
+
+  it('restores an archive bound to the same identity', async () => {
+    const { bytes } = await backupSeeded({}, alice);
+    const host = start();
+    const { target } = targetOn(host, undefined, alice);
+
+    await restoreElectronPGliteDatabase(chunkedSource(bytes).stream, target);
+
+    expect(await readNotes(await target.connect(), target.entities)).toEqual(SEEDED_NOTES);
   });
 });

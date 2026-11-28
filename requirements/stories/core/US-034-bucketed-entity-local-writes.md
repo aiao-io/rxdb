@@ -1,7 +1,7 @@
 ---
 id: US-034
 title: 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定
-status: In Review
+status: Done
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-25

@@ -166,6 +166,34 @@
         "kind": "both"
       },
       {
+        "name": "CommitExchangeRecord",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExportOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExportPage",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportBatchProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportEntityProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportResult",
+        "kind": "type"
+      },
+      {
         "name": "CommitKind",
         "kind": "type"
       },
@@ -303,6 +331,10 @@
       },
       {
         "name": "isCommitErrorCode",
+        "kind": "value"
+      },
+      {
+        "name": "isCommitExportPageEmpty",
         "kind": "value"
       },
       {
@@ -838,6 +870,76 @@
         "kind": "type"
       }
     ],
+    "./exchange": [
+      {
+        "name": "checkCommitExchangeBatch",
+        "kind": "value"
+      },
+      {
+        "name": "CommitChangeUnitContent",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitOperation",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitOrigin",
+        "kind": "type"
+      },
+      {
+        "name": "CommitContentFingerprintInput",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExchangeJsonError",
+        "kind": "both"
+      },
+      {
+        "name": "CommitExchangeJsonProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExchangeRecord",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExchangeRecordJson",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportBatchFinding",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportBatchProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitKind",
+        "kind": "type"
+      },
+      {
+        "name": "computeChangeUnitFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "computeCommitContentFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "computeCommitExchangeRecordFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "parseCommitExchangeRecord",
+        "kind": "value"
+      },
+      {
+        "name": "serializeCommitExchangeRecord",
+        "kind": "value"
+      }
+    ],
     "./testing": [
       {
         "name": "ConformanceCache",
@@ -872,7 +974,23 @@
         "kind": "value"
       },
       {
+        "name": "exportWith",
+        "kind": "value"
+      },
+      {
+        "name": "IMPORT_OK",
+        "kind": "value"
+      },
+      {
+        "name": "IMPORT_RECORD",
+        "kind": "value"
+      },
+      {
         "name": "logWith",
+        "kind": "value"
+      },
+      {
+        "name": "REJECTED_IMPORTS",
         "kind": "value"
       },
       {

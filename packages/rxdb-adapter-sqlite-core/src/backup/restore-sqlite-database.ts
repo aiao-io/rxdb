@@ -1,6 +1,7 @@
 import type { RxDB, RxDBBackupManifest, RxDBBackupTrailer, RxDBRestoreResult } from '@aiao/rxdb';
 import {
   assertRxDBBackupCompatible,
+  assertRxDBRestoreIdentity,
   classifyBackupIoError,
   hasRxDBBackupWebLocks,
   isRxDBBackupError,
@@ -17,6 +18,7 @@ import { quote_sql_identifier } from '../sqlite-core.utils.js';
 import {
   assertNoSqliteShadowTables,
   readSqliteDumpColumns,
+  readSqliteMigrationNames,
   readSqliteSystemVersionState,
   runSqliteBackupSql,
   selectSqliteRows,
@@ -271,6 +273,8 @@ const assertArchiveModules = (schema: SqliteBackupSchema, manifest: RxDBBackupMa
 };
 
 interface RestoreSession {
+  /** 恢复目标的实例：提交之前按它声明的身份核对恢复出来的库（US-040）。 */
+  readonly target: RxDB;
   readonly reader: RxDBBackupArchiveReader;
   readonly manifest: RxDBBackupManifest;
   readonly schema: SqliteBackupSchema;
@@ -298,7 +302,7 @@ const openSession = async (
   const schema = parseSqliteBackupSchema(await readJsonEntry(reader, SQLITE_BACKUP_SCHEMA_ENTRY));
   assertArchiveModules(schema, manifest);
   if (!input.shadowTablesWritable) assertNoSqliteShadowTables(schema, input.adapterName);
-  return { reader, manifest, schema, signal };
+  return { target: input.rxdb, reader, manifest, schema, signal };
 };
 
 // ─── 写入目标 ────────────────────────────────────────────────────────────────
@@ -431,6 +435,14 @@ const readSummary = async (
 
 // ─── 核对 ────────────────────────────────────────────────────────────────────
 
+/**
+ * 恢复出来的库绑定的身份必须与目标实例声明的一致（US-040）：别人的备份不进当前身份的库。
+ * 迁移表只有几行，整表读出交给核心判定，水位行的格式只在核心里。
+ */
+const assertIdentity = async (client: SqliteClientLike, target: RxDB): Promise<void> => {
+  assertRxDBRestoreIdentity(target, await readSqliteMigrationNames(client, 'corrupt_archive'));
+};
+
 const assertVersions = async (client: SqliteClientLike, manifest: RxDBBackupManifest): Promise<void> => {
   const state = await readSqliteSystemVersionState(client, 'corrupt_archive');
   if (state.schemaVersion !== manifest.rxdb.systemSchemaVersion) {
@@ -543,6 +555,7 @@ const writeTarget = async (
   await options.onStage?.('rows-written');
   throwIfAborted(session.signal);
   await assertVersions(client, session.manifest);
+  await assertIdentity(client, session.target);
   await assertStructure(client, schema);
   await options.onStage?.('verified');
   throwIfAborted(session.signal);

@@ -1,7 +1,7 @@
 ---
 id: US-227
 title: dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-11-25

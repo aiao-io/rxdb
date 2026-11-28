@@ -2,7 +2,7 @@ import { beforeAll, describe, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { EntityType } from '../../entity/entity.interface.js';
-import { PropertyType, RelationKind, SyncType } from '../../entity/metadata-options.interface.js';
+import { OnDeleteAction, PropertyType, RelationKind, SyncType } from '../../entity/metadata-options.interface.js';
 import { IRepository } from '../../repository/repository.interface.js';
 import { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata } from '../../rxdb-utils.js';
@@ -17,38 +17,50 @@ const createRepository = <T extends EntityType>(): IRepository<T> => ({
   remove: async entity => entity
 });
 
-const { trackSharedRxDB } = registerRxDBTeardown();
+const createAdapter = (): IRxDBAdapter => {
+  const adapter: IRxDBAdapter = {
+    name: 'sqlite',
+    connect: async () => adapter,
+    disconnect: async () => undefined,
+    version: async () => '1.0.0',
+    getRepository<T extends EntityType, RT extends IRepository<T> = IRepository<T>>() {
+      return createRepository<T>() as RT;
+    },
+    saveMany: async entities => entities,
+    removeMany: async entities => entities,
+    mutations: async () => [],
+    isTableExisted: async () => true
+  };
+  return adapter;
+};
+
+/** 只建实例、不连接：元数据与 schema 的判定在 `init()` 之后就能查 */
+const createInitializedRxDB = (dbName: string, entities: EntityType[]): RxDB => {
+  const rxdb = new RxDB({ dbName, entities, sync: { local: { adapter: 'sqlite' }, type: SyncType.None } });
+  rxdb.adapter('sqlite', () => createAdapter());
+  rxdb.init();
+  return rxdb;
+};
+
+const { trackRxDB, trackSharedRxDB } = registerRxDBTeardown();
 
 describe('@Entity', () => {
   let rxdb: RxDB;
   beforeAll(async () => {
     rxdb = trackSharedRxDB(
-      new RxDB({
-        dbName: 'Todo',
-        entities: [Attribute, AttributeValue, Category, IdCard, Order, OrderItem, Product, SKU, SKUAttributes, User],
-        sync: {
-          local: {
-            adapter: 'sqlite'
-          },
-          type: SyncType.None
-        }
-      })
+      createInitializedRxDB('Todo', [
+        Attribute,
+        AttributeValue,
+        Category,
+        IdCard,
+        Order,
+        OrderItem,
+        Product,
+        SKU,
+        SKUAttributes,
+        User
+      ])
     );
-    const adapter: IRxDBAdapter = {
-      name: 'sqlite',
-      connect: async () => adapter,
-      disconnect: async () => undefined,
-      version: async () => '1.0.0',
-      getRepository<T extends EntityType, RT extends IRepository<T> = IRepository<T>>() {
-        return createRepository<T>() as RT;
-      },
-      saveMany: async entities => entities,
-      removeMany: async entities => entities,
-      mutations: async () => [],
-      isTableExisted: async () => true
-    };
-    rxdb.adapter('sqlite', () => adapter);
-    rxdb.init();
   });
 
   describe('findMappedRelation', () => {
@@ -174,21 +186,34 @@ describe('@Entity', () => {
     });
   });
 
-  describe('isReferenced（US-318）', () => {
-    it('被多对一、一对一或生成的中间表用外键指向的实体为 true；实体类与元数据都能查', () => {
-      expect(rxdb.schemaManager.isReferenced(Order)).toBe(true);
-      expect(rxdb.schemaManager.isReferenced(User)).toBe(true);
-      expect(rxdb.schemaManager.isReferenced(IdCard)).toBe(true);
-      expect(rxdb.schemaManager.isReferenced(Category)).toBe(true);
-      expect(rxdb.schemaManager.isReferenced(getEntityMetadata(OrderItem))).toBe(true);
+  describe('cascadesOnDelete（US-318）', () => {
+    it('被会级联删除（一对一、生成的中间表）或置空（可空多对一）的外键指向的实体为 true；实体类与元数据都能查', () => {
+      expect(rxdb.schemaManager.cascadesOnDelete(User)).toBe(true);
+      expect(rxdb.schemaManager.cascadesOnDelete(IdCard)).toBe(true);
+      expect(rxdb.schemaManager.cascadesOnDelete(SKU)).toBe(true);
+      expect(rxdb.schemaManager.cascadesOnDelete(Category)).toBe(true);
+      expect(rxdb.schemaManager.cascadesOnDelete(getEntityMetadata(OrderItem))).toBe(true);
+    });
+
+    it('只被 RESTRICT 外键（不可空多对一的默认）引用的实体为 false：删除要么被拒，要么只删这一行', () => {
+      expect(rxdb.schemaManager.cascadesOnDelete(Order)).toBe(false);
+      expect(rxdb.schemaManager.cascadesOnDelete(Product)).toBe(false);
+      expect(rxdb.schemaManager.cascadesOnDelete(Attribute)).toBe(false);
     });
 
     it('只被一对多（反向、不带外键）指向、或谁都不指向的实体为 false', () => {
       const junction = rxdb.schemaManager.getEntityType('Category_OrderItem', 'public');
       if (!junction) throw new Error('多对多中间表没有生成');
 
-      expect(rxdb.schemaManager.isReferenced(SKUAttributes)).toBe(false);
-      expect(rxdb.schemaManager.isReferenced(junction)).toBe(false);
+      expect(rxdb.schemaManager.cascadesOnDelete(SKUAttributes)).toBe(false);
+      expect(rxdb.schemaManager.cascadesOnDelete(junction)).toBe(false);
+    });
+
+    it('实体级外键（foreignKeys）声明了 CASCADE 时为 true；不声明 onDelete（数据库默认 NO ACTION）时为 false', () => {
+      const keyed = trackRxDB(createInitializedRxDB('CascadeKeys', [KeyedNote, KeyedNoteRef, PlainNote, PlainNoteRef]));
+
+      expect(keyed.schemaManager.cascadesOnDelete(KeyedNote)).toBe(true);
+      expect(keyed.schemaManager.cascadesOnDelete(PlainNote)).toBe(false);
     });
   });
 });
@@ -564,3 +589,35 @@ describe('RXD-056 反向关系必须两端一致', () => {
     expect(rxdb.schemaManager.findMappedRelation(memberMeta, memberMeta.relationMap.get('team')!)).toBeUndefined();
   });
 });
+
+/**
+ * 实体级外键（`foreignKeys`）指向的两个父实体，给 US-318 的删除判据用：`KeyedNoteRef` 声明了
+ * `onDelete: CASCADE`，删 `KeyedNote` 会连带删掉引用它的行；`PlainNoteRef` 不声明，数据库按 NO ACTION 处理。
+ */
+@Entity({ name: 'KeyedNote', properties: [{ name: 'title', type: PropertyType.string }] })
+class KeyedNote extends EntityBase {}
+
+@Entity({
+  name: 'KeyedNoteRef',
+  properties: [{ name: 'noteId', type: PropertyType.uuid, required: true }],
+  foreignKeys: [
+    {
+      name: 'note',
+      properties: ['noteId'],
+      mappedEntity: 'KeyedNote',
+      mappedProperties: ['id'],
+      onDelete: OnDeleteAction.CASCADE
+    }
+  ]
+})
+class KeyedNoteRef extends EntityBase {}
+
+@Entity({ name: 'PlainNote', properties: [{ name: 'title', type: PropertyType.string }] })
+class PlainNote extends EntityBase {}
+
+@Entity({
+  name: 'PlainNoteRef',
+  properties: [{ name: 'noteId', type: PropertyType.uuid, required: true }],
+  foreignKeys: [{ name: 'note', properties: ['noteId'], mappedEntity: 'PlainNote', mappedProperties: ['id'] }]
+})
+class PlainNoteRef extends EntityBase {}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["rxdb-admin-template-react"],
+  "name": "rxdb-admin-template-react-e2e",
+  "projectType": "application",
+  "sourceRoot": "rxdb-admin-template/apps/react-e2e/src",
+  "tags": ["product:admin-template", "scope:admin-template", "type:e2e"],
+  "targets": {
+    "e2e": {
+      "dependsOn": ["rxdb-admin-template-react:build"]
+    }
+  }
+}

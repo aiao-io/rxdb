@@ -1,0 +1,252 @@
+{
+  "anonKeyInArtifacts": 0,
+  "artifactFindings": 0,
+  "at": "2026-11-18T08:03:11.472Z",
+  "containers": {
+    "functions": {
+      "variables": [
+        "ADMIN_ALLOWED_ORIGINS",
+        "ADMIN_DATABASE_URL",
+        "ADMIN_ERROR_REPORT_URL",
+        "ADMIN_JWKS_URL",
+        "ADMIN_JWT_ISSUER",
+        "ADMIN_PUBLIC_SUPABASE_URL",
+        "ADMIN_RELEASE",
+        "PATH",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_DB_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
+      ],
+      "secrets": ["ADMIN_SERVICE_PASSWORD", "POSTGRES_PASSWORD", "SERVICE_ROLE_KEY"]
+    },
+    "db": {
+      "variables": [
+        "GRN_PLUGINS_DIR",
+        "JWT_EXP",
+        "JWT_SECRET",
+        "LANG",
+        "LANGUAGE",
+        "LC_ALL",
+        "LOCALE_ARCHIVE",
+        "PATH",
+        "PGDATA",
+        "PGDATABASE",
+        "PGPASSWORD",
+        "PGPORT",
+        "POSTGRES_DB",
+        "POSTGRES_HOST",
+        "POSTGRES_INITDB_ARGS",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_PORT",
+        "POSTGRES_USER"
+      ],
+      "secrets": ["JWT_SECRET", "POSTGRES_PASSWORD"]
+    },
+    "auth": {
+      "variables": [
+        "API_EXTERNAL_URL",
+        "GOTRUE_API_HOST",
+        "GOTRUE_API_PORT",
+        "GOTRUE_DB_DATABASE_URL",
+        "GOTRUE_DB_DRIVER",
+        "GOTRUE_DB_MIGRATIONS_PATH",
+        "GOTRUE_DISABLE_SIGNUP",
+        "GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED",
+        "GOTRUE_EXTERNAL_EMAIL_ENABLED",
+        "GOTRUE_JWT_ADMIN_ROLES",
+        "GOTRUE_JWT_AUD",
+        "GOTRUE_JWT_DEFAULT_GROUP_NAME",
+        "GOTRUE_JWT_EXP",
+        "GOTRUE_JWT_ISSUER",
+        "GOTRUE_JWT_KEYS",
+        "GOTRUE_JWT_SECRET",
+        "GOTRUE_MAILER_AUTOCONFIRM",
+        "GOTRUE_MAILER_OTP_EXP",
+        "GOTRUE_MAILER_OTP_LENGTH",
+        "GOTRUE_MAILER_SUBJECTS_CONFIRMATION",
+        "GOTRUE_MAILER_SUBJECTS_MAGIC_LINK",
+        "GOTRUE_MAILER_TEMPLATES_CONFIRMATION",
+        "GOTRUE_MAILER_TEMPLATES_MAGIC_LINK",
+        "GOTRUE_MAILER_URLPATHS_CONFIRMATION",
+        "GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE",
+        "GOTRUE_MAILER_URLPATHS_INVITE",
+        "GOTRUE_MAILER_URLPATHS_RECOVERY",
+        "GOTRUE_RATE_LIMIT_EMAIL_SENT",
+        "GOTRUE_RATE_LIMIT_OTP",
+        "GOTRUE_RATE_LIMIT_TOKEN_REFRESH",
+        "GOTRUE_RATE_LIMIT_VERIFY",
+        "GOTRUE_SITE_URL",
+        "GOTRUE_SMTP_ADMIN_EMAIL",
+        "GOTRUE_SMTP_HOST",
+        "GOTRUE_SMTP_MAX_FREQUENCY",
+        "GOTRUE_SMTP_PORT",
+        "GOTRUE_SMTP_SENDER_NAME",
+        "GOTRUE_URI_ALLOW_LIST",
+        "PATH"
+      ],
+      "secrets": ["JWT_KEYS", "JWT_KEYS#d", "JWT_SECRET", "JWT_SECRET#jwk", "POSTGRES_PASSWORD"]
+    },
+    "rest": {
+      "variables": [
+        "PATH",
+        "PGRST_ADMIN_SERVER_HOST",
+        "PGRST_ADMIN_SERVER_PORT",
+        "PGRST_DB_ANON_ROLE",
+        "PGRST_DB_MAX_ROWS",
+        "PGRST_DB_SCHEMAS",
+        "PGRST_DB_URI",
+        "PGRST_DB_USE_LEGACY_GUCS",
+        "PGRST_JWT_SECRET"
+      ],
+      "secrets": ["JWT_JWKS", "JWT_SECRET#jwk", "POSTGRES_PASSWORD"]
+    },
+    "realtime": {
+      "variables": [
+        "ANON_KEY",
+        "API_JWT_JWKS",
+        "API_JWT_SECRET",
+        "APP_NAME",
+        "DB_AFTER_CONNECT_QUERY",
+        "DB_ENC_KEY",
+        "DB_HOST",
+        "DB_NAME",
+        "DB_PASSWORD",
+        "DB_PORT",
+        "DB_USER",
+        "DISABLE_HEALTHCHECK_LOGGING",
+        "DNS_NODES",
+        "ECTO_IPV6",
+        "ERL_AFLAGS",
+        "ERL_FLAGS",
+        "LANG",
+        "LANGUAGE",
+        "LC_ALL",
+        "METRICS_JWT_SECRET",
+        "MIX_ENV",
+        "PATH",
+        "PORT",
+        "RLIMIT_NOFILE",
+        "RUN_JANITOR",
+        "SECRET_KEY_BASE",
+        "SEED_SELF_HOST",
+        "SELF_HOST_TENANT_NAME",
+        "SLOT_NAME_SUFFIX"
+      ],
+      "secrets": [
+        "JWT_JWKS",
+        "JWT_SECRET",
+        "JWT_SECRET#jwk",
+        "POSTGRES_PASSWORD",
+        "REALTIME_DB_ENC_KEY",
+        "SECRET_KEY_BASE"
+      ]
+    },
+    "pooler": {
+      "variables": ["PATH"],
+      "secrets": []
+    },
+    "kong": {
+      "variables": [
+        "KONG_ADMIN_LISTEN",
+        "KONG_DATABASE",
+        "KONG_DECLARATIVE_CONFIG",
+        "KONG_DNS_ORDER",
+        "KONG_NGINX_HTTP_CLIENT_MAX_BODY_SIZE",
+        "KONG_NGINX_PROXY_PROXY_BUFFERS",
+        "KONG_NGINX_PROXY_PROXY_BUFFER_SIZE",
+        "KONG_PLUGINS",
+        "KONG_PREFIX",
+        "KONG_VERSION",
+        "PATH"
+      ],
+      "secrets": []
+    },
+    "web": {
+      "variables": [
+        "ACME_VERSION",
+        "DYNPKG_RELEASE",
+        "NGINX_VERSION",
+        "NJS_RELEASE",
+        "NJS_VERSION",
+        "PATH",
+        "PKG_RELEASE"
+      ],
+      "secrets": []
+    },
+    "mail": {
+      "variables": [
+        "INBUCKET_POP3_TIMEOUT",
+        "INBUCKET_SMTP_ADDR",
+        "INBUCKET_SMTP_DISCARDDOMAINS",
+        "INBUCKET_SMTP_DOMAIN",
+        "INBUCKET_SMTP_TIMEOUT",
+        "INBUCKET_STORAGE_MAILBOXMSGCAP",
+        "INBUCKET_STORAGE_PARAMS",
+        "INBUCKET_STORAGE_RETENTIONPERIOD",
+        "INBUCKET_STORAGE_TYPE",
+        "INBUCKET_WEB_ADDR",
+        "INBUCKET_WEB_COOKIEAUTHKEY",
+        "INBUCKET_WEB_GREETINGFILE",
+        "INBUCKET_WEB_UIDIR",
+        "PATH"
+      ],
+      "secrets": []
+    },
+    "collector": {
+      "variables": ["PATH"],
+      "secrets": []
+    }
+  },
+  "envFile": {
+    "mode": "600",
+    "ignored": true,
+    "tracked": false
+  },
+  "functionEnvironment": {
+    "ADMIN_DATABASE_URL": true,
+    "SUPABASE_ANON_KEY": true,
+    "ADMIN_JWKS_URL": true,
+    "ADMIN_JWT_ISSUER": true,
+    "noSharedSecret": true
+  },
+  "kind": "env-check",
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "problems": [],
+  "publicConfig": {
+    "react": {
+      "keys": ["supabaseKey", "supabaseUrl"],
+      "role": "anon",
+      "supabaseUrl": "http://127.0.0.1:4500"
+    },
+    "angular": {
+      "keys": ["supabaseKey", "supabaseUrl"],
+      "role": "anon",
+      "supabaseUrl": "http://127.0.0.1:4500"
+    },
+    "vue": {
+      "keys": ["supabaseKey", "supabaseUrl"],
+      "role": "anon",
+      "supabaseUrl": "http://127.0.0.1:4500"
+    }
+  },
+  "release": "r20261118-080053-3ab4041",
+  "scanned": {
+    "artifactFiles": 82,
+    "committableFiles": 543,
+    "secretValues": [
+      "POSTGRES_PASSWORD",
+      "JWT_SECRET",
+      "SERVICE_ROLE_KEY",
+      "JWT_KEYS",
+      "JWT_JWKS",
+      "REALTIME_DB_ENC_KEY",
+      "SECRET_KEY_BASE",
+      "PG_META_CRYPTO_KEY",
+      "ADMIN_SERVICE_PASSWORD",
+      "ADMIN_BOOTSTRAP_KEY",
+      "JWT_KEYS#d",
+      "JWT_SECRET#jwk"
+    ]
+  }
+}

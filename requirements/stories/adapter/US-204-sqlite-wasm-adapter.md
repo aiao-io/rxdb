@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2026-04-15
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, sqlite, wasm]
 ---
 
@@ -43,7 +43,7 @@ tags: [adapter, sqlite, wasm]
 - `packages/rxdb-adapter-sqlite-wasm/` — subframe7536 后端
 - `packages/rxdb-adapter-sqlite/` — @sqlite.org 官方后端
 
-## 参考
+## References
 
 - [US-201 wa-sqlite 适配器](US-201-sqlite-adapter.md)
 - [Epic: 核心 MVP 功能](../../epics/epic-001-core-mvp.md)

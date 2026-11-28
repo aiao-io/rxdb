@@ -1,0 +1,77 @@
+{
+  "$comment": "每个产品迁移的回滚说明（ADMIN-US-217 AC#8）：能否回滚、对数据的影响与前向修复办法。新增迁移必须在这里登记，deploy-test 会核对；回滚脚本按发布清单列出目标发布之后新加的迁移与这里的说明。迁移只向前执行，不在回滚时撤销。",
+  "migrations": [
+    {
+      "name": "202611160001_collaboration.sql",
+      "summary": "首版协作结构：admin_private schema、治理行、成员、共享头、审计、逐记录变更日志、版本行与 can_read() 及读取策略",
+      "reversible": false,
+      "previousRelease": "首个迁移，没有更早的发布",
+      "dataImpact": "删除即丢失全部协作数据；所有后续迁移都依赖它",
+      "rollback": "不回滚。应用回滚到任何发布都不需要撤销它",
+      "forwardFix": "结构问题写新的幂等迁移修正（ALTER … / CREATE OR REPLACE …），按流水线第 1 步执行"
+    },
+    {
+      "name": "202611170001_commit_store.sql",
+      "summary": "提交存储与共享记录物化：commits / commit_changes 与 shared_records",
+      "reversible": false,
+      "previousRelease": "不兼容：首版之前的发布按整行 JSONB 读写提交",
+      "dataImpact": "提交历史与共享记录都在这些表里，删除即丢失",
+      "rollback": "不回滚",
+      "forwardFix": "写新迁移修正；提交表结构此后由 202611180002 改为交换格式"
+    },
+    {
+      "name": "202611170002_workspace_tables.sql",
+      "summary": "工作区整行 JSONB 拆表：成员、策略、任务与引用、PR、候选、审核、讨论、通知、邀请、回执分表，审计加 seq 与筛选列，版本行加审计条数",
+      "reversible": false,
+      "previousRelease": "不兼容：拆表之前的发布读写 workspaces.state",
+      "dataImpact": "拆出的表承载全部协作状态，撤销即丢失",
+      "rollback": "不回滚",
+      "forwardFix": "写新迁移修正；回执过期按批清理，不需要人工处理"
+    },
+    {
+      "name": "202611170003_schema_manifests.sql",
+      "summary": "数据模式清单（按版本只追加）与共享记录的键索引 record_keys",
+      "reversible": false,
+      "previousRelease": "不兼容：之前的发布用写死的资产规则校验",
+      "dataImpact": "键索引可由共享记录重建；清单只追加，删除会让工作区失去数据模式",
+      "rollback": "不回滚",
+      "forwardFix": "清单错误经 schema 命令登记更高版本；键索引异常时登记同内容的新版本触发重建"
+    },
+    {
+      "name": "202611170004_supabase_native.sql",
+      "summary": "public 下的只读投影与读取函数、realtime.messages 的私有频道策略、can_manage() / can_read_topic()，删除 admin_presence",
+      "reversible": true,
+      "previousRelease": "兼容：只增加投影、函数与策略（admin_presence 在此之前已停用）",
+      "dataImpact": "投影与函数不存数据；删除 admin_presence 只丢在线状态（Presence 不再写库）",
+      "rollback": "可以回滚（DROP 这些视图、函数与 realtime.messages 上的两条策略），但当前前端读取全部经这些投影，回滚会让读取失败，通常不需要",
+      "forwardFix": "视图与函数都是 CREATE OR REPLACE，修正后重跑迁移即可"
+    },
+    {
+      "name": "202611180001_service_role.sql",
+      "summary": "协作专用角色 admin_collaboration（NOLOGIN）、最小表与列权限、只对它生效的 RLS 策略与广播函数 admin_private.broadcast()",
+      "reversible": true,
+      "previousRelease": "兼容：只新增角色与授权；回滚到用 postgres 连库的发布时它闲置",
+      "dataImpact": "不存数据；收回授权会让命令入口（只用这个角色连库）全部失败",
+      "rollback": "可以回滚（REVOKE 授权、DROP POLICY admin_collaboration_service、DROP FUNCTION admin_private.broadcast、DROP ROLE），前提是命令入口已改回其他连接；通常不需要",
+      "forwardFix": "权限不足时补 GRANT 写进新迁移；口令泄露时重设口令（流水线第 2 步换 ADMIN_SERVICE_PASSWORD）并更新函数密钥"
+    },
+    {
+      "name": "202611180002_exchange_commits.sql",
+      "summary": "提交改为平台 working-tree 的交换格式：commits / commit_changes 改表、admin_commits 投影与读取函数改写、新增下发接口 admin_commit_exchange()；遇到旧结构先清空全部协作数据",
+      "reversible": false,
+      "previousRelease": "不兼容：交换格式之前的发布按 parent_id 读写提交",
+      "dataImpact": "在旧结构上执行会清空全部协作数据（产品尚未部署，旧结构没有根提交）；在新结构上重跑不改数据",
+      "rollback": "不回滚：旧格式无法表示合并提交的两个父，回退会丢历史",
+      "forwardFix": "写新迁移修正；部署前确认目标库已是新结构（commits 没有 parent_id 列），否则先备份"
+    },
+    {
+      "name": "202611180003_audit_archive.sql",
+      "summary": "审计归档：归档表 admin_private.audit_archive、热表时间索引、合并两表的只读投影 admin_audit_events、审计分页的读取函数 admin_audit_page() 与归档函数 admin_private.archive_audit()",
+      "reversible": true,
+      "previousRelease": "兼容：只新增对象；上一版前端只读热表 admin_audit，归档过的事件在上一版里看不到（数据仍在归档表）",
+      "dataImpact": "归档只搬家不删除；撤销前必须先把归档表的行移回热表，否则直接 DROP 会丢失已归档的审计",
+      "rollback": "可以回滚：先按原 seq 把归档移回热表（INSERT INTO public.admin_audit(team_id, app_id, id, actor_id, action, details, created_at, seq, pr_id, thread_id) OVERRIDING SYSTEM VALUE SELECT team_id, app_id, id, actor_id, action, details, created_at, seq, pr_id, thread_id FROM admin_private.audit_archive），再 DROP FUNCTION public.admin_audit_page、DROP VIEW public.admin_audit_events、DROP FUNCTION admin_private.archive_audit、DROP TABLE admin_private.audit_archive、DROP INDEX public.admin_audit_age。应用回滚到上一版之前先停掉定期归档",
+      "forwardFix": "归档策略过激时调大 ADMIN_AUDIT_ARCHIVE_AFTER_DAYS / ADMIN_AUDIT_KEEP_LATEST；归档或分页函数有误时 CREATE OR REPLACE 修正"
+    }
+  ]
+}

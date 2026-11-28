@@ -37,7 +37,7 @@ import {
   deriveCommitOperationId,
   findCommitByOperationId
 } from './commit-idempotency.js';
-import type { CommitKind } from './commit.entity.js';
+import type { CommitKind, LocalCommitKind, SystemCommitKind } from './commit.entity.js';
 import { Commit } from './commit.entity.js';
 import { readCommitBranchRef } from './list-commits.js';
 
@@ -49,8 +49,10 @@ import { readCommitBranchRef } from './list-commits.js';
  * 与「作者恰好没记上的普通 commit」在 UI 上不可区分。
  *
  * 两条文案必须互不相同——同一条文案会让 FR-044 的物化屏障认不出 `branch_baseline`。
+ *
+ * 键是 {@link SystemCommitKind} 而不是「`normal` 之外的全部」：合并提交有用户消息与作者，不该有固定文案。
  */
-export const SYSTEM_COMMIT_MESSAGES: Readonly<Record<Exclude<CommitKind, 'normal'>, string>> = {
+export const SYSTEM_COMMIT_MESSAGES: Readonly<Record<SystemCommitKind, string>> = {
   baseline: '启用提交能力时写下的基线节点',
   branch_baseline: '创建分支时写下的分支基线节点'
 };
@@ -114,6 +116,14 @@ export interface BuildCommitRowsInput {
   readonly operationId: string;
   /** 变更单元，有序；`sequence` 按此顺序发放 */
   readonly units: readonly CommitChangeUnitContent[];
+  /**
+   * 远端给定的创建时间；只有导入远端提交（US-319）传，本地提交不传
+   *
+   * @remarks
+   * 可选不是「缺省取个默认值」：两种取值是两种来源。本地提交的时间由写入那一刻给（见 {@link buildCommitRows}），
+   * 导入的提交带着它在服务端那一份身份里的时间入库——再按本机时钟写一个，同一个提交在两台设备上就有两个时间。
+   */
+  readonly createdAt?: Date;
 }
 
 /** {@link buildCommitRows} 的产物：一次提交要落库的全部行。 */
@@ -132,8 +142,8 @@ export interface WriteCommitInput {
   readonly branchGeneration: number;
   /** 调用方捕获到的 `headRevision`；CAS 就卡在它上面 */
   readonly expectedHeadRevision: number;
-  /** 提交类型 */
-  readonly kind: CommitKind;
+  /** 提交类型；没有 `merge`——本地写路径的父链只取当前 HEAD 一个，见 {@link LocalCommitKind} */
+  readonly kind: LocalCommitKind;
   /** 用户消息；落库前 trim。系统根节点必须传 `null` */
   readonly message: string | null;
   /** 作者；系统根节点必须传 `null` */
@@ -183,15 +193,22 @@ const isBlank = (value: string | null): boolean => value === null || value.trim(
 
 const columnOf = createColumnOf<CommitBranchRefColumn>('CommitBranchRef');
 
+/** 推进 HEAD 那条 CAS 的三个条件：哪条分支、它的代际、调用方捕获的修订号。 */
+export type CommitHeadCasTarget = Pick<WriteCommitInput, 'branchId' | 'branchGeneration' | 'expectedHeadRevision'>;
+
 /**
  * 拼出推进 HEAD 的那一条 CAS。
  *
  * @param tableRef - 本后端的物理表引用，由 `executor.tableRef()` 解析
- * @param input - 本次提交的入参，提供 CAS 的四个条件
- * @param commitId - 新 commit 的 id，写进 `headCommitId`
+ * @param input - 提供 CAS 的条件：分支、代际与期望修订号（`status = 'ok'` 是第四个，写死在语句里）
+ * @param commitId - 新 HEAD 的 commit id，写进 `headCommitId`
  * @returns 单条 UPDATE 语句，全字面量、无占位符
+ *
+ * @remarks
+ * 导出给导入远端提交（US-319）复用：HEAD 只能有一条推进语句，另写一条「导入专用」的 UPDATE，`generation` /
+ * `status` 两个条件迟早会在那条路上被悄悄放宽（与 `branch-commit-rows.ts` 的 `anchorBranchBaseline` 同一条理由）。
  */
-const buildAdvanceHeadCas = (tableRef: string, input: WriteCommitInput, commitId: string): string => {
+export const buildAdvanceHeadCas = (tableRef: string, input: CommitHeadCasTarget, commitId: string): string => {
   const metadata = getEntityMetadata(CommitBranchRef);
   return [
     `UPDATE ${tableRef}`,
@@ -283,11 +300,13 @@ const clonePatch = (patch: Record<string, unknown> | null): Record<string, unkno
  * **不在这里 trim、也不在这里套系统文案。** 归一化是 {@link writeCommit} 的事；本函数
  * 原样采用入参，才能让 `commit-graph-guard.ts` 用同一份入参重算出同一个指纹。
  *
- * **`createdAt` 不赋值。** 它由数据库时钟给（FR-010）；构造期写一个本机时间进去，
- * 等于把客户端时钟漂移写进不可变历史。
+ * **本地提交的 `createdAt` 不赋值。** 它由写入那一刻给（FR-010）；构造期写一个本机时间进去，
+ * 等于把客户端时钟漂移写进不可变历史。导入的提交（US-319）带 {@link BuildCommitRowsInput.createdAt}，
+ * 原样写进去：那是它在服务端那一份身份里的时间。
  *
  * **`contentFingerprint` 由 `computeCommitContentFingerprint()` 合成，不在这里另算一遍**——
- * 两份口径迟早分叉，而分叉的表现是守卫把健康的历史判成损坏。
+ * 两份口径迟早分叉，而分叉的表现是守卫把健康的历史判成损坏。导入路径在调用之前已经拿同一个函数核对过
+ * 远端声明的指纹，这里算出来的就是那一个值。
  */
 export const buildCommitRows = (entityManager: EntityManager, input: BuildCommitRowsInput): CommitRows => {
   const message = input.message ?? '';
@@ -295,6 +314,7 @@ export const buildCommitRows = (entityManager: EntityManager, input: BuildCommit
 
   const commit = entityManager.instantiate(Commit);
   commit.id = input.id;
+  if (input.createdAt !== undefined) commit.createdAt = input.createdAt;
   commit.parentIds = parentIds;
   commit.firstParentId = parentIds.length > 0 ? parentIds[0] : null;
   commit.kind = input.kind;

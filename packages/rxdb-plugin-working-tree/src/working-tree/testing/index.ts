@@ -11,12 +11,16 @@ export {
 export type { WorkingTreeConformanceSuiteContext, WorktreeConformanceSuiteContext } from './suite-context.js';
 export {
   CREDENTIALS,
+  IMPORT_OK,
+  IMPORT_RECORD,
+  REJECTED_IMPORTS,
   REJECTED_RESTORES,
   RESTORE_OK,
   RESTORE_TARGET,
   createWorkingTreeHookStubs,
   deferred,
   diffWith,
+  exportWith,
   logWith,
   sessionWith,
   statusWith

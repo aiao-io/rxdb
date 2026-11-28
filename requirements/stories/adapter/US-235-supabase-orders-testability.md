@@ -1,7 +1,7 @@
 ---
 id: US-235
 title: dev-rxdb-supabase 订单页一个窗口就能测：页面上写明怎么测，远端数据看得见，没推的行标出来
-status: In Review
+status: Done
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-27

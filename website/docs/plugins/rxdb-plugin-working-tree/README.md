@@ -1,6 +1,6 @@
 # @aiao/rxdb-plugin-working-tree
 
-`@aiao/rxdb-plugin-working-tree` 为 `@aiao/rxdb` 提供**本地工作树与提交历史**：把「未提交的改动」与「提交历史」作为一等概念加进数据库——用户的编辑先落进工作树而不是直接改主数据，`status()` / `diff()` 查看摘要与逐条改动，`commit()` 一次性提交成快照，`discard()` 整体退回，`listCommits()` 读取当前分支的提交历史，`restore()` 把历史版本的内容搬回工作树。
+`@aiao/rxdb-plugin-working-tree` 为 `@aiao/rxdb` 提供**本地工作树与提交历史**：把「未提交的改动」与「提交历史」作为一等概念加进数据库——用户的编辑先落进工作树而不是直接改主数据，`status()` / `diff()` 查看摘要与逐条改动，`commit()` 一次性提交成快照，`discard()` 连同业务表一起整体退回 HEAD，`listCommits()` 读取当前分支的提交历史，`restore()` 把业务表恢复成历史版本的数据、差异记作未提交改动。
 
 未装本包的库**零成本**——十二张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
 
@@ -12,14 +12,16 @@
 | `status()`                 | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                                                                                       |
 | `diff()`                   | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                                                                                      |
 | `commit()`                 | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                                                                               |
-| `discard()`                | 把工作树整体退回 HEAD                                                                                                                                |
+| `discard()`                | 把工作树整体退回 HEAD，业务表逐行一起退回（见[放弃与恢复回写业务表](#放弃与恢复回写业务表)）                                                         |
 | `listCommits()`            | 当前分支从 HEAD 沿父链可达的提交历史                                                                                                                 |
-| `restore()`                | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                                                      |
+| `restore()`                | 把业务表恢复成一个可达历史提交的数据，与 HEAD 的差异作为**新的未提交变更**写进工作树；不移动 HEAD、不删历史                                          |
 | `restoreSession()`         | 当前分支那个尚未结束的恢复会话                                                                                                                       |
 | `commits$`                 | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                                                |
 | `switchBranch()`           | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上                               |
 | `checkouts`                | 只读检出位：不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的完整数据（见[只读检出位](#只读检出位)）                        |
 | `createBranchFromCommit()` | 从当前分支历史里的一个提交建分支：HEAD 就是那个提交、工作树为空，不切换；`checkBranchFromCommit()` 先问建不建得了（见[从提交建分支](#从提交建分支)） |
+| `importCommits()`          | 把服务端下发的一段提交原样写进当前分支、分支头快进到最后一个；支持多父的合并提交（见[导入与导出远端提交](#导入与导出远端提交)）                      |
+| `exportCommits()`          | 列出当前分支某个提交之后的提交，交出与导入同一种交换记录，供上传                                                                                     |
 
 ## 用之前要知道的六件事
 
@@ -45,14 +47,15 @@
 
 也因此本包的公开名字里**没有 `Workspace*` 前缀**——那个前缀已经属于草稿缓存，同前缀不同义比同名更容易骗过人。
 
-### 3. `restore()` 是「把旧内容搬进工作树」，不是 checkout
+### 3. `restore()` 是「把旧数据搬回业务表、差异记进工作树」，不是 checkout
 
-`restore()` 读一个历史提交，把它的内容作为**新的未提交变更**写回当前工作树。做完之后：
+`restore()` 读一个历史提交，把业务表恢复成那次提交刚完成时的数据，与 HEAD 的差异作为**新的未提交变更**写进当前工作树。做完之后：
 
+- 列表与表单读到的已经是那次提交的数据；
 - `HEAD` **一个字节都没动**；
 - 历史**一条都没删**；
 - 工作树是**脏的**，脏在普通条目上，与手写变更同表同形；
-- 下一步是 `commit()`（把这次恢复变成一个新提交）或 `discard()`（当作没恢复过）。
+- 下一步是 `commit()`（把这次恢复变成一个新提交，新 HEAD 的数据就是那份数据）或 `discard()`（业务表退回 HEAD，当作没恢复过）。
 
 **没有 detached HEAD、没有 `checkout()`**：`listCommits()` 返回的是**数据，不是可切换的位置**。只想看一眼另一条分支或一个历史提交，用[只读检出位](#只读检出位)：它把目标的数据建成一份只读快照，HEAD 与工作树都不动。
 
@@ -315,6 +318,8 @@ if (result.ok) {
 }
 ```
 
+丢弃之后业务表逐行等于 HEAD：新建的行删掉、改过的行改回去、删掉的行插回来（含多对多中间表与加密字段）。回写与删条目、推 revision 在**同一个事务**里，任何一步出错整笔回滚，业务表、工作树与 revision 一起停在丢弃之前。工作树本来就干净时它是真正的 no-op：一条写语句都不发，revision 不涨。回写的细节与边界见[放弃与恢复回写业务表](#放弃与恢复回写业务表)。
+
 ### `listCommits(options?)`
 
 当前分支从 HEAD 沿完整父链可达的提交历史。与 `status()` / `diff()` 同样不收 `branchId`。
@@ -328,9 +333,11 @@ const page = await db.workingTree.listCommits({
 });
 ```
 
-返回 `CommitLogPage`：`branchId`（恒为读取时刻的 active 分支）、`headCommitId`（一次都没提交过时为 `null`）、`entries`（最新在前）。一次都没提交过的库是 `entries` 为空的一页——这是**有语义的空**，不是错误。
+返回 `CommitLogPage`：`branchId`（恒为读取时刻的 active 分支）、`headCommitId`（一次都没提交过时为 `null`）、`entries`（**子先于父**：线性历史上就是最新在前）。一次都没提交过的库是 `entries` 为空的一页——这是**有语义的空**，不是错误。
 
-`CommitLogEntry` 是 `Commit` 实体列的一个子集：`commitId`、`parentIds`、`firstParentId`（根节点为 `null`）、`kind`（`'normal' | 'baseline' | 'branch_baseline'`，后两者是系统根节点，不是用户提交）、`message`、`authorId`、`createdAt`、`changeSetCount`。`operationId` 与 `contentFingerprint` 被刻意挡在公开面外——实体是存储细节，历史不可变不靠口头约定。
+`CommitLogEntry` 是 `Commit` 实体列的一个子集：`commitId`、`parentIds`、`firstParentId`（根节点为 `null`）、`kind`（`'normal' | 'merge' | 'baseline' | 'branch_baseline'`：`merge` 是导入的合并提交，后两者是系统根节点，不是用户提交）、`message`、`authorId`、`createdAt`、`changeSetCount`。`operationId` 与 `contentFingerprint` 被刻意挡在历史列表之外——实体是存储细节，历史不可变不靠口头约定；要交换提交，用[导出](#导入与导出远端提交)那份带指纹的交换记录。
+
+有合并提交时，顺序按「从 HEAD 逐层回溯的发现序（第一父在前），再修成拓扑序」：一个提交只在它全部可达子提交都列出之后才列出，所以任何祖先都不会排到它的子前面；没有合并的历史上这与时间倒序逐个相同。见过合并之后 `limit` 要先走完整条可达图再截断，线性历史照旧在收够 `limit` 条时提前停。
 
 > 历史 ≠ `rxdb_commit` 全表：CAS 丢掉的提交与被删分支留下的节点，行都还在，但没有任何 ref 指向它们。
 
@@ -342,7 +349,7 @@ const page = await db.workingTree.listCommits({
 db.workingTree.commits$.subscribe(({ commitId, branchId }) => console.log(branchId, commitId));
 ```
 
-- **不发**：`ok: false`（凭据冲突 / CAS 落败）、抛错、同一 `operationId` 的幂等重放（它同样回 `ok: true`）、`enable()` 的基线、`restore()` / `discard()`。按返回值自己判断的话，幂等重放会被记两次。
+- **不发**：`ok: false`（凭据冲突 / CAS 落败）、抛错、同一 `operationId` 的幂等重放（它同样回 `ok: true`）、`enable()` 的基线、`restore()` / `discard()`、`importCommits()` 导入的提交（它们本就来自服务端，上传逻辑再收到一次就是回声）。按返回值自己判断的话，幂等重放会被记两次。
 - 载荷只有这两个关联键；消息、作者等用 `commitId` 去 `listCommits()` 读落库后的真值。
 - 订阅者抛错不影响 `commit()` 的返回值，也不影响其他订阅者。
 - 不经启用门禁：未启用提交能力的库上也能订阅，只是永远不发。流不 `error`、不 `complete`。
@@ -371,21 +378,39 @@ const result = await db.workingTree.restore(
 );
 ```
 
-`target.entities` 可以只点名一部分单元（`{ namespace, entity, entityId }` 三段全给）。这与「`commit()` 不能挑子集」不冲突，方向恰好相反：这里挑的是**要往工作树里写什么**，写完之后它们和手写变更一样是整棵工作树的一部分，下一次 `commit()` 照样全量提交。
+恢复之后业务表就是目标提交的数据，与 HEAD 的差异记成普通条目：目标上有、HEAD 上没有的行是插入，反过来是删除，两端都有但取值不同的是修改（只带取值不同的字段）。业务表回写与条目、会话在**同一个事务**里落库，中途出错整笔回滚。完整差异为空——目标就是 HEAD，或者两次提交之间改过又改回——是一次 no-op：不建会话、不涨 revision、业务表一行都不写。
+
+`target.entities` 可以只点名一部分行（`{ namespace, entity, entityId }` 三段全给）：只把这些行恢复成目标时的数据，别的行留在 HEAD。这与「`commit()` 不能挑子集」不冲突，方向恰好相反：这里挑的是**要把哪些行恢复回去**，写完之后它们和手写变更一样是整棵工作树的一部分，下一次 `commit()` 照样全量提交。
 
 返回 `WorkingTreeRestoreResult`，判别位是 `ok`：
 
 | 出口                                       | 含义                                                                                                                      |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `ok: true`                                 | `restoredCount`（写进工作树的条目数）、`sessionId`、`workingTreeRevision`；`restoredCount: 0` 是一次什么都没写的 no-op    |
+| `ok: true`                                 | `restoredCount`（写进工作树的条目数，即业务表上与 HEAD 不同的行数）、`sessionId`、`workingTreeRevision`；`0` 是 no-op     |
 | `ok: false, reason: 'conflict'`            | 三个捕获位对不上；带 `conflict`，与 `commit()` 同形                                                                       |
 | `ok: false, reason: 'dirty_working_tree'`  | 工作树不干净——先 `commit()` 或 `discard()`                                                                                |
 | `ok: false, reason: 'incompatible_schema'` | 重放路径上有本客户端认不出的实体；带 `incompatible`（首个不兼容节点、重放方向、实体与版本 manifest，**不含 patch 内容**） |
 | `ok: false, reason: 'unreachable_target'`  | 目标提交从当前 HEAD 够不到                                                                                                |
+| `ok: false, reason: 'side_branch_target'`  | 目标提交只在某个合并提交带进来的侧枝上：它在历史里，但从这条分支的数据沿第一父链退不到它（见下文）                        |
 
-四个被拒成因**全部走返回值**，不是异常：它们都是用户随手点错一个历史条目就会走到的日常路径，而不是「库坏了」。被拒时持久状态**逐字节不变**。
+五个被拒成因**全部走返回值**，不是异常：它们都是用户随手点错一个历史条目就会走到的日常路径，而不是「库坏了」。被拒时持久状态**逐字节不变**。
 
-兼容性预检发生在**任何持久写入之前**，覆盖整条重放路径上的**每一个**节点——不是只看目标节点：真正被读取并应用的是 HEAD 到目标之间每一个节点的 inverse patch，中间任何一个引用了本客户端不认识的实体，物化结果就已经错了，而目标节点自己干干净净。
+兼容性预检发生在**任何持久写入之前**，覆盖整条重放路径上的**每一个**节点——不是只看目标节点：真正被读取并应用的是 HEAD 到目标之间每一个节点的 inverse patch，中间任何一个引用了本客户端不认识的实体，物化结果就已经错了，而目标节点自己干干净净。目标节点自己的单元不被读取，所以也不在预检范围内。
+
+**重放路径只走第一父链。** 每个提交的 ChangeSet 是相对它**第一父**的增量（合并提交也一样），所以业务表在 HEAD 上等于「根 + 第一父链上每个 ChangeSet」，退回目标就是沿第一父链倒着撤。合并提交带进来的侧枝从没直接落到这条分支的业务表上——它们的影响已经折进了合并提交那一份增量——撤它们就是撤第二遍，所以侧枝上的目标单独拒绝为 `side_branch_target`。要那份数据：它有分叉点时（在本库某条分支上提交过）用 `createBranchFromCommit()` 从它建分支；导入进来、只作为侧枝入库的提交没有分叉点，要由服务端处理。只读检出位的提交视图同一口径（`WorktreeUnavailableError` 的 `reason` 同名）。
+
+### 放弃与恢复回写业务表
+
+`discard()` 与 `restore()` 都先改工作树（删条目 / 写差异条目），再在同一个事务里把业务表对齐成「HEAD + 条目」。这一步是一次登记过的受信写（epic-006「受信调用点登记表」#13 / #14），有四点要知道：
+
+- **回写进变更日志。** 它是当前分支上的一次普通写入：切分支按变更日志撤、按变更日志放，所以丢弃或恢复之后切走再切回来，读到的仍是回写之后的数据；同步插件会把它推上远端；它在撤销栈里是一步——撤销一次丢弃，就是把草稿取回来，取回来的改动重新进工作树；它也像任何新写入一样作废 redo 栈。
+- **回写本身不进工作树。** 条目由命令自己写，回写不会被再捕获一次，`entryCount` 与 revision 只跟着命令走。
+- **远端同步来的条目一并退回。** 工作树不按来源豁免（`origin = 'remote_sync'` 也会被丢掉），退回同样会被推上远端，等于用本地 HEAD 的值覆盖远端那次修改；不想这样就先 `commit()` 再丢。
+- **簿记字段不跟着回写。** `remoteId` 与审计时间（`createdAt` / `updatedAt`）不进版本控制，改回去的行保持它们的现值、`updatedAt` 记成回写那一刻；`createdBy` / `updatedBy` 是只读列，UPDATE 回写写不回去（撤销与切分支同样如此），被插回来的行则整行取自 HEAD。
+
+可写检出位上走的是同一条路：回写落在那套影子表上、记在持有分支名下，主检出位一张表都不碰。
+
+> 0.0.28 及更早版本的 `discard()` 只清工作树、业务表停在原值，`restore()` 只写条目、业务表不动。升级与迁移见[放弃与恢复回写业务表的迁移](../../migration/working-tree-discard-restore.md)。
 
 ### `restoreSession()`
 
@@ -485,6 +510,200 @@ if (result.ok) {
 
 - **不进变更日志的写会被带上**：提交之后的拉取、过期清理关着触发器写业务表，切换不会撤掉它们，新分支也就带着它们。
 - **建完之后再在父分支上撤销分叉点之前的变更**，新分支的数据跟着变，与任何一条子分支一样。
+
+## 导入与导出远端提交
+
+把服务端下发的提交**原样**写进本地分支：提交 id、父链、种类、作者、消息、时间与内容指纹都不变，分支头快进到最后一个导入的提交；之后本地的 `commit()` 以它为父继续（US-319）。导出侧交出同一种记录，一台设备导出、服务端认可之后，原样交给另一台设备导入。推送协议、服务端与权威裁决由使用方负责；服务端要的校验与指纹复算不必自己写，见下文「服务端：`./exchange` 子路径」。
+
+### `importCommits(commits, options)`
+
+```typescript
+const status = await db.workingTree.status();
+const result = await db.workingTree.importCommits(batchFromServer, {
+  expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
+  expectedHeadRevision: status.headRevision,
+  expectedWorkingTreeRevision: status.workingTreeRevision
+});
+if (!result.ok) console.warn(result.reason);
+```
+
+签名：`importCommits(commits: readonly CommitExchangeRecord[], options: CommitImportOptions): Promise<CommitImportResult>`。`CommitImportOptions` 就是三个捕获位，与 `discard()` / `restore()` 同一组——HEAD 那条比较交换卡在 `expectedHeadRevision` 上。
+
+**批次的形状**（不合就是 `invalid_batch`）：
+
+- 按**拓扑序**排：每个提交的父要么本库已有，要么在批次里排在它前面；
+- **最后一个就是新头**，其余每个都是它的祖先（沿全部父链）；
+- **全部父都要在**：合并提交的第二父（被合并进来的任务分支头）本地没有，就得在同一批里排在前面，缺了整批拒绝（`missing_parent`）。不收「浅」父——损坏守卫把「可达父链指向读不回来的提交」判成损坏，收下一个浅父就是亲手写进一处损坏；
+- 每条记录按种类：`normal` 至多一个父、要作者与消息、至少一个单元；`merge` 两个及以上互不相同的父、要作者与消息、单元可以为空（只记祖先关系的合并）；`baseline` / `branch_baseline` 没有父、没有作者、没有单元。
+
+**快进的判定**——从新头沿**第一父链**往回走：
+
+1. 走到当前头：当前头之后的那一段依次叠到业务表上，分支头快进到新头；
+2. 走到根也没碰到当前头：只有当前分支是**空分支**时接受——HEAD 为空（还没有根）或是一个系统根节点（启用时写下的基线 / 建分支写下的分支基线），且这条分支受版本控制的业务表一行都没有。第二台设备第一次导入就是这个形状：链从服务端那一份根开始，本机的基线被换掉。链根代表空状态，所以**第一台设备要在空库上启用**（`enableIfEmpty()`），否则它的基线下压着的存量数据不在任何提交里，别的设备导入后拿不到；
+3. 都不是：新头已经在当前分支的历史里（同一批再导入一次、导入之后又本地提交过）就是什么都不做的成功；否则 `not_fast_forward`。
+
+**快进只沿第一父链判定**：当前头只是新头的**非第一父**祖先时同样是 `not_fast_forward`——服务端要以本机当前头为第一父建合并提交，ChangeSet 是合并结果相对那个第一父的增量（与 `git diff M^1 M` 同义）。两台设备并发提交、服务端合成一个合并提交时，只有头在第一父那一侧的设备能直接快进；另一侧的设备不改写历史也能收敛：从两条线的分叉点 `createBranchFromCommit(newBranchId, forkCommitId)` 另起一条分支、`switchBranch()` 过去，再导入同一批（分叉点在合并提交的第一父链上），之后在新分支上继续工作。这条恢复路径在一致性套件里有用例。
+
+**前像核对**：叠业务表之前，按第一父链的顺序把要叠上去的每个单元在内存里走一遍，核对它写之前的那一行——`insert` 时这一行必须不在；`update` / `delete` 时这一行必须在，且 `inversePatch` 覆盖的每个参与比对的列都与叠到它时的值相等。「叠到它时」是导入之前的业务表叠上批次里排在它前面的那些单元之后的样子，所以后一个提交的前像对的是前一个提交叠完之后的那一行。任一单元对不上，整批 `precondition_mismatch`、零写入：服务端按一份与本机不同的数据算了增量时，叠上去本不会报错（打空的 UPDATE / DELETE 静默落空，打在旧值上的 UPDATE 拼出一个谁都没见过的组合），两台设备会就此静默分叉。参与比对的是跟踪的业务列，以下几类不比：簿记字段（`remoteId` / `createdAt` / `updatedAt`）与插件登记的派生索引列——与捕获层判 untracked 同一个口径；readonly 列（`createdBy` / `updatedBy` 与声明为只读的列）——叠上去的 UPDATE 不写它们，它们在导入设备上本就不随远端收敛；加密列——信封带随机数、叠业务表时会被重新加密，逐字节永不相等，比明文又要解密，而跨设备的信封本就解不开（那种导入在叠业务表时抛错、整笔回滚）。认不出的列判成对不上。业务行按列类型与单元放到同一个刻度上比：布尔认 `0` / `1`，时刻按毫秒，`bigint` 按十进制文本，字节按 hex，JSON 列解析之后深比较。服务端拼合并提交时，`inversePatch` 必须是第一父那一份数据上的值。
+
+**合并提交**以 `kind: 'merge'` 入库；第一父链上新到的提交（含合并提交）依次把 ChangeSet 叠到业务表上，侧枝提交只作为历史节点入库、不落业务表。
+
+**幂等**：判同一性只看 id 与内容指纹。本库已有且指纹相同就跳过（保留本地那一份时间，历史不改写）；已有而指纹不同是 `commit_id_conflict`。时间不进指纹，也不进这条判定。已有的提交落没落到**本分支**的业务表看的是可达性：一个在别的分支上提交过、被服务端快进进主线的提交，在本分支上照样叠一遍它的 ChangeSet。
+
+返回 `CommitImportResult`，被拒的每一种都是**返回值**，持久状态逐字节不变：
+
+| 出口                                         | 含义                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ok: true`                                   | `headCommitId`、`headRevision`（快进了一次就加一）、`importedCount`（新写入的节点数）、`appliedCount`（叠到业务表上的提交数）；两个计数都是 `0` 即 no-op                                                                                                                                |
+| `ok: false, reason: 'conflict'`              | 三个捕获位对不上，或 HEAD 的 CAS 落空；带 `conflict`                                                                                                                                                                                                                                    |
+| `ok: false, reason: 'not_main_checkout'`     | 挂在可写检出位上——只有主检出位同步                                                                                                                                                                                                                                                      |
+| `ok: false, reason: 'dirty_working_tree'`    | 工作树有未提交条目或未结束的恢复会话：先 `commit()` 或 `discard()`                                                                                                                                                                                                                      |
+| `ok: false, reason: 'invalid_batch'`         | 批次形状不对；带 `problem`（`empty_batch` / `invalid_commit_id` / `duplicate_commit` / `invalid_kind` / `invalid_parents` / `invalid_message` / `invalid_author` / `invalid_created_at` / `invalid_units` / `invalid_unit` / `not_topological` / `unreachable_from_head`）与 `commitId` |
+| `ok: false, reason: 'unsupported_entity'`    | 带 `problem`：`unregistered`（本客户端没注册这个实体）、`untracked`（不受版本控制）、`synced`（走通用同步推送，见下）；与 `commitId` / `namespace` / `entity`                                                                                                                           |
+| `ok: false, reason: 'fingerprint_mismatch'`  | 某个提交按内容复算的指纹与它声明的不符；带 `commitId`                                                                                                                                                                                                                                   |
+| `ok: false, reason: 'commit_id_conflict'`    | 本库已有同 id 的提交，内容不同；带 `commitId`                                                                                                                                                                                                                                           |
+| `ok: false, reason: 'missing_parent'`        | 某个提交的父既不在本库、也不在批次里排在它前面；带 `commitId` / `parentId`                                                                                                                                                                                                              |
+| `ok: false, reason: 'not_fast_forward'`      | 当前头不在新头的第一父链上，且当前分支不是空分支；带此刻的 `headCommitId`                                                                                                                                                                                                               |
+| `ok: false, reason: 'precondition_mismatch'` | 某个要叠上去的单元写之前的那一行与本机业务行对不上（见上「前像核对」）；带 `commitId` / `unitId` / `namespace` / `entity` / `entityId` / `operation`，不带字段值                                                                                                                        |
+
+**抛错**而不是返回的：能力未启用、提交图损坏、某个加密列里躺着明文（`CommitEncryptedAtRestError`，与本地提交同一道门）、补丁里有落不进 JSON 列的值、以及叠业务表这一步本身失败（存储约束、解不开的加密信封）——最后这类在同一个事务里整笔回滚，一个字节都不留。
+
+**业务表回写**是一次登记过的受信写（epic-006「受信调用点登记表」#15，入口是投影重写），三点要知道：
+
+- **导入的变化不进工作树**：工作树前后都是 clean，导入的提交已经是提交了；
+- **开着触发器写，进变更日志**：切分支按日志撤、按日志放，所以导入之后切走再切回来读到的仍是导入的数据；分支对比与合并预览、从导入的提交建分支读的也是日志；整次导入是撤销栈上的一步，撤销它会把业务表退回导入之前，退回的改动落成相对新 HEAD 的未提交条目；
+- **导入与通用实体同步不能同时用在同一批实体上**：变更日志里的这些行对同步插件而言就是待推送的本地变更，会被当成本机编辑推回去。所以导入拒绝写任何走 changelog 推送的实体（同步类型为 `full` / `filter`，`unsupported_entity` / `synced`）；用导入交换的实体配成不同步（`SyncType.None`）。
+
+另外两条边界：
+
+- **加密列**：信封绑在写下它的那个库的密钥环身份（kid）上，同一份密钥在两个库里也是两个 kid。另一台设备导入时解不开，叠业务表这一步抛错、整笔回滚。跨设备交换加密列要先有共享的密钥环，不在本插件的范围里；
+- **跨后端**：单元是写下它的那台设备的落库形态（布尔、日期在 JSON 里的写法随后端不同），叠业务表时由本机适配器按列类型转换。
+
+### `exportCommits(options?)`
+
+```typescript
+const page = await db.workingTree.exportCommits({ afterCommitId: lastAcceptedByServer });
+if (page.commits.length > 0) await uploadToServer(page.commits);
+```
+
+签名：`exportCommits(options?: CommitExportOptions): Promise<CommitExportPage>`。选的是当前分支 HEAD 沿全部父链可达、`afterCommitId` 自己不可达的提交（git 的 `after..HEAD`），合并进来的侧枝也在里面；不给 `afterCommitId` 就是整条可达历史（第一次上传时用，含根节点）。`afterCommitId` 不要求在当前分支上，但必须是本库里有的提交，否则抛错——从头导出会把整条历史重新传一遍。
+
+`CommitExportPage` 带 `branchId`、`headCommitId`、`headRevision` 与 `commits`：**父先于子**（就是 `listCommits()` 的倒序），最后一个是 HEAD，可以原样作为另一台设备的导入批次。先跑损坏守卫：校验不过的历史不往外传。`commits$` 只说「刚才提交了哪个」，`commitChanges()` 交的是解码后的明细（`bigint` 过不了 JSON、指纹也复算不出来），要上传就用这里。
+
+### 交换记录 `CommitExchangeRecord`
+
+| 字段                 | 说明                                                                                                                                            |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commitId`           | 提交 id；导入后原样作为本地 id                                                                                                                  |
+| `parentIds`          | 全部父，有序：第 0 个是第一父，ChangeSet 就是相对它的增量                                                                                       |
+| `kind`               | `'normal' \| 'merge' \| 'baseline' \| 'branch_baseline'`                                                                                        |
+| `message`            | 原样保存，不 trim                                                                                                                               |
+| `authorId`           | 普通与合并提交必填；系统根节点为 `null`                                                                                                         |
+| `createdAt`          | `Date`；不进指纹，也不参与同一性判定。经 JSON 传输时写成 ISO 串、收到后还原成 `Date`（编解码见下一节）                                          |
+| `contentFingerprint` | 64 位小写 hex，规则见下                                                                                                                         |
+| `units`              | 全部变更单元，按 `sequence` 升序，**落库形态**：`bigint` / `binary` 列是 `{ $rxdbChangeValue: … }` 包装，加密列是信封字符串；每个值都是 JSON 值 |
+
+每个单元九个字段：`unitId`、`transactionId`（uuid 或 `null`）、`namespace`、`entity`、`entityId`、`operation`（`insert` 只有 `patch`、`delete` 只有 `inversePatch`、`update` 两份都有）、`patch`、`inversePatch`、`origin`（`local` / `remote_sync`）。
+
+### 服务端：`./exchange` 子路径
+
+交换的另一端要做三件事：按平台规则校验上传批次的形状、复算内容指纹核对、给自己合成的合并提交算指纹。JavaScript / TypeScript 的服务端（Node、Supabase Edge Function 里的 Deno）不必照下一节的规则另写一份——子路径 `@aiao/rxdb-plugin-working-tree/exchange` 交出的就是导入命令自己用的那几个函数，两端对「这个批次收不收」「这条记录的指纹是多少」只有一个答案。
+
+它只加载三个纯模块（指纹、批次形状判定、JSON 编解码），**不加载**实体类、插件类与捕获运行时，运行时只依赖 peer `@aiao/rxdb`。主入口是插件本身，导入它会把十二个系统实体类与捕获运行时全部求值一遍——服务端不要导入主入口。Deno 里写成 `npm:@aiao/rxdb-plugin-working-tree/exchange`。
+
+```typescript
+import {
+  checkCommitExchangeBatch,
+  computeCommitExchangeRecordFingerprint,
+  parseCommitExchangeRecord,
+  serializeCommitExchangeRecord,
+  type CommitExchangeRecord
+} from '@aiao/rxdb-plugin-working-tree/exchange';
+
+/** 收上传：先解析 JSON（createdAt 从 ISO 串还原成 Date；不合格抛 CommitExchangeJsonError），再判形状，最后逐个复算指纹。 */
+function acceptUpload(body: { readonly commits: readonly unknown[] }) {
+  const commits = body.commits.map(json => parseCommitExchangeRecord(json));
+  const finding = checkCommitExchangeBatch(commits); // { problem, commitId } 或 undefined
+  if (finding) return { status: 422, body: finding };
+  const forged = commits.find(commit => computeCommitExchangeRecordFingerprint(commit) !== commit.contentFingerprint);
+  if (forged) return { status: 422, body: { problem: 'fingerprint_mismatch', commitId: forged.commitId } };
+  return { status: 200, commits };
+}
+
+/** 合成合并提交：指纹用同一个函数算，下发前写回 JSON。 */
+function mergeCommitJson(merge: Omit<CommitExchangeRecord, 'contentFingerprint'>) {
+  const record: CommitExchangeRecord = { ...merge, contentFingerprint: computeCommitExchangeRecordFingerprint(merge) };
+  return serializeCommitExchangeRecord(record);
+}
+
+const json = mergeCommitJson({
+  commitId: mergeId,
+  parentIds: [deviceHeadId, taskHeadId], // 第一父是那台设备的当前头：ChangeSet 是合并结果相对它的增量
+  kind: 'merge',
+  message: '合并任务',
+  authorId: 'server',
+  createdAt: new Date(),
+  units
+});
+```
+
+| 导出                                                                            | 说明                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `computeCommitExchangeRecordFingerprint(record)`                                | 按交换记录算提交指纹：`authorId` 进摘要里 `author` 那一格，消息原样、不 trim。复算上传的记录、给合并提交算指纹都用它——这两处对应是自己拼时最容易写岔的，岔了不报错，只会让每一次核对都对不上                                                                             |
+| `computeChangeUnitFingerprint(unit)` / `computeCommitContentFingerprint(input)` | 单元指纹与提交指纹，规则见下一节；后者的入参跟 `Commit` 实体的列（`author`），手上是交换记录时用上一行                                                                                                                                                                   |
+| `checkCommitExchangeBatch(commits)`                                             | 批次形状的第一处毛病 `{ problem, commitId }`，合格时为 `undefined`。`importCommits()` 的 `invalid_batch` 就是它判的，`problem` 取值见上文出口表。只判形状：指纹、父在不在、同 id 是不是同一个提交，要读服务端自己的存储                                                  |
+| `parseCommitExchangeRecord(json)` / `serializeCommitExchangeRecord(record)`     | JSON 编解码：`createdAt` 在 JSON 里是 `toISOString()` 的串，其余字段原样。收的是 JSON 值（`JSON.parse` / `request.json()` 的结果），交出的也是 JSON 值（交给 `JSON.stringify` 或会自己序列化的客户端）                                                                   |
+| `CommitExchangeJsonError`                                                       | 编解码的唯一失败出口：`problem`（`not_object` / `missing_field` / `unknown_field` / `invalid_field` / `invalid_created_at` / `not_json_value`）、`path`（如 `$.units[0].patch.title`）、`commitId`。只带枚举、位置与 id，不带消息、作者与补丁的值                        |
+| 类型                                                                            | `CommitExchangeRecord`、`CommitExchangeRecordJson`、`CommitChangeUnitContent`、`CommitChangeUnitOperation`、`CommitChangeUnitOrigin`、`CommitKind`、`CommitContentFingerprintInput`、`CommitImportBatchProblem`、`CommitImportBatchFinding`、`CommitExchangeJsonProblem` |
+
+**先解析、再判形状。** `checkCommitExchangeBatch()` 要的是 `Date`：拿 `JSON.parse` 的结果直接去判，`createdAt` 还是串，报的是 `invalid_created_at`。
+
+**解析是严格的**，失败就抛，不修正：
+
+- **多出来的字段**拒（`unknown_field`）：丢掉它，发送方以为它被传达了；多出来的常是协议漂移的第一个信号（捕获期的 `fingerprint` / `baseFingerprint`、`CommitChangeSet` 的 `sequence` 被一并带了过来），而它们都不进指纹，收下也核对不了；
+- **缺了的字段**拒（`missing_field`）：没有能补的默认值——`authorId` 补成 `null` 就成了缺作者的提交，`transactionId` 补成 `null` 就把一笔事务拆成了几笔，两者都改变指纹；
+- **`createdAt`** 只收 `toISOString()` 写得出来的那一种（`2026-11-18T03:04:05.678Z`，再写一遍逐字相同）。只有日期、没有毫秒、带时区偏移的写法都拒：`Date` 的构造器认得它们，有的按本地时区解读，有的把不存在的日子顺延（`2026-02-30` 成了 3 月 2 日）。时间不进指纹，这里放过去的错，指纹核对兜不住；
+- **补丁里有 JSON 表示不了的值**拒（`not_json_value`）：`undefined`、`NaN` 与无穷、`bigint`、函数、`Date`、`Map`、字节数组、类实例、循环引用、稀疏数组的空位——`JSON.stringify` 会把它们丢掉或改写成别的值。
+
+序列化逐字段挑出交换格式的字段（单元可以是带着捕获期指纹的对象，那两列不上线），再按解析的规则把产物过一遍：`serializeCommitExchangeRecord()` 交得出来的，对面的 `parseCommitExchangeRecord()` 一定收得下，收回来与原记录逐字段相等。
+
+### 内容指纹的规范化规则
+
+JavaScript / TypeScript 的服务端直接用上一节的 `./exchange`；别的语言按这里的规则**自己复算**指纹并核对。实现只有一份（`change-unit.ts`，`./exchange` 交出的就是它），这一节的示例由单测逐字核对。
+
+**摘要**：`hex(SHA-256(UTF-8(域串 + " " + 规范串)))`，小写 hex。两个域串：单元 `rxdb.commit.change-unit.v1`，提交 `rxdb.commit.content.v1`——`v1` 就是算法版本，换算法必换域串。
+
+**原子** `atom(tag, text)` = `tag` + `text` 的长度 + `:` + `text`。**长度是 UTF-16 码元数**（JavaScript 的 `String.prototype.length`），不是 UTF-8 字节数，也不是码点数：`🙂` 记作 `s2:🙂`。空位写 `z`。
+
+**值的规范串** `C(v)`：
+
+| 值               | 规范串                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `null`           | `z`                                                                                                                                  |
+| 字符串 `s`       | `atom('s', s)`                                                                                                                       |
+| 有限数 `n`       | `atom('d', String(n))`：ECMAScript `Number.prototype.toString()` 的写法（如 `1.5`、`1e+21`），`-0` 写成 `0`                          |
+| 非有限数         | `z`（JSON 里本就不存在）                                                                                                             |
+| `true` / `false` | `b1` / `b0`                                                                                                                          |
+| 数组             | `a` + 元素个数 + `:` + 依次拼接每个元素的 `C`                                                                                        |
+| 对象             | `o` + 键数 + `:` + 按键排序（UTF-16 码元序，即 JavaScript 默认的 `sort()`）依次拼 `atom('k', 键) + C(值)`；值为 `undefined` 的键不算 |
+
+**单元的规范串**：依次拼接 `atom('s', unitId)`、`transactionId` 为 `null` 时 `z` 否则 `atom('s', transactionId)`、`atom('s', namespace)`、`atom('s', entity)`、`atom('s', entityId)`、`atom('s', operation)`、`C(patch)`、`C(inversePatch)`、`atom('s', origin)`。
+
+**提交的规范串**：依次拼接 `atom('s', kind)`、`p` + 父个数 + `:` + 依次 `atom('s', 父 id)`、`message` 为 `null` 时 `z` 否则 `atom('s', message)`、`authorId` 为 `null` 时 `z` 否则 `atom('s', authorId)`、`u` + 单元个数 + `:` + 依次 `atom('f', 单元指纹)`。`commitId`、`createdAt` 与本地幂等键**不在其中**；消息与作者取原样值。
+
+**示例**：单元 `{ unitId: 'u1', transactionId: null, namespace: 'public', entity: 'Task', entityId: 't1', operation: 'insert', patch: { title: '草稿', done: false, n: 1.5 }, inversePatch: null, origin: 'local' }` 的规范串是
+
+```text
+s2:u1zs6:publics4:Tasks2:t1s6:inserto3:k4:doneb0k1:nd3:1.5k5:titles2:草稿zs5:local
+```
+
+单元指纹 `613a8d5cca23db9957f32007b498b1f864ef8d840fd14e0d5e60f95e4a5132a2`。含这一个单元、`kind: 'normal'`、`parentIds: ['p1']`、`message: '新建任务'`、`authorId: 'alice'` 的提交，规范串是
+
+```text
+s6:normalp1:s2:p1s4:新建任务s5:aliceu1:f64:613a8d5cca23db9957f32007b498b1f864ef8d840fd14e0d5e60f95e4a5132a2
+```
+
+提交指纹 `b70f7d4cd7d8bf73ee6853947958f79dedf7501be7c6b152777239710bd4bf54`。
 
 ## 只读检出位
 
@@ -699,7 +918,7 @@ export class CommitBar {
 }
 ```
 
-`useWorkingTree()` **必须在 Angular 注入上下文中调用**——它经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
+`useWorkingTree()` **必须在 Angular 注入上下文中调用**——它经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十六格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
 ### React
 
@@ -736,7 +955,7 @@ export function CommitBar() {
 }
 ```
 
-`useWorkingTree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十个状态字段是**普通只读值**（`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进 `useEffect` / `useMemo` 的依赖数组。
+`useWorkingTree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十六个状态字段是**普通只读值**（`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十六个方法**引用稳定**，可以安全放进 `useEffect` / `useMemo` 的依赖数组。
 
 ### Vue
 
@@ -771,9 +990,9 @@ const save = async (): Promise<void> => {
 </template>
 ```
 
-`useWorkingTree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
+`useWorkingTree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十六格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
-### 十四格异步状态
+### 十六格异步状态
 
 三端共享同一份状态契约（`WorkingTreeAsyncStates`，定义在插件包而不是三个框架包里）：
 
@@ -788,11 +1007,13 @@ const save = async (): Promise<void> => {
 | `commitChangesState`          | 查询态 `<CommitChangeSetPage>`                     | `commitChanges()` 的状态；**空即这个提交没有变更单元**（基线节点）                 |
 | `commitState`                 | 命令态 `<CommitResult>`                            | `commit()` 的状态；**没有 empty**                                                  |
 | `discardState`                | 命令态 `<WorkingTreeDiscardResult>`                | `discard()` 的状态；**没有 empty**                                                 |
-| `restoreState`                | 命令态 `<WorkingTreeRestoreResult>`                | `restore()` 的状态；**没有 empty** —— 四个被拒成因与 `restoredCount: 0` 都是结果   |
+| `restoreState`                | 命令态 `<WorkingTreeRestoreResult>`                | `restore()` 的状态；**没有 empty** —— 五个被拒成因与 `restoredCount: 0` 都是结果   |
 | `restoreSessionState`         | 查询态 `<WorkingTreeRestoreSessionInfo \| null>`   | `restoreSession()` 的状态；**空即当前分支没有未结束的恢复会话**，且带着那个 `null` |
 | `switchBranchState`           | 命令态 `<void>`                                    | `switchBranch()` 的状态；**没有 empty** —— 切到当前分支是成功的 no-op              |
 | `checkBranchFromCommitState`  | 命令态 `<WorkingTreeBranchFromCommitCheck>`        | `checkBranchFromCommit()` 的状态；**没有 empty** —— 能建与三种被拒成因都是结果     |
 | `createBranchFromCommitState` | 命令态 `<WorkingTreeCreateBranchFromCommitResult>` | `createBranchFromCommit()` 的状态；**没有 empty** —— 建好了与三种被拒成因都是结果  |
+| `importCommitsState`          | 命令态 `<CommitImportResult>`                      | `importCommits()` 的状态；**没有 empty** —— 被拒的十种成因与 no-op 都是结果        |
+| `exportCommitsState`          | 查询态 `<CommitExportPage>`                        | `exportCommits()` 的状态；**空即那个提交之后没有新提交**，且带着那一页             |
 
 查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。两条判别细节：
 
@@ -804,12 +1025,12 @@ const save = async (): Promise<void> => {
 
 ### 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：十四格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：十六格状态初值全是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
-- `commit()` / `discard()` / `restore()` / `checkBranchFromCommit()` / `createBranchFromCommit()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
+- `commit()` / `discard()` / `restore()` / `checkBranchFromCommit()` / `createBranchFromCommit()` / `importCommits()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
 - `createBranchFromCommit()` 不切换，也不重读 `status()`：当前分支的工作树一格都没动，切过去那一步的 `switchBranch()` 会重读。
-- `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
+- `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支；`importCommits()` 无论成败都重读（HEAD 快进过，或面板上的凭据已经过期），`exportCommits()` 只读、不重读。
 - `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-working-tree` 直接 import，绑定包**不重定义、也不再导出**。
 
@@ -832,7 +1053,7 @@ const save = async (): Promise<void> => {
 
 - `mounted.isMain` 即挂在主检出位；可写检出位的登记行里 `tableSetSuffix === mounted.suffix` 的那一行就是挂着的（登记行有只读、可写两种，按 `mode` 区分）。
 - 当前分支是 `activeKey === mounted.holderKey` 的那一条。不要再拿 `activated` 认：它只说主检出位停在哪条分支上，挂在可写检出位上时持有分支的 `activated` 是假。
-- 换挂之后 `useWorkingTree()` 的十四格**不会自己重读**（它没有变更流，见上）。要跟着换的组件订阅 `mounted` 再重读：React `useEffect(() => …, [worktrees.mounted])`、Angular `effect()` 读 `worktrees.mounted()`、Vue `watch(worktrees.mounted, …)`，跳过第一次的初值。
+- 换挂之后 `useWorkingTree()` 的十六格**不会自己重读**（它没有变更流，见上）。要跟着换的组件订阅 `mounted` 再重读：React `useEffect(() => …, [worktrees.mounted])`、Angular `effect()` 读 `worktrees.mounted()`、Vue `watch(worktrees.mounted, …)`，跳过第一次的初值。
 - `mounted` 从流取初值，订阅时流没交出当前那一套就抛；Angular 在注入器销毁、Vue 在作用域销毁、React 在卸载时退订。Vue 的 `useWorktrees()` 要在 `setup()` 或 `effectScope` 里调。
 
 打开只读检出位得到的视图把 `view.rxdb` 交给各端现成的 Provider，里面的查询 hook 与 rxdb-model 的实体列表照用（只读实例上列表不出写控件）：
@@ -854,7 +1075,7 @@ const save = async (): Promise<void> => {
 | `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                           | 诊断数据现场                                          |
 | `WorkingTreeDirtyError`              | `switchBranch(..., { requireClean: true })` 撞上非空工作树（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`，或不传 `requireClean`   |
 | `StaleActiveBranchError`             | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）  | 重读 `status()` 再切                                  |
-| `WorktreeUnavailableError`           | 检出位打不开（`reason`：没配快照库、后端不支持、分支不存在、提交不可达、有进行中的恢复、`in_use` 等十三种）              | 按 `reason` 处理；提交视图的拒绝与 `restore()` 同口径 |
+| `WorktreeUnavailableError`           | 检出位打不开（`reason`：没配快照库、后端不支持、分支不存在、提交不可达或只在侧枝上、有进行中的恢复、`in_use` 等十七种）  | 按 `reason` 处理；提交视图的拒绝与 `restore()` 同口径 |
 | `WorktreeBranchHeldError`（核心）    | 开可写检出位或主检出位切分支时，分支已被另一个检出位持有（`code: 'worktree_branch_held'`，带 `branchId` / `holderKey`）  | 换一条分支，或先删掉持有它的检出位                    |
 | `RxDBReadOnlyError`（核心）          | 在只读检出位的实例上写                                                                                                   | 回主实例写                                            |
 

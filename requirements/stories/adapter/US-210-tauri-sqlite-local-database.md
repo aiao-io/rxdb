@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, desktop, tauri, sqlite, transaction]
 inherited_acs:
   - from: US-207
@@ -99,47 +99,21 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 | 9   | 构建打包后的 Tauri 应用                                   | 在 macOS、Windows、Linux CI 中启动产物、写入、退出、再次启动     | 三平台均通过；测试使用真实临时文件而非 mock 或浏览器存储，且断言形态为跨进程累计。三平台**统一不使用 WebDriver**（理由见下）         | ✅   |
 | 10  | Rust 宿主与 renderer 编译自不同协议版本                   | 发起连接                                                         | 连接失败并报可判别的错误码；不建库、不按旧协议降级解释载荷                                                                           | ✅   |
 
-> **AC#10 补齐最后半条并转 ✅。** 协议里加了一条**无副作用**的 `handshake` 请求
-> （无参数、不碰会话表、不碰路径解析），renderer 在 `open` 之前先用它协商版本。顺序就是这条 AC 的
-> 全部：`open` 会建库、开连接、登记会话，核对排在它之后的话，一次注定失败的连接仍会留下空库文件。
-
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **AC#2（事务门禁）已判定：`tauri-plugin-sql` 不可用，改为自写 Rust command。** 详见「事务门禁」。
-> 门禁的结论不是「降级为假事务」，而是换掉了实现手段——`rusqlite::Connection` 一 session 一条，
-> 单连接语义由构造保证，无需依赖任何池配置。
->
-> **AC#6 已关闭**：补上了 `conformance/write-lock-contention.spec.ts`，三条用例真的让两个
-> 会话撞同一个库的写锁。原计划的跨 realm writer lease 与迁移 fencing 已取消
-> （连同其代码与 US-304 一并删除），本故事不承诺「第二个 writer 在连接时被拒」。
->
-> 关闭判据是**行为**与 [US-207](./US-207-desktop-local-database.md) AC#5 一致——第二个 writer 要么
-> 等到持锁方提交后成功，要么超时报可判别的 `database_busy`，任何情况下不静默改道到另一份数据库。
-> **不是实现或用例形态对齐**：两侧忙等机制是有意不同的（Node 侧 host 层异步退避重试，
-> Rust 侧 `PRAGMA busy_timeout` 原地等待，理由见下文「三处有意差异」），照实现抄会做出错的东西。
->
-> **AC#1 与 AC#9 是同一次实现。** AC#1 要的「关掉应用再打开还能读回」正是两次启动的断言，
-> 差别只在 AC#9 还要求它在三个平台上跑；两者一起关。鉴于 US-207 正是靠「跨进程累计计数」
-> 这条断言抓到静默丢数据（见下文），断言形态不能退化成单次启动内的「写一条读一条」。
->
-> **AC#9：三平台统一用进程级驱动，全都不上 WebDriver。** 打包产物在
-> 「自检模式」下启动（环境变量触发）：连库、写一行、退出；同一份数据目录连跑两次，
-> 断言启动计数 1 → 2。三平台跑的是同一段代码，AC 文本里因此不必写「三平台用的不是同一种驱动」。
-> 为什么不用 WebDriver：macOS 没有官方 WKWebView WebDriver、`tauri-driver` 只支持 Windows / Linux；
-> 而这条 AC 要验的是「打包产物能不能跨重启保住数据」，不是「点了按钮界面有没有变」，
-> 本来就不需要驱 UI。
->
-> 代价要写明：**这条路验不到 UI 交互**。将来若要验「点击按钮 → 数据落库」，macOS 的驱动缺口
-> 依然存在，那时再单开 spike。本 AC 不背这个债——它的前置条件里没有一个字提到界面。
->
-> `apps/dev-rxdb-tauri-e2e` 由本故事创建，US-905 的 devtools specs 也在同一个 project 里（`devtools-smoke` target）。
-> 它的 target 叫 **`desktop-smoke` 而不是 `e2e`**：`ci-template.yml` 用
-> `nx show projects --withTarget=e2e` 自动组矩阵，叫 `e2e` 就会自动进 PR 门禁的 **ubuntu 单 OS**
-> 跑道，而这套 smoke 要的是三 OS 矩阵。`test` / `test-browser` / `build` / `cargo-test` 同理都要避开；
-> vitest 配置也因此叫 `vitest.smoke.mts`（`@nx/vitest` 的发现 glob 只认 `vitest.config.*`）。
-> 三平台矩阵挂在
-> [US-207 阶段 2](./US-207-desktop-local-database.md#交付阶段) 的 `release-desktop.yml` 上
-> （release 发布触发；2026-09-14 起桌面链路相关 PR 也触发），与 Electron 侧共用一次触发。
+**验收边界**：
+
+- AC#2 由自写 Rust command 与每 session 一条 `rusqlite::Connection` 保证单连接事务，方案依据见「事务门禁」。
+- AC#6 的 `conformance/write-lock-contention.spec.ts` 验证真实写锁竞争：第二个 writer 等待提交后成功，或超时报
+  `database_busy`，始终使用同一数据库。Node host 用异步退避，Rust 用 `PRAGMA busy_timeout`；不承诺连接时拒绝第二个 writer。
+- AC#1 / #9 由打包产物的进程级自检驱动验收：同一数据目录连续启动，累计计数 1 → 2。
+  三平台统一使用该驱动；真实 WebView 的下载 / fetch 能力另由 US-505 验收。
+  自检不覆盖 UI 点击交互，macOS 的 UI 驱动缺口不由此替代。
+- AC#10 在 `open` 之前以无参数、无副作用的 `handshake` 协商版本；不匹配时不建库、不登记会话、不解析路径。
+
+`apps/dev-rxdb-tauri-e2e` 的打包产物任务叫 `desktop-smoke`，与 US-905 的 `devtools-smoke` 共用 project。
+它不进入 `ci-template.yml` 自动发现的 ubuntu 单 OS `e2e` 跑道；`vitest.smoke.mts` 也避开普通 Vitest target 推断。
+三 OS 矩阵由 `release-desktop.yml` 在发布、手动 dispatch 和桌面相关 PR 时触发，与 Electron 共用触发入口。
 
 ## 交付阶段
 
@@ -307,57 +281,22 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - **纯 `async fn` 也不行。** `rusqlite` 是阻塞接口，直接在 async 上下文里跑会占住 tokio
   的 worker 线程；库一忙，其它 command 一起饿死。`spawn_blocking` 把它放到专用线程池。
 
-### AC#10 的三半各自是怎么关掉的
+### AC#10：协议版本与无副作用握手
 
-这条 AC 补入，与
-[US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条) 是同一件事在两条路径上的对偶。
-补的理由在那边写全了：实现和用例都在，缺的是没有 AC 认领，于是**谁删掉这段校验都不算违反验收标准**。
+TypeScript 的 `DESKTOP_HOST_PROTOCOL_VERSION` 与 Rust `protocol.rs` 的 `PROTOCOL_VERSION: i64`
+是跨语言常量，由 `protocol-handshake.spec.ts` 的两层断言保持一致：运行中的宿主应答版本等于 TS 常量，
+直接读取 Rust 源码提取的版本也等于 TS 常量。源码提取失败必须显式报错并给出路径，不能跳过。
 
-Tauri 侧比 Electron 侧多一个薄弱环节。拒绝动作本身在共享层（renderer 比对
-`DESKTOP_HOST_PROTOCOL_VERSION`），两条路径同一份代码，这半边是稳的。
-不稳的是**版本号在 Rust 侧是手抄的第二份**：
+版本不匹配用 `rxdb_host_stdio` 测试替身的 `RXDB_HOST_STDIO_PROTOCOL_VERSION` 注入，按 JSON 指针
+`/result/protocolVersion` 改写应答；产品协议没有可配置版本或降级分支。
 
-| 侧         | 常量                                                          |
-| ---------- | ------------------------------------------------------------- |
-| TypeScript | `DESKTOP_HOST_PROTOCOL_VERSION`（`desktop-host-protocol.ts`） |
-| Rust       | `PROTOCOL_VERSION: i64`（`protocol.rs`）                      |
-
-两个常量之间**没有任何机械联系**：改了 TS 那个，`cargo test` 一条不红；改了 Rust 那个，
-`pnpm nx test` 一条不红。Electron 侧没有这个问题——host 与 renderer 读的是同一个 TS 常量。
-
-后果不是「版本不匹配没被拦住」（共享层会拦），而是**漂移本身要到运行时才暴露**：
-协议真变更时漏改一侧，一致性套件照常全绿（它们两侧都用当时的代码构建），
-问题留给用户在真 IPC 上撞。
-
-**漂移这一半已关闭**，用了两条互补的断言，缺一条都留口子：
-
-- 跑起来的宿主报的版本号等于 TS 常量（`protocol-handshake.spec.ts` 原有那条）；
-- **直接读 `protocol.rs` 源文本**抽出 `PROTOCOL_VERSION` 再比。加这条是因为上一条只能证明「当前这个
-  二进制」对得上：源码与二进制之间隔着一次 `cargo build`，只改了 `.rs` 还没重编时，上一条照旧全绿。
-  正则匹配不上要**显式失败**并附上找过的路径——当成「没有这个常量所以跳过」的话，常量一改名，
-  这条用例就退化成一句空话，而它正是为了盯住改名之后的漂移才存在的。
-
-**「版本真不一致时的行为」这一半也已关闭**：`rxdb_host_stdio` 认一个环境变量
-（`RXDB_HOST_STDIO_PROTOCOL_VERSION`），设了就把应答里的 `protocolVersion` 换掉，于是两端版本
-**真的**对不上。改写只在这个测试替身里——产品代码出现「版本可配置」的分支，等于给线协议开了
-一个降级口子，而版本号存在的意义正是不许降级。改写按 JSON 指针 `/result/protocolVersion` 下手而不是
-按 `kind` 分支，于是后来新增的 `handshake` 应答自动被盖到。
-
-**第三半「不建库」于同日关闭**，做法是给协议加一条无副作用的 `handshake` 请求：
-
-- **请求形状**：`{ kind: 'handshake' }`，一个字段都没有。Rust 侧 `parse_request` 直接返回
-  `Request::Handshake`——重新构造出来的值里只剩 kind，renderer 多塞的东西一概进不来
-  （`parses_a_handshake_that_carries_nothing`）。
-- **应答形状**：`{ kind: 'handshake', result: { protocolVersion } }`。`open` 应答里那份 `protocolVersion`
-  **保留**：它现在是第二道防线，也是老 renderer 唯一的检查点。
-- **没有抬版本号**。这条请求对 host 是纯增量的：老 renderer 直接发 `open`，在新 host 上行为一字不变；
-  而老到不认识这个 kind 的 host 会回 `protocol_violation: unknown request kind handshake`，那条路径
-  同样碰不到文件系统。于是「版本对不上就不建库」在新旧两种 host 上**都**成立，抬版本号只会平白
-  弄坏「老 renderer + 新 host」这一对。客户端也**不做**「那就退回去直接 open」的兜底——理由同上。
-- **副作用为零由断言固定**，而不是靠读代码相信：Rust 的
-  `handshake_reports_the_protocol_version_without_touching_the_disk` 把 host 建在一个**故意不预先创建**的
-  目录上，握手后断言目录仍不存在（`resolve_database_path` 会 `create_dir_all`，碰过它目录就会凭空出现）；
-  TS 侧对应 `electron-sqlite-host.spec.ts` 的「不 consult path resolver」。
+- 请求为 `{ kind: 'handshake' }`；`parse_request` 重新构造 `Request::Handshake`，不透传 renderer 的额外字段，
+  由 `parses_a_handshake_that_carries_nothing` 验证。
+- 应答为 `{ kind: 'handshake', result: { protocolVersion } }`；`open` 应答保留版本作为第二道检查。
+- 不识别握手的旧 host 返回 `protocol_violation: unknown request kind handshake`，客户端直接失败，不退回 `open`。
+  旧 renderer 直接 `open` 仍受新 host 的应答版本检查约束。
+- Rust 的 `handshake_reports_the_protocol_version_without_touching_the_disk` 使用未创建的根目录，握手后断言目录仍不存在；
+  TS 对偶由 `electron-sqlite-host.spec.ts` 的路径解析器零调用断言覆盖。
 
 ### 依赖
 

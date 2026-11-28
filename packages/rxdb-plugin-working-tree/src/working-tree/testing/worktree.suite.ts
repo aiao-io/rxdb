@@ -18,6 +18,11 @@
  * 从提交建分支（US-314 阶段 A）也收在这里：判据同口径——切到新分支读到的，与那次 `commit()` 刚完成时读到的逐行一致。
  * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。不切换的对比与合并预览（US-312）的真库冒烟同理收在这里。
  *
+ * 导入远端提交（US-319）收在这里：两台设备各是一个库，一台提交、导出，另一台经一次 JSON 往返（模拟服务端）导入，
+ * 判据是两台设备的提交历史与业务表逐行一致——布尔、日期、JSON 列与多对多中间表都在里面。合并提交由用例自己按
+ * 「相对第一父的增量」拼出来，与首个使用方的服务端做的事相同。加密列的信封绑在写下它的那个库的密钥环身份上，
+ * 另一台设备解不开：那条路径钉的是「整笔回滚、一个字节都没写」。
+ *
  * 可写检出位（US-314 B1.5）同理：`checkouts.add()` 开出来、`mount()` 挂上之后，写捕获进持有分支的工作树、提交进它的历史，
  * 主检出位一处不动；播种出来的、在检出位里写过的，都与「删掉检出位再切过去读到的」逐行一致。
  *
@@ -53,7 +58,10 @@ import type { WorktreeView } from '../../checkout/worktree-manager.js';
 import type { WorktreeTarget } from '../../checkout/worktree-target.js';
 import { openActivationRow } from '../../checkout/worktree-writable.js';
 import { Worktree } from '../../checkout/worktree.entity.js';
+import { computeCommitContentFingerprint } from '../../commit/change-unit.js';
+import type { CommitExchangeRecord } from '../../commit/commit-exchange.js';
 import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
+import { Commit } from '../../commit/commit.entity.js';
 import { WorkingTreeActivationState } from '../working-tree-activation-state.entity.js';
 import type { WorktreeConformanceSuiteContext } from './suite-context.js';
 import {
@@ -345,6 +353,189 @@ const changeCountOf = async (rxdb: RxDB): Promise<number> => {
     const { rows } = await executor.query(`SELECT count(*) FROM ${executor.tableRef(RxDBChange)}`);
     return Number(rows[0][0]);
   }, false);
+};
+
+/** 拿现读的三个捕获位丢弃整棵工作树（US-320）。 */
+const discardAll = async (rxdb: RxDB) => rxdb.workingTree.discard(await credentialsOf(rxdb));
+
+/** 拿现读的三个捕获位把工作树恢复到一个提交（US-320）。 */
+const restoreTo = async (rxdb: RxDB, commitId: string) =>
+  rxdb.workingTree.restore({ commitId }, await credentialsOf(rxdb));
+
+/**
+ * 在 {@link seedTwoBranches} 铺好的主线上留一批跨实体的未提交改动：改、删、新建、关联增减、改密文。
+ *
+ * @remarks
+ * 「草稿」的全部形状都在里面——插入、修改、删除三种操作，普通表、多对多中间表与加密列三类表。
+ * 少一类，discard 的回写在那一类上写错（比如中间表的行没删掉、密文被写成明文）就没有用例会红。
+ */
+const writeDrafts = async (rxdb: RxDB, seed: Awaited<ReturnType<typeof seedTwoBranches>>): Promise<void> => {
+  const { shared, mainOnly, secret, sharedLabel } = seed;
+  shared.title = '草稿改名';
+  shared.done = true;
+  shared.meta = { draft: true };
+  shared.labels$.remove(sharedLabel);
+  await shared.save();
+  await mainOnly.remove();
+  const draft = await save(rxdb, WorktreeConformanceTask, { title: '草稿新建', priority: 8, meta: { draft: 1 } });
+  const draftLabel = await save(rxdb, WorktreeConformanceLabel, { name: '草稿标签' });
+  draft.labels$.add(draftLabel, sharedLabel);
+  await draft.save();
+  secret.note = '草稿里的秘密';
+  await secret.save();
+};
+
+/** {@link injectRewriteFailure} 注入的那次失败；判别位用类，不用文案。 */
+class InjectedRewriteFailure extends Error {
+  constructor() {
+    super('注入：回写已经落进业务表，事务提交之前出错');
+    this.name = 'InjectedRewriteFailure';
+    Object.setPrototypeOf(this, InjectedRewriteFailure.prototype);
+  }
+}
+
+/**
+ * 让下一次 `mergeChanges` 先把回写**真的写进去**、再抛错（US-320 AC4）。
+ *
+ * @remarks
+ * 注入点挑在「写完之后」而不是「写之前」：写之前抛，测的只是「没写就没变化」；写完再抛，业务表里
+ * 已经躺着回写的结果，要它回到原样，只能靠回写与条目、revision 同在一笔事务里一起回滚。
+ *
+ * 换的是适配器实例上的那个方法（捕获层装上的包装）：执行器的 `mergeChanges` 每次都现取
+ * `adapter.mergeChanges` 再绑到事务门面上调，替身因此落在真实的写路径上，生产代码里不需要为它开口子。
+ */
+const injectRewriteFailure = async (rxdb: RxDB): Promise<() => void> => {
+  const adapter = await localAdapterOf(rxdb);
+  const original = adapter.mergeChanges;
+  const spy = vi.spyOn(adapter, 'mergeChanges').mockImplementationOnce(async function (
+    this: unknown,
+    ...args: unknown[]
+  ): Promise<never> {
+    await Reflect.apply(original, this, args);
+    throw new InjectedRewriteFailure();
+  } as LocalRxDBAdapter['mergeChanges']);
+  return () => spy.mockRestore();
+};
+
+/**
+ * 模拟服务端：交换记录经一次 JSON 往返再交出去，时间还原成 `Date`（US-319）。
+ *
+ * @remarks
+ * 首个使用方的线上格式就是 JSON。往返之后指纹仍然对得上，才说明「落库形态的单元就是交换格式」这件事在每个后端上都成立
+ * ——`bigint` / `binary` 的包装、加密列的信封、JSON 列里的对象都得原样穿过去。
+ */
+const viaServer = (records: readonly CommitExchangeRecord[]): CommitExchangeRecord[] =>
+  (JSON.parse(JSON.stringify(records)) as (Omit<CommitExchangeRecord, 'createdAt'> & { createdAt: string })[]).map(
+    record => ({ ...record, createdAt: new Date(record.createdAt) })
+  );
+
+/** 拿现读的三个捕获位导入一批提交（US-319）。 */
+const importInto = async (rxdb: RxDB, commits: readonly CommitExchangeRecord[]) =>
+  rxdb.workingTree.importCommits(commits, await credentialsOf(rxdb));
+
+/** 当前分支的提交历史：与提交身份有关的那几列都在条目上。 */
+const commitLogOf = async (rxdb: RxDB) => (await rxdb.workingTree.listCommits()).entries;
+
+/** `rxdb_commit` 全表的行数：被拒的导入一个节点都不该写。 */
+const commitRowCountOf = async (rxdb: RxDB): Promise<number> => {
+  const adapter = await localAdapterOf(rxdb);
+  return adapter.transaction(async executor => {
+    const { rows } = await executor.query(`SELECT count(*) FROM ${executor.tableRef(Commit)}`);
+    return Number(rows[0][0]);
+  }, false);
+};
+
+/** 被拒的导入前后要逐字相同的东西：原始业务行、提交历史、提交节点数、工作树摘要。 */
+const importSnapshotOf = async (rxdb: RxDB) => ({
+  stored: await storedTablesOf(rxdb),
+  history: await commitLogOf(rxdb),
+  commits: await commitRowCountOf(rxdb),
+  status: await rxdb.workingTree.status()
+});
+
+/**
+ * 在一台设备上铺两次提交：c1 建任务（布尔、整数、日期、JSON 各一列）与标签关联，c2 改名、删行（US-319）。
+ *
+ * @remarks
+ * 多对多关联在这里一次建完：两个库共用同一份实体类，后初始化的那个库会把关系上的中间表类换成它自己的，
+ * 所以另一台设备要在这之后才建，这台设备之后也不再动关联。
+ *
+ * 不碰加密列：信封绑在写下它的那个库的密钥环身份（kid）上，同一份密钥在两个库里也是两个 kid——另一台设备解不开，
+ * 那条路径单独一条用例（「加密列的信封来自另一台设备」）。
+ */
+const seedSharedHistory = async (rxdb: RxDB) => {
+  const first = await save(rxdb, WorktreeConformanceTask, {
+    title: '第一条',
+    done: false,
+    priority: 1,
+    dueAt: new Date(Date.UTC(2026, 10, 1, 8, 30)),
+    meta: { tags: ['x', 'y'] }
+  });
+  const second = await save(rxdb, WorktreeConformanceTask, {
+    title: '第二条',
+    priority: null,
+    dueAt: null,
+    meta: null
+  });
+  const label = await save(rxdb, WorktreeConformanceLabel, { name: '共享标签' });
+  first.labels$.add(label);
+  await first.save();
+  const c1 = await commitAll(rxdb, 'c1');
+  first.title = '第一条改名';
+  first.done = true;
+  await first.save();
+  await second.remove();
+  const c2 = await commitAll(rxdb, 'c2');
+  return { first, c1, c2 };
+};
+
+/**
+ * 服务端拼出来的合并提交：ChangeSet 是合并结果相对第一父的增量，指纹按内容现算（US-319）。
+ *
+ * @param parentIds - 第一父在前
+ * @param units - 相对第一父的增量
+ */
+const mergeRecordOf = (parentIds: readonly string[], units: CommitExchangeRecord['units']): CommitExchangeRecord => {
+  const message = '合并任务分支';
+  const authorId = 'server';
+  return {
+    commitId: uuid(),
+    parentIds,
+    kind: 'merge',
+    message,
+    authorId,
+    createdAt: new Date(Date.UTC(2026, 10, 2)),
+    contentFingerprint: computeCommitContentFingerprint({ kind: 'merge', parentIds, message, author: authorId, units }),
+    units
+  };
+};
+
+/**
+ * 服务端拼出来的一个普通提交：单父，ChangeSet 由服务端给，指纹按内容现算（US-319 前像核对）。
+ *
+ * @param parentId - 父
+ * @param units - 相对父的增量；服务端按哪一份数据算的，前像核对就核对那一份
+ */
+const serverCommitOf = (parentId: string, units: CommitExchangeRecord['units']): CommitExchangeRecord => {
+  const message = '服务端拼的提交';
+  const authorId = 'server';
+  const parentIds = [parentId];
+  return {
+    commitId: uuid(),
+    parentIds,
+    kind: 'normal',
+    message,
+    authorId,
+    createdAt: new Date(Date.UTC(2026, 10, 3)),
+    contentFingerprint: computeCommitContentFingerprint({
+      kind: 'normal',
+      parentIds,
+      message,
+      author: authorId,
+      units
+    }),
+    units
+  };
 };
 
 /** 主库里出现过的全部信封：业务表现值，加变更日志里每条补丁的值。 */
@@ -850,6 +1041,610 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
       });
     });
 
+    // US-320：discard / restore 连业务表一起改。判据与上面两组同一把尺子——「那次 commit() 刚完成时读到的」
+    // 与「切过去读到的」：前者说明回写对了，后者说明变更日志跟着回写走了（切分支按日志撤投影、按日志重放）。
+    describe('放弃与恢复回写业务表（US-320）', () => {
+      it('discard()：跨实体的插入、修改与删除逐行回到 HEAD；工作树 clean，修订号推进一格，HEAD 与历史不动', async () => {
+        const seed = await seedTwoBranches(database);
+        await commitAll(database, 'HEAD');
+        const atHead = await tablesOf(database);
+        const history = await historyOf(database);
+        await writeDrafts(database, seed);
+        const dirty = await database.workingTree.status();
+        expect(await tablesOf(database)).not.toEqual(atHead);
+
+        const result = await discardAll(database);
+
+        expect(result).toEqual({
+          ok: true,
+          discardedCount: dirty.entryCount,
+          workingTreeRevision: dirty.workingTreeRevision + 1
+        });
+        // 逐行等于 HEAD：普通表、多对多中间表与加密列（解锁后读到的明文）一起比
+        expect(await tablesOf(database)).toEqual(atHead);
+        expect(await database.workingTree.status()).toMatchObject({
+          clean: true,
+          entryCount: 0,
+          headRevision: dirty.headRevision,
+          workingTreeRevision: dirty.workingTreeRevision + 1,
+          restoring: false
+        });
+        expect(await historyOf(database)).toEqual(history);
+      });
+
+      it('discard()：clean 时仍是 no-op——不写业务表、不写变更日志，修订号不涨', async () => {
+        await seedTwoBranches(database);
+        await commitAll(database, 'HEAD');
+        const stored = await storedTablesOf(database);
+        const changes = await changeCountOf(database);
+        const before = await database.workingTree.status();
+
+        const result = await discardAll(database);
+
+        expect(result).toEqual({ ok: true, discardedCount: 0, workingTreeRevision: before.workingTreeRevision });
+        // 原始行（含审计时间）与变更日志的行数都不变：哪怕「照样回写一遍同样的值」也会推 updatedAt、记一行日志
+        expect(await storedTablesOf(database)).toEqual(stored);
+        expect(await changeCountOf(database)).toBe(changes);
+        expect(await database.workingTree.status()).toEqual(before);
+      });
+
+      it('restore()：业务表等于所选提交的数据，差异计为未提交改动；HEAD 不动、历史不删，提交之后 HEAD 就是那份数据', async () => {
+        const { shared, mainOnly, secret, sharedLabel } = await seedTwoBranches(database);
+        const target = await commitAll(database, '目标提交');
+        const atTarget = await tablesOf(database);
+        // 目标之后：一次提交改名、新建、改密文、删关联、删行
+        shared.title = '目标之后改名';
+        shared.labels$.remove(sharedLabel);
+        await shared.save();
+        await save(database, WorktreeConformanceTask, { title: '目标之后新建', priority: 3 });
+        secret.note = '目标之后的秘密';
+        await secret.save();
+        await mainOnly.remove();
+        await commitAll(database, '目标之后');
+        const history = await historyOf(database);
+        const before = await database.workingTree.status();
+
+        const result = await restoreTo(database, target);
+
+        expect(result).toMatchObject({ ok: true });
+        expect(await tablesOf(database)).toEqual(atTarget);
+        const restoring = await database.workingTree.status();
+        expect(restoring).toMatchObject({
+          clean: false,
+          restoring: true,
+          conflicted: false,
+          headRevision: before.headRevision,
+          workingTreeRevision: before.workingTreeRevision + 1
+        });
+        expect(restoring.entryCount).toBe(result.ok ? result.restoredCount : -1);
+        expect(await historyOf(database)).toEqual(history);
+
+        // 差异计为未提交改动：提交的正是那批差异，新 HEAD 的数据就是目标的数据，旧节点一个不少
+        const restoredCommit = await commitAll(database, '恢复目标提交');
+        expect(await tablesOf(database)).toEqual(atTarget);
+        expect(await historyOf(database)).toEqual([restoredCommit, ...history]);
+        expect(await database.workingTree.status()).toMatchObject({ clean: true, restoring: false });
+      });
+
+      it('restore() 之后 discard()：业务表回到 HEAD，恢复会话一并清除', async () => {
+        const { shared } = await seedTwoBranches(database);
+        const target = await commitAll(database, '目标提交');
+        shared.title = '目标之后改名';
+        await shared.save();
+        await save(database, WorktreeConformanceTask, { title: '目标之后新建', priority: 3 });
+        await commitAll(database, '目标之后');
+        const atHead = await tablesOf(database);
+        await restoreTo(database, target);
+
+        const result = await discardAll(database);
+
+        expect(result).toMatchObject({ ok: true });
+        expect(await tablesOf(database)).toEqual(atHead);
+        expect(await database.workingTree.status()).toMatchObject({ clean: true, restoring: false, conflicted: false });
+        expect(await database.workingTree.restoreSession()).toBeNull();
+      });
+
+      it('切分支往返：discard / restore 之后切走再切回，读到的仍是回写之后的数据', async () => {
+        const seed = await seedTwoBranches(database);
+        const { main } = seed;
+        const target = await commitAll(database, '目标提交');
+        const atTarget = await tablesOf(database);
+        seed.shared.title = '目标之后改名';
+        await seed.shared.save();
+        await commitAll(database, 'HEAD');
+        const atHead = await tablesOf(database);
+        await database.versionManager.switchBranch(FEATURE);
+        const onFeature = await tablesOf(database);
+        await database.versionManager.switchBranch(main);
+
+        // discard：回写进了变更日志，切走时一并撤掉、切回时一并重放——触发器关着写的话，切回来时日志里
+        // 只有那批被丢掉的编辑，它们会被原样重放回业务表，而工作树报 clean
+        await writeDrafts(database, seed);
+        await discardAll(database);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await tablesOf(database)).toEqual(onFeature);
+        await database.versionManager.switchBranch(main);
+        expect(await tablesOf(database)).toEqual(atHead);
+        expect((await database.workingTree.status()).clean).toBe(true);
+
+        // restore：恢复出来的数据与它的条目一起跟着分支走
+        await restoreTo(database, target);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await tablesOf(database)).toEqual(onFeature);
+        await database.versionManager.switchBranch(main);
+        expect(await tablesOf(database)).toEqual(atTarget);
+        expect(await database.workingTree.status()).toMatchObject({ clean: false, restoring: true });
+      });
+
+      it('撤销一次 discard()：草稿回到业务表、重新进工作树；再丢一次又回到 HEAD', async () => {
+        const seed = await seedTwoBranches(database);
+        await commitAll(database, 'HEAD');
+        const atHead = await tablesOf(database);
+        await writeDrafts(database, seed);
+        const atDraft = await tablesOf(database);
+        const dirty = await database.workingTree.status();
+        const history = database.versionManager.history();
+        const undoable = await firstValueFrom(history.undoCount$);
+        await discardAll(database);
+        // 撤销栈按变更事件异步刷新：等丢弃那一步进了栈再撤，否则撤掉的是最后一笔草稿
+        await expect.poll(() => firstValueFrom(history.undoCount$)).toBeGreaterThan(undoable);
+
+        await history.undo();
+
+        // 回写开着触发器进了变更日志，整次丢弃是撤销栈上的一步；撤销它落回的改动经撤销入口重新捕获成条目
+        expect(await tablesOf(database)).toEqual(atDraft);
+        expect(await database.workingTree.status()).toMatchObject({ clean: false, entryCount: dirty.entryCount });
+        await discardAll(database);
+        expect(await tablesOf(database)).toEqual(atHead);
+        expect((await database.workingTree.status()).clean).toBe(true);
+      });
+
+      it('discard() 回写之后、事务提交之前出错：业务表、工作树条目与修订号都回到操作前（AC4）', async () => {
+        const seed = await seedTwoBranches(database);
+        await commitAll(database, 'HEAD');
+        await writeDrafts(database, seed);
+        const stored = await storedTablesOf(database);
+        const status = await database.workingTree.status();
+        const diff = await database.workingTree.diff();
+        const restore = await injectRewriteFailure(database);
+
+        const failed = await discardAll(database).catch((error: unknown) => error);
+        restore();
+
+        expect(failed).toBeInstanceOf(InjectedRewriteFailure);
+        // 读原始行而不是经实体缓存：失败之前那次回写已经把缓存里的实体改成了 HEAD 的值
+        expect(await storedTablesOf(database)).toEqual(stored);
+        expect(await database.workingTree.status()).toEqual(status);
+        expect(await database.workingTree.diff()).toEqual(diff);
+      });
+
+      it('restore() 回写之后、事务提交之前出错：业务表、工作树与修订号都回到操作前，不留会话（AC4）', async () => {
+        const { shared } = await seedTwoBranches(database);
+        const target = await commitAll(database, '目标提交');
+        shared.title = '目标之后改名';
+        await shared.save();
+        await commitAll(database, '目标之后');
+        const stored = await storedTablesOf(database);
+        const status = await database.workingTree.status();
+        const restore = await injectRewriteFailure(database);
+
+        const failed = await restoreTo(database, target).catch((error: unknown) => error);
+        restore();
+
+        expect(failed).toBeInstanceOf(InjectedRewriteFailure);
+        expect(await storedTablesOf(database)).toEqual(stored);
+        expect(await database.workingTree.status()).toEqual(status);
+        expect(await database.workingTree.restoreSession()).toBeNull();
+      });
+    });
+
+    // US-319：两台设备，一台提交、导出，另一台经服务端（一次 JSON 往返）导入。判据是两台设备的提交历史与业务表逐行一致
+    describe('导入远端提交（US-319）', () => {
+      it('空分支导入整条链：提交身份与指纹逐字相同，业务表等于链末，工作树 clean（AC#1）', async () => {
+        const { c2 } = await seedSharedHistory(database);
+        const exported = await database.workingTree.exportCommits();
+        const device = await prepare(context.createDatabase);
+
+        const result = await importInto(device, viaServer(exported.commits));
+
+        // 链从另一台设备的根开始：本机启用时写下的那个基线被换掉，它下面压着的业务表本来就是空的
+        expect(result).toMatchObject({
+          ok: true,
+          headCommitId: c2,
+          importedCount: exported.commits.length,
+          appliedCount: exported.commits.length
+        });
+        // id、父链、种类、作者、消息、时间逐字相同；指纹与单元由导出侧再交一遍来比
+        expect(await commitLogOf(device)).toEqual(await commitLogOf(database));
+        expect((await device.workingTree.exportCommits()).commits).toEqual(exported.commits);
+        expect(await tablesOf(device)).toEqual(await tablesOf(database));
+        expect(await device.workingTree.status()).toMatchObject({ clean: true, entryCount: 0, restoring: false });
+      });
+
+      it('从当前头延续：分支头快进，listCommits 的顺序与父链一致；之后本地 commit() 以导入的头为父（AC#2 / AC#7）', async () => {
+        const { first, c2 } = await seedSharedHistory(database);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, viaServer((await database.workingTree.exportCommits()).commits));
+        first.priority = 5;
+        await first.save();
+        const c3 = await commitAll(database, 'c3');
+        const next = await database.workingTree.exportCommits({ afterCommitId: c2 });
+        expect(next.commits.map(record => record.commitId)).toEqual([c3]);
+        const before = await device.workingTree.status();
+
+        const result = await importInto(device, viaServer(next.commits));
+
+        expect(result).toEqual({
+          ok: true,
+          headCommitId: c3,
+          headRevision: before.headRevision + 1,
+          importedCount: 1,
+          appliedCount: 1
+        });
+        const history = await commitLogOf(device);
+        expect(history).toEqual(await commitLogOf(database));
+        for (const [index, entry] of history.slice(0, -1).entries()) {
+          expect(entry.firstParentId).toBe(history[index + 1].commitId);
+        }
+        expect(await tablesOf(device)).toEqual(await tablesOf(database));
+        expect((await device.workingTree.status()).clean).toBe(true);
+
+        // AC#7：本地继续编辑、提交——父是导入的头，明细只有本地这一处，作者是本次提交者
+        const local = await save(device, WorktreeConformanceTask, {
+          title: '设备上新建',
+          priority: 2,
+          dueAt: null,
+          meta: null
+        });
+        const localCommit = await commitAll(device, '设备上的本地提交');
+        expect((await commitLogOf(device))[0]).toMatchObject({
+          commitId: localCommit,
+          parentIds: [c3],
+          kind: 'normal',
+          authorId: 'worktree-conformance'
+        });
+        const changes = await device.workingTree.commitChanges(localCommit);
+        expect(changes.entries.map(entry => [entry.entity, entry.entityId, entry.operation])).toEqual([
+          [getEntityMetadata(WorktreeConformanceTask).name, local.id, 'insert']
+        ]);
+      });
+
+      it('工作树脏、链首的父不是当前头：拒绝，提交与业务数据一个字节都不写（AC#3）', async () => {
+        const { first, c2 } = await seedSharedHistory(database);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, viaServer((await database.workingTree.exportCommits()).commits));
+        first.priority = 7;
+        await first.save();
+        await commitAll(database, 'c3');
+        const batch = viaServer((await database.workingTree.exportCommits({ afterCommitId: c2 })).commits);
+
+        await save(device, WorktreeConformanceTask, {
+          title: '设备上没提交的草稿',
+          priority: 1,
+          dueAt: null,
+          meta: null
+        });
+        const dirty = await importSnapshotOf(device);
+        expect(await importInto(device, batch)).toEqual({ ok: false, reason: 'dirty_working_tree' });
+        expect(await importSnapshotOf(device)).toEqual(dirty);
+
+        // 草稿提交掉：本机多了一个服务端不知道的提交，批次链首的父（c2）不再是本机的头
+        const localHead = await commitAll(device, '设备上的本地提交');
+        const diverged = await importSnapshotOf(device);
+        expect(await importInto(device, batch)).toEqual({
+          ok: false,
+          reason: 'not_fast_forward',
+          headCommitId: localHead
+        });
+        expect(await importSnapshotOf(device)).toEqual(diverged);
+      });
+
+      it('某个提交的指纹与内容不符：整批拒绝，不写入（AC#4）', async () => {
+        await seedSharedHistory(database);
+        const exported = viaServer((await database.workingTree.exportCommits()).commits);
+        const device = await prepare(context.createDatabase);
+        // 改最后那个提交里第一条带正向补丁的单元，指纹照旧——服务端或链路上被篡改的形状
+        const victim = exported[exported.length - 1];
+        const index = victim.units.findIndex(unit => unit.patch !== null);
+        const tampered = exported.map(record =>
+          record === victim ?
+            {
+              ...record,
+              units: record.units.map((unit, position) =>
+                position === index ? { ...unit, patch: { ...unit.patch, title: '中途被改' } } : unit
+              )
+            }
+          : record
+        );
+        const before = await importSnapshotOf(device);
+
+        const result = await importInto(device, tampered);
+
+        expect(result).toEqual({ ok: false, reason: 'fingerprint_mismatch', commitId: victim.commitId });
+        expect(await importSnapshotOf(device)).toEqual(before);
+      });
+
+      // 服务端按一份与本机不同的数据算了增量（或增量本身写错了）：叠上去的那一刻 UPDATE / DELETE 打空、INSERT 撞上已有的行，
+      // 或者把本机的值换成了一个谁都没见过的组合——两台设备从此分叉。导入在叠业务表之前逐个单元核对前像，对不上就整批拒绝
+      it('服务端拼错了增量（前像与本机业务行对不上）：整批 precondition_mismatch、零写入；前像对的那一批照常导入', async () => {
+        const { first, c2 } = await seedSharedHistory(database);
+        const exported = viaServer((await database.workingTree.exportCommits()).commits);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, exported);
+        first.priority = 3;
+        await first.save();
+        const c3 = await commitAll(database, 'c3');
+        const [record] = viaServer((await database.workingTree.exportCommits({ afterCommitId: c2 })).commits);
+        const taskName = getEntityMetadata(WorktreeConformanceTask).name;
+        const taskUnits = [...exported, record]
+          .flatMap(commit => commit.units)
+          .filter(unit => unit.entity === taskName);
+        const update = record.units.find(unit => unit.entity === taskName && unit.operation === 'update');
+        const inserted = taskUnits.find(unit => unit.operation === 'insert' && unit.entityId === String(first.id));
+        const deleted = taskUnits.find(unit => unit.operation === 'delete');
+        if (!update || !inserted || !deleted) throw new Error('共享历史里缺任务的插入、修改或删除单元');
+        const rejectedAt = (commit: CommitExchangeRecord, unit: CommitExchangeRecord['units'][number]) => ({
+          ok: false,
+          reason: 'precondition_mismatch',
+          commitId: commit.commitId,
+          unitId: unit.unitId,
+          namespace: unit.namespace,
+          entity: unit.entity,
+          entityId: unit.entityId,
+          operation: unit.operation
+        });
+        const before = await importSnapshotOf(device);
+
+        // update：服务端以为改之前的优先级是 8，本机这一行是 1
+        const staleUpdate = { ...update, inversePatch: { ...update.inversePatch, priority: 8 } };
+        const wrongBase = serverCommitOf(c2, [staleUpdate]);
+        expect(await importInto(device, [wrongBase])).toEqual(rejectedAt(wrongBase, staleUpdate));
+        // insert：本机已经有这一行
+        const duplicate = serverCommitOf(c2, [inserted]);
+        expect(await importInto(device, [duplicate])).toEqual(rejectedAt(duplicate, inserted));
+        // delete：这一行在 c2 就已经删掉了
+        const vanished = serverCommitOf(c2, [deleted]);
+        expect(await importInto(device, [vanished])).toEqual(rejectedAt(vanished, deleted));
+        expect(await importSnapshotOf(device)).toEqual(before);
+
+        // 前像对的那一批照常快进，两台设备收敛
+        expect(await importInto(device, [record])).toMatchObject({ ok: true, headCommitId: c3 });
+        expect(await tablesOf(device)).toEqual(await tablesOf(database));
+      });
+
+      it('同一批再导入一次是 no-op；同 id 不同内容被拒（AC#5）', async () => {
+        const { c2 } = await seedSharedHistory(database);
+        const batch = viaServer((await database.workingTree.exportCommits()).commits);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, batch);
+        const imported = await importSnapshotOf(device);
+
+        expect(await importInto(device, batch)).toEqual({
+          ok: true,
+          headCommitId: c2,
+          headRevision: imported.status.headRevision,
+          importedCount: 0,
+          appliedCount: 0
+        });
+        expect(await importSnapshotOf(device)).toEqual(imported);
+
+        const original = batch[batch.length - 1];
+        const message = '同 id、另一份内容';
+        const impostor: CommitExchangeRecord = {
+          ...original,
+          message,
+          contentFingerprint: computeCommitContentFingerprint({
+            kind: original.kind,
+            parentIds: original.parentIds,
+            message,
+            author: original.authorId,
+            units: original.units
+          })
+        };
+        expect(await importInto(device, [impostor])).toEqual({ ok: false, reason: 'commit_id_conflict', commitId: c2 });
+        expect(await importSnapshotOf(device)).toEqual(imported);
+      });
+
+      it('合并提交：以 merge 入库、第一父为当前头；listCommits、restore、提交视图、从提交建分支、分支对比与切分支都走对（AC#6）', async () => {
+        const main = await activeBranchOf(database);
+        if (main === undefined) throw new Error('没有 active 分支');
+        const { first, c2 } = await seedSharedHistory(database);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, viaServer((await database.workingTree.exportCommits()).commits));
+        // 设备上留一条停在 c2 的分支：导入之后切过去再切回来，验导入的数据跟着分支走（触发器开着写）
+        await device.versionManager.createBranch(SIDE);
+        const atC2 = await tablesOf(device);
+
+        // 任务分支：从 c2 分出，新建一条任务并提交 t1
+        await database.versionManager.createBranch(FEATURE);
+        await database.versionManager.switchBranch(FEATURE);
+        const task = await save(database, WorktreeConformanceTask, {
+          title: '任务分支上的草稿',
+          priority: 9,
+          dueAt: null,
+          meta: { from: 'task' }
+        });
+        const t1 = await commitAll(database, '任务分支提交');
+        const taskSide = viaServer((await database.workingTree.exportCommits({ afterCommitId: c2 })).commits);
+        expect(taskSide.map(record => record.commitId)).toEqual([t1]);
+        await database.versionManager.switchBranch(main);
+        // 主线另改一处：c3
+        first.priority = 3;
+        await first.save();
+        const c3 = await commitAll(database, '主线 c3');
+        const atC3 = await tablesOf(database);
+        const mainline = viaServer((await database.workingTree.exportCommits({ afterCommitId: c2 })).commits);
+
+        // 服务端的合并：第一父是主线 c3，ChangeSet 相对 c3 就是任务分支带进来的那一行
+        const merge = mergeRecordOf([c3, t1], taskSide[0].units);
+        const result = await importInto(device, [...mainline, ...taskSide, merge]);
+        // c3 与合并提交在第一父链上，叠业务表；t1 是侧枝，只作为节点入库
+        expect(result).toMatchObject({ ok: true, headCommitId: merge.commitId, importedCount: 3, appliedCount: 2 });
+        // 发起合并的那台设备也导入：c3 是它的当前头，t1 它本来就有（在任务分支上提交的）
+        expect(await importInto(database, [merge])).toMatchObject({
+          ok: true,
+          headCommitId: merge.commitId,
+          importedCount: 1,
+          appliedCount: 1
+        });
+
+        // 两台设备收敛到同一段历史与同一份数据；历史子先于父，合并提交在最前
+        const history = await commitLogOf(device);
+        expect(history).toEqual(await commitLogOf(database));
+        expect(history[0]).toMatchObject({
+          commitId: merge.commitId,
+          kind: 'merge',
+          parentIds: [c3, t1],
+          firstParentId: c3
+        });
+        const position = new Map(history.map((entry, index) => [entry.commitId, index]));
+        for (const entry of history) {
+          for (const parentId of entry.parentIds)
+            expect(position.get(entry.commitId)).toBeLessThan(position.get(parentId)!);
+        }
+        expect(await tablesOf(device)).toEqual(await tablesOf(database));
+        expect((await rowsOf(device, WorktreeConformanceTask)).map(row => row['id'])).toContain(task.id);
+
+        // 分支对比：停在 c2 的分支与主线差的是 c3 那一处与合并带进来的那一行（读的是变更日志）
+        const taskName = getEntityMetadata(WorktreeConformanceTask).name;
+        const compared = (await device.versionManager.compareBranches(SIDE, main)).entries.filter(
+          entry => entry.entity === taskName
+        );
+        expect(compared.map(entry => [String(entry.entityId), entry.operation]).sort()).toEqual(
+          [
+            [first.id, 'UPDATE'],
+            [task.id, 'INSERT']
+          ].sort()
+        );
+        // 切分支往返：切到停在 c2 的分支读到 c2 的数据，切回来读到合并之后的数据
+        const merged = await tablesOf(device);
+        await device.versionManager.switchBranch(SIDE);
+        expect(await tablesOf(device)).toEqual(atC2);
+        await device.versionManager.switchBranch(main);
+        expect(await tablesOf(device)).toEqual(merged);
+
+        // restore：侧枝上的 t1 单独拒绝；第一父链上的 c3 退得到，业务表等于 c3 的数据，discard 又回到合并之后
+        expect(await restoreTo(device, t1)).toEqual({ ok: false, reason: 'side_branch_target' });
+        expect(await restoreTo(device, c3)).toMatchObject({ ok: true });
+        expect(await tablesOf(device)).toEqual(atC3);
+        await discardAll(device);
+        expect(await tablesOf(device)).toEqual(merged);
+
+        // 从提交建分支（US-314）：可达性走全部父链，数据由导入时记下的分叉点给出——第一父链上叠过的 c3 建得出、
+        // 读到 c3 的数据；只作为节点入库的侧枝 t1 在这台设备上没有分叉点，是 fork_point_unknown 而不是不可达
+        await expect(device.workingTree.checkBranchFromCommit(t1)).resolves.toEqual({
+          ok: false,
+          reason: 'fork_point_unknown'
+        });
+        await expect(device.workingTree.createBranchFromCommit('from-c3', c3)).resolves.toMatchObject({ ok: true });
+        await device.versionManager.switchBranch('from-c3');
+        expect(await tablesOf(device)).toEqual(atC3);
+        await device.versionManager.switchBranch(main);
+        expect(await tablesOf(device)).toEqual(merged);
+
+        // 提交视图与 restore 同口径（US-313）：t1 同样单独拒绝；c3 沿第一父链推得回去，主库一格不动
+        const sideView = await device.workingTree.checkouts.open({ commitId: t1 }).catch((error: unknown) => error);
+        expect(sideView).toBeInstanceOf(WorktreeUnavailableError);
+        expect((sideView as WorktreeUnavailableError).reason).toBe('side_branch_target');
+        const view = await device.workingTree.checkouts.open({ commitId: c3 });
+        views.push(view);
+        expect(await tablesOf(view.rxdb, view)).toEqual(atC3);
+        expect(await tablesOf(device)).toEqual(merged);
+      });
+
+      // 快进只沿第一父链判定：服务端把两台设备的并发提交合成一个合并提交时，头落在非第一父那一侧的设备导不进来。
+      // 平台不改写历史，这台设备的出路是在两条线的分叉点上另起一条分支再导入——这条用例把它钉成可用的恢复路径
+      it('头是合并提交非第一父的那台设备：直接导入是 not_fast_forward、零写入；从分叉点建分支、切过去再导入就收敛', async () => {
+        const { first, c2 } = await seedSharedHistory(database);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, viaServer((await database.workingTree.exportCommits()).commits));
+
+        // 两台设备都停在 c2，各自本地提交一次：这台改第一条的优先级（a1），另一台新建一条任务（b1）
+        first.priority = 7;
+        await first.save();
+        const a1 = await commitAll(database, 'a1');
+        const aSide = viaServer((await database.workingTree.exportCommits({ afterCommitId: c2 })).commits);
+        await save(device, WorktreeConformanceTask, { title: '另一台设备新建', priority: 2 });
+        const b1 = await commitAll(device, 'b1');
+        const bLine = viaServer((await device.workingTree.exportCommits({ afterCommitId: c2 })).commits);
+        expect([aSide.map(record => record.commitId), bLine.map(record => record.commitId)]).toEqual([[a1], [b1]]);
+
+        // 服务端先收了 b1（快进），再把 a1 并进来：第一父是服务端主线 b1，ChangeSet 相对 b1 就是 a1 那一处
+        const merge = mergeRecordOf([b1, a1], aSide[0].units);
+        expect(await importInto(device, [...aSide, merge])).toMatchObject({
+          ok: true,
+          headCommitId: merge.commitId,
+          importedCount: 2,
+          appliedCount: 1
+        });
+
+        // 头是 a1 的这台设备：a1 只是合并的第二父，不在第一父链上
+        const before = await importSnapshotOf(database);
+        expect(await importInto(database, [...bLine, merge])).toEqual({
+          ok: false,
+          reason: 'not_fast_forward',
+          headCommitId: a1
+        });
+        expect(await importSnapshotOf(database)).toEqual(before);
+
+        // 恢复：从两条线的分叉点 c2 建分支（US-314）、切过去，再导入同一批——c2 就在合并提交的第一父链上
+        const synced = 'worktree-synced';
+        await expect(database.workingTree.createBranchFromCommit(synced, c2)).resolves.toMatchObject({ ok: true });
+        await database.versionManager.switchBranch(synced);
+        expect(await importInto(database, [...bLine, merge])).toMatchObject({
+          ok: true,
+          headCommitId: merge.commitId,
+          importedCount: 2,
+          appliedCount: 2
+        });
+        expect(await tablesOf(database)).toEqual(await tablesOf(device));
+        expect(await commitLogOf(database)).toEqual(await commitLogOf(device));
+        expect(await database.workingTree.status()).toMatchObject({ clean: true, entryCount: 0 });
+      });
+
+      it('加密列的信封来自另一台设备的密钥环：叠业务表时抛错、整笔回滚，一个字节都没写', async () => {
+        // 同一份密钥在两个库里是两个密钥环身份（kid）：信封里记着写下它的那一个，另一台设备解不开。
+        // 平台不在导入时重新加密，也不放过它——跨设备交换加密列要先有共享的密钥环
+        await save(database, WorktreeConformanceSecret, { title: '密文', note: '只有这台设备解得开' });
+        await commitAll(database, '带密文的提交');
+        const batch = viaServer((await database.workingTree.exportCommits()).commits);
+        const device = await prepare(context.createDatabase);
+        const before = await importSnapshotOf(device);
+
+        const failure = await importInto(device, batch).then(
+          () => undefined,
+          (error: unknown) => error
+        );
+
+        expect(failure).toMatchObject({ name: 'EncryptedDecryptError' });
+        expect(await importSnapshotOf(device)).toEqual(before);
+      });
+
+      it('撤销一次导入：业务表退回导入之前，退回的改动落成相对新 HEAD 的条目；再丢一次回到导入之后', async () => {
+        const { first, c2 } = await seedSharedHistory(database);
+        const device = await prepare(context.createDatabase);
+        await importInto(device, viaServer((await database.workingTree.exportCommits()).commits));
+        const atC2 = await tablesOf(device);
+        first.title = '远端又改了名';
+        await first.save();
+        await commitAll(database, 'c3');
+        const history = device.versionManager.history();
+        const undoable = await firstValueFrom(history.undoCount$);
+        await importInto(device, viaServer((await database.workingTree.exportCommits({ afterCommitId: c2 })).commits));
+        const atC3 = await tablesOf(device);
+        await expect.poll(() => firstValueFrom(history.undoCount$)).toBeGreaterThan(undoable);
+
+        await history.undo();
+
+        // 导入开着触发器进了变更日志，整次导入是撤销栈上的一步；HEAD 不动，所以退回去的那一处是一条未提交改动
+        expect(await tablesOf(device)).toEqual(atC2);
+        expect(await device.workingTree.status()).toMatchObject({ clean: false, entryCount: 1 });
+        await discardAll(device);
+        expect(await tablesOf(device)).toEqual(atC3);
+        expect((await device.workingTree.status()).clean).toBe(true);
+      });
+    });
+
     describe('生命周期与回收（AC8～AC10）', () => {
       it('close()：断开之后删快照库、撤销登记', async () => {
         await seedTwoBranches(database);
@@ -960,6 +1755,66 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         await checkoutsOf().remove(again.id);
         await database.versionManager.switchBranch(FEATURE);
         expect(await activeBranchOf(database)).toBe(FEATURE);
+      });
+
+      // 检出位里 discard / restore（US-320）：与主检出位同一条路径——执行器落在这套影子表上，回写与它的变更日志
+      // 都记在持有分支名下。判据是「删掉检出位、主检出位切过去读到的」与检出位里最后读到的逐行一致
+      it('检出位里 discard / restore 回写的是那套影子表：主检出位一处不动，删掉检出位再切过去读到的一致', async () => {
+        const { featureOnly, featureCommitId } = await seedTwoBranches(database);
+        const before = await mainStateOf(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(worktree.id);
+        // 特性分支自己那条未提交改动（优先级 5 → 7）先提交掉，检出位里才有一个干净的 HEAD
+        await commitAll(database, '检出位里的 HEAD');
+        const atHead = await tablesOf(database);
+        const [task] = await firstValueFrom(
+          database.entityManager
+            .getRepository(WorktreeConformanceTask)
+            .findAll({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: featureOnly.id }] } })
+        );
+        task.title = '检出位里的草稿';
+        await task.save();
+        await save(database, WorktreeConformanceTask, {
+          title: '检出位里新建的草稿',
+          priority: 1,
+          dueAt: null,
+          meta: null
+        });
+
+        await discardAll(database);
+        expect(await tablesOf(database)).toEqual(atHead);
+        expect(await database.workingTree.status()).toMatchObject({ branchId: FEATURE, clean: true });
+
+        // 恢复到特性分支上那次「feature work」：优先级回到 5
+        await restoreTo(database, featureCommitId);
+        const restored = await tablesOf(database);
+        expect(restored['WorktreeConformanceTask']).toContainEqual(
+          expect.objectContaining({ id: featureOnly.id, priority: 5 })
+        );
+
+        await checkoutsOf().mountMain();
+        expect(await mainStateOf(database)).toEqual(before);
+        await checkoutsOf().remove(worktree.id);
+        await database.versionManager.switchBranch(FEATURE);
+        expect(await tablesOf(database)).toEqual(restored);
+        expect(await database.workingTree.status()).toMatchObject({ branchId: FEATURE, clean: false, restoring: true });
+      });
+
+      // 只有主检出位同步（epic-006）：导入沿用这一条——检出位里那条分支的数据不该被服务端那条线快进
+      it('挂在可写检出位上导入：not_main_checkout，检出位与主检出位一处都不动（US-319）', async () => {
+        await seedTwoBranches(database);
+        const batch = viaServer((await database.workingTree.exportCommits()).commits);
+        const before = await mainStateOf(database);
+        const worktree = await checkoutsOf().add(FEATURE);
+        await checkoutsOf().mount(worktree.id);
+        const inWorktree = await storedTablesOf(database);
+
+        expect(await importInto(database, batch)).toEqual({ ok: false, reason: 'not_main_checkout' });
+        expect(await storedTablesOf(database)).toEqual(inWorktree);
+
+        await checkoutsOf().mountMain();
+        expect(await mainStateOf(database)).toEqual(before);
+        await checkoutsOf().remove(worktree.id);
       });
 
       // git：`Cannot delete branch … checked out at …`（US-314 B2.1）。被持有的分支 `activated` 为假，从前照删不误，

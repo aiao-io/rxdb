@@ -62,6 +62,10 @@
         "kind": "value"
       },
       {
+        "name": "assertRxDBRestoreIdentity",
+        "kind": "value"
+      },
+      {
         "name": "assertSingleActiveBranch",
         "kind": "value"
       },

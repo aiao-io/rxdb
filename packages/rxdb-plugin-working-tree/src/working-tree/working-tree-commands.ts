@@ -1,5 +1,5 @@
 /**
- * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十三个方法与
+ * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十五个方法与
  * `versionManager.switchBranch()` 接到 {@link WorkingTreeAsyncStates} 上
  * （US-306 阶段 C、T110 与 T123，contracts/tri-framework-api.md §1/§4）。
  *
@@ -22,6 +22,12 @@ import { RxDBError, type RxDB } from '@aiao/rxdb';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import { isCommitChangeSetPageEmpty, type CommitChangeSetPage } from '../commit/commit-changes.js';
+import {
+  isCommitExportPageEmpty,
+  type CommitExchangeRecord,
+  type CommitExportOptions,
+  type CommitExportPage
+} from '../commit/commit-exchange.js';
 import type { CommitLogOptions, CommitLogPage } from '../commit/commit-log.js';
 import {
   isCommitLogPageEmpty,
@@ -40,6 +46,7 @@ import type {
 import type { CommitOptions, CommitResult } from './commit-command.js';
 import type { WorkingTreeDiff, WorkingTreeDiffOptions } from './diff.js';
 import type { WorkingTreeDiscardOptions, WorkingTreeDiscardResult } from './discard-command.js';
+import type { CommitImportOptions, CommitImportResult } from './import-command.js';
 import type {
   WorkingTreeRestoreOptions,
   WorkingTreeRestoreResult,
@@ -63,7 +70,7 @@ export type WorkingTreeStatePatch = <K extends keyof WorkingTreeAsyncStates>(
 ) => void;
 
 /**
- * 三端入口对外暴露的十四个命令；签名与 {@link WorkingTreeManager}
+ * 三端入口对外暴露的十六个命令；签名与 {@link WorkingTreeManager}
  * （以及 `switchBranch` 那一个 {@link VersionManager}）上的同名方法一致。
  *
  * @remarks
@@ -93,7 +100,7 @@ export interface WorkingTreeCommands {
   readonly commit: (message: string, options: CommitOptions) => Promise<CommitResult>;
   /** 把工作树整体退回 HEAD；`discardedCount: 0` 是 no-op，不是 empty */
   readonly discard: (options: WorkingTreeDiscardOptions) => Promise<WorkingTreeDiscardResult>;
-  /** 把一个可达历史 commit 的内容写回工作树；四个被拒成因走返回值，不是异常 */
+  /** 把一个可达历史 commit 的内容写回工作树；五个被拒成因走返回值，不是异常 */
   readonly restore: (
     target: WorkingTreeRestoreTarget,
     options: WorkingTreeRestoreOptions
@@ -109,6 +116,13 @@ export interface WorkingTreeCommands {
     branchId: string,
     commitId: string
   ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
+  /** 导入一段远端提交并快进分支头；被拒走返回值，不是异常。无论结果都重读一次 status（US-319） */
+  readonly importCommits: (
+    commits: readonly CommitExchangeRecord[],
+    options: CommitImportOptions
+  ) => Promise<CommitImportResult>;
+  /** 列出某个提交之后的提交供上传；那之后没有新提交是 `empty` 相位（US-319） */
+  readonly exportCommits: (options?: CommitExportOptions) => Promise<CommitExportPage>;
 }
 
 /**
@@ -183,7 +197,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
 };
 
 /**
- * 把十四个命令接到状态格子上。
+ * 把十六个命令接到状态格子上。
  *
  * @param database - 宿主库；命令取的是它的 `workingTree` 与 `versionManager` 两个入口
  * @param patch - 每一次相位变化的落点；见 {@link WorkingTreeStatePatch}
@@ -197,8 +211,8 @@ const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
  *
  * **`CommitConflict` 不翻译成异常**：`ok: false` 是一次成功调用的**结果**，§4 说它是
  * 「可重试的返回值，不是崩溃」。它落在 `success` 相位，界面读 `result.ok` 决定要不要
- * 提示重试。`restore()` 的四个被拒成因同理：脏工作树与不兼容要用户去处理，不可达是问错了
- * 节点，冲突要重来一次——四者都不是崩溃。
+ * 提示重试。`restore()` 的五个被拒成因同理：脏工作树与不兼容要用户去处理，不可达与只在侧枝上
+ * 是问错了节点，冲突要重来一次——五者都不是崩溃。
  *
  * **`restore()` 之后不顺手重读会话。** 它重读 status（工作树刚从 clean 变脏），但不发第二轮
  * `restoreSession()`：刚建的那个 `sessionId` 已经在返回值里，而「这个会话还成不成立」的唯一
@@ -316,6 +330,22 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
     createBranchFromCommit: (branchId, commitId) =>
       trackWorkingTreeCommand(sinkFor('createBranchFromCommitState'), () =>
         workingTree.createBranchFromCommit(branchId, commitId)
+      ),
+
+    importCommits: async (commits, options) => {
+      // 与 restore 同形：抛出来的（能力未启用、提交图损坏、加密列里的明文）一个字节都没写，status 保持原样。
+      // 走到下一行则无论 ok 与否都要重读——成功是 HEAD 刚快进过，`headRevision` 换了；被拒的成因里 `conflict` /
+      // `dirty_working_tree` 都在说面板上那份摘要已经过期。
+      const result = await trackWorkingTreeCommand(sinkFor('importCommitsState'), () =>
+        workingTree.importCommits(commits, options)
+      );
+      await refreshStatus();
+      return result;
+    },
+
+    exportCommits: options =>
+      trackWorkingTreeQuery(sinkFor('exportCommitsState'), isCommitExportPageEmpty, () =>
+        workingTree.exportCommits(options)
       )
   };
 };

@@ -1,5 +1,5 @@
 /**
- * @fileoverview `rxdb_working_tree_state` 的三种状态转移语句（data-model.md §2.6、§5）。
+ * @fileoverview `rxdb_working_tree_state` 的四种状态转移语句（data-model.md §2.6、§5；导入那一条是 US-319 加的）。
  *
  * @remarks
  * 两件事在这里被钉死：
@@ -7,7 +7,7 @@
  * 1. **裸 SQL，不走 `repository.update()`。** `workingTreeRevision` 与 `entryCount` 必须在
  *    **同一条** UPDATE 里改（conformance-suites.md §2.4 第二条）。经仓库改两个字段虽然也能
  *    合成一条语句，但语句形状由仓库决定，本目录拿不到「恰好一条、且同时含这两列」的保证。
- * 2. **commit / discard / restore 各有一条明确命名的语句，不做成一个带可选列的通用 builder。**
+ * 2. **commit / discard / restore / 导入各有一条明确命名的语句，不做成一个带可选列的通用 builder。**
  *    `baseHeadCommitId` 是两者**唯一**的区别，而它正是最不该被可选参数模糊掉的那一列：
  *    discard 不动 HEAD（FR-016），传漏一次就把工作树基线悄悄挪到别处，此后 `diff()`
  *    的参照物与 HEAD 不再是同一个 commit，而库里没有任何一处会报错。
@@ -105,6 +105,40 @@ export const buildWorkingTreeDiscardTransitionSql = (
       `${columnOf(metadata, 'workingTreeRevision')} = ${sqlIntegerLiteral(transition.workingTreeRevision)}`,
       `${columnOf(metadata, 'entryCount')} = ${sqlIntegerLiteral(0)}`
     ],
+    [branchPredicate(metadata, transition.branchId)]
+  );
+};
+
+/** 一次导入远端提交收尾要写进状态行的值（US-319）。 */
+export interface WorkingTreeImportTransition {
+  /** 目标分支 */
+  readonly branchId: string;
+  /** 快进之后的 HEAD；工作树基线随之前移 */
+  readonly baseHeadCommitId: string;
+}
+
+/**
+ * 导入收尾：基线前移到新 HEAD，**revision 与条目数一个字都不动**。
+ *
+ * @param tableRef - 状态表的带库前缀引用，取自 `executor.tableRef()`
+ * @param transition - 见 {@link WorkingTreeImportTransition}
+ * @returns 单条 SQL
+ *
+ * @remarks
+ * 导入只在 clean 的工作树上跑（命令体先判过），前后都是零条目：工作树的内容没有变，`workingTreeRevision` 就不推——
+ * 推一格会让另一个 Tab 手里那份凭据凭空作废，而它的 `headRevision` 已经因为这次快进对不上了，两道判据报的是同一件事。
+ * 基线必须前移：`diff()` 的参照物与 HEAD 要是同一个提交，留在旧 HEAD 上的话，下一批手写条目会被记成相对一个已经不是 HEAD 的提交。
+ *
+ * 不带 CAS 谓词，与 commit 那一条同理：HEAD 的那条 CAS 已经在同一个事务里先命中了。
+ */
+export const buildWorkingTreeImportTransitionSql = (
+  tableRef: string,
+  transition: WorkingTreeImportTransition
+): string => {
+  const metadata = getEntityMetadata(WorkingTreeState);
+  return assemble(
+    tableRef,
+    [`${columnOf(metadata, 'baseHeadCommitId')} = ${sqlStringLiteral(transition.baseHeadCommitId)}`],
     [branchPredicate(metadata, transition.branchId)]
   );
 };

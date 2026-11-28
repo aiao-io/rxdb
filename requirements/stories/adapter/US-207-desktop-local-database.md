@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, desktop, electron, sqlite]
 ---
 
@@ -363,7 +363,7 @@ barrel 成为实际的打包边界。
 `DESKTOP_HOST_PROTOCOL_VERSION`：它对 host 是纯增量的，老 renderer 直接发 `open` 行为一字不变；
 而老到不认识这个 kind 的 host 会回 `protocol_violation`，那条路径同样碰不到文件系统。
 客户端**不做**「握手不认识就退回去直接 open」的兜底——版本号存在的意义正是不许降级。
-两端实现与用例见 [US-210 AC#10 一节](./US-210-tauri-sqlite-local-database.md#ac10-的三半各自是怎么关掉的)。
+两端实现与用例见 [US-210 AC#10 一节](./US-210-tauri-sqlite-local-database.md#ac10协议版本与无副作用握手)。
 
 [US-210](./US-210-tauri-sqlite-local-database.md) AC#10 与
 [US-208](./US-208-electron-pglite-data-directory.md) AC#11 是它在另两条路径上的对偶。

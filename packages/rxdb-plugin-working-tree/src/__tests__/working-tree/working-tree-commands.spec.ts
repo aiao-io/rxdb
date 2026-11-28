@@ -29,6 +29,7 @@ import type { RxDB } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
+import type { CommitExchangeRecord, CommitExportOptions, CommitExportPage } from '../../commit/commit-exchange.js';
 import type { CommitLogOptions, CommitLogPage } from '../../commit/commit-log.js';
 import { CommitValidationError } from '../../commit/write-commit.js';
 import { WORKING_TREE_INITIAL_ASYNC_STATES, type WorkingTreeAsyncStates } from '../../working-tree/async-state.js';
@@ -40,6 +41,7 @@ import type { CommitOptions, CommitResult } from '../../working-tree/commit-comm
 import type { WorkingTreeCredentials } from '../../working-tree/commit-conflict.js';
 import type { WorkingTreeDiff, WorkingTreeDiffOptions } from '../../working-tree/diff.js';
 import type { WorkingTreeDiscardOptions, WorkingTreeDiscardResult } from '../../working-tree/discard-command.js';
+import type { CommitImportOptions, CommitImportResult } from '../../working-tree/import-command.js';
 import type {
   WorkingTreeRestoreOptions,
   WorkingTreeRestoreResult,
@@ -160,7 +162,7 @@ const SESSION: WorkingTreeRestoreSessionInfo = {
   status: 'active'
 };
 
-/** 十格状态的可写副本；本层不持有状态，状态在调用方那边，这里替调用方存一份。 */
+/** 十六格状态的可写副本；本层不持有状态，状态在调用方那边，这里替调用方存一份。 */
 type MutableAsyncStates = { -readonly [K in keyof WorkingTreeAsyncStates]: WorkingTreeAsyncStates[K] };
 
 /**
@@ -207,7 +209,10 @@ const createFixture = () => {
     restoreSession: vi.fn<() => Promise<WorkingTreeRestoreSessionInfo | null>>(),
     checkBranchFromCommit: vi.fn<(commitId: string) => Promise<WorkingTreeBranchFromCommitCheck>>(),
     createBranchFromCommit:
-      vi.fn<(branchId: string, commitId: string) => Promise<WorkingTreeCreateBranchFromCommitResult>>()
+      vi.fn<(branchId: string, commitId: string) => Promise<WorkingTreeCreateBranchFromCommitResult>>(),
+    importCommits:
+      vi.fn<(commits: readonly CommitExchangeRecord[], options: CommitImportOptions) => Promise<CommitImportResult>>(),
+    exportCommits: vi.fn<(options?: CommitExportOptions) => Promise<CommitExportPage>>()
   };
   workingTree.status.mockResolvedValue(statusWith(0));
 
@@ -239,8 +244,8 @@ const createFixture = () => {
   };
 };
 
-describe('十四个命令各自只驱动自己那一格（§4）', () => {
-  it('isEnabled 走命令状态，其余十三格纹丝不动', async () => {
+describe('十六个命令各自只驱动自己那一格（§4）', () => {
+  it('isEnabled 走命令状态，其余十五格纹丝不动', async () => {
     const { commands, states, workingTree } = createFixture();
     workingTree.isEnabled.mockResolvedValue(true);
 
@@ -899,24 +904,28 @@ describe('CommitConflict 是返回值，不是崩溃（§4）', () => {
     expect(states.statusState).toEqual({ phase: 'success', value: statusWith(3) });
   });
 
-  // restore 的四个被拒成因全都是**返回值**：脏工作树与不兼容要用户去处理，不可达是问错了
-  // 节点，冲突要重来一次——四者都不是崩溃。翻成 error 会让 UI 把一次正常的仲裁渲染成故障。
-  it.each(['conflict', 'dirty_working_tree', 'incompatible_schema', 'unreachable_target'] as const)(
-    'restore 被拒（%s）落在 success 相位，并且照样重读 status',
-    async reason => {
-      const { commands, states, workingTree } = createFixture();
-      const rejected = { ok: false, reason } as WorkingTreeRestoreResult;
-      workingTree.restore.mockResolvedValue(rejected);
-      workingTree.status.mockResolvedValue(statusWith(3));
+  // restore 的五个被拒成因全都是**返回值**：脏工作树与不兼容要用户去处理，不可达是问错了
+  // 节点，侧枝上的目标沿第一父链退不到（US-319），冲突要重来一次——五者都不是崩溃。翻成 error 会让 UI
+  // 把一次正常的仲裁渲染成故障。
+  it.each([
+    'conflict',
+    'dirty_working_tree',
+    'incompatible_schema',
+    'unreachable_target',
+    'side_branch_target'
+  ] as const)('restore 被拒（%s）落在 success 相位，并且照样重读 status', async reason => {
+    const { commands, states, workingTree } = createFixture();
+    const rejected = { ok: false, reason } as WorkingTreeRestoreResult;
+    workingTree.restore.mockResolvedValue(rejected);
+    workingTree.status.mockResolvedValue(statusWith(3));
 
-      await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).resolves.toBe(rejected);
+    await expect(commands.restore(RESTORE_TARGET, RESTORE_OPTIONS)).resolves.toBe(rejected);
 
-      expect(states.restoreState).toEqual({ phase: 'success', value: rejected });
-      // 被拒本身就说明面板上那份摘要与库里对不上了：`dirty_working_tree` 是它显示的
-      // 「没有未提交改动」不成立，`conflict` 是三个捕获位已经过期。
-      expect(workingTree.status).toHaveBeenCalledTimes(1);
-    }
-  );
+    expect(states.restoreState).toEqual({ phase: 'success', value: rejected });
+    // 被拒本身就说明面板上那份摘要与库里对不上了：`dirty_working_tree` 是它显示的
+    // 「没有未提交改动」不成立，`conflict` 是三个捕获位已经过期。
+    expect(workingTree.status).toHaveBeenCalledTimes(1);
+  });
 
   it('discard 的 ok:false 同样落在 success 相位', async () => {
     const { commands, states, workingTree } = createFixture();
@@ -1092,10 +1101,98 @@ describe('库上没装工作树插件时，建入口这一步就抛', () => {
     expect(() => createWorkingTreeCommands(database, () => undefined)).toThrow(/rxDBPluginWorkingTree/);
   });
 
-  it('装了插件时照常建出十四个命令', () => {
+  it('装了插件时照常建出十六个命令', () => {
     // 守卫写成无条件抛的话这条会红。
     const { commands } = createFixture();
 
-    expect(Object.keys(commands)).toHaveLength(14);
+    expect(Object.keys(commands)).toHaveLength(16);
+  });
+});
+
+describe('导入与导出远端提交（US-319）', () => {
+  const RECORD = {
+    commitId: 'commit-remote-1',
+    parentIds: ['commit-1'],
+    kind: 'normal',
+    message: '远端提交',
+    authorId: 'server-alice',
+    createdAt: new Date(0),
+    contentFingerprint: '0'.repeat(64),
+    units: []
+  } satisfies CommitExchangeRecord;
+  const IMPORT_OPTIONS: CommitImportOptions = CREDENTIALS;
+  const exportWith = (count: number): CommitExportPage => ({
+    branchId: 'main',
+    headCommitId: 'commit-1',
+    headRevision: 2,
+    commits: Array.from({ length: count }, (_, index) => ({ ...RECORD, commitId: `commit-export-${index}` }))
+  });
+
+  it('importCommits 走命令状态：先落地、再重读 status；只动自己与 statusState 两格', async () => {
+    const { commands, states, transitions, workingTree } = createFixture();
+    const imported: CommitImportResult = {
+      ok: true,
+      headCommitId: 'commit-remote-1',
+      headRevision: 3,
+      importedCount: 1,
+      appliedCount: 1
+    };
+    workingTree.importCommits.mockResolvedValue(imported);
+
+    await expect(commands.importCommits([RECORD], IMPORT_OPTIONS)).resolves.toBe(imported);
+
+    expect(workingTree.importCommits).toHaveBeenCalledWith([RECORD], IMPORT_OPTIONS);
+    expect(states.importCommitsState).toEqual({ phase: 'success', value: imported });
+    expect(transitions).toEqual([
+      'importCommitsState:loading',
+      'importCommitsState:success',
+      'statusState:loading',
+      'statusState:empty'
+    ]);
+    expect(untouchedKeys(states, 'importCommitsState', 'statusState')).toEqual([]);
+  });
+
+  // 被拒是结果不是崩溃：不是快进要先上传、指纹不符要服务端重发——而面板上那份摘要多半已经过期，照样重读
+  it.each([
+    { ok: false, reason: 'not_fast_forward', headCommitId: 'commit-1' },
+    { ok: false, reason: 'fingerprint_mismatch', commitId: 'commit-remote-1' },
+    { ok: false, reason: 'dirty_working_tree' }
+  ] as const satisfies readonly CommitImportResult[])(
+    'importCommits 被拒（$reason）落在 success 并重读 status',
+    async rejected => {
+      const { commands, states, workingTree } = createFixture();
+      workingTree.importCommits.mockResolvedValue(rejected);
+
+      await expect(commands.importCommits([RECORD], IMPORT_OPTIONS)).resolves.toBe(rejected);
+
+      expect(states.importCommitsState).toEqual({ phase: 'success', value: rejected });
+      expect(workingTree.status).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('importCommits 抛错：落在 error 并原样抛出，不重读 status（一个字节都没写）', async () => {
+    const { commands, states, workingTree } = createFixture();
+    const failure = new Error('提交图已损坏');
+    workingTree.importCommits.mockRejectedValue(failure);
+
+    await expect(commands.importCommits([RECORD], IMPORT_OPTIONS)).rejects.toBe(failure);
+
+    expect(states.importCommitsState).toEqual({ phase: 'error', error: failure });
+    expect(workingTree.status).not.toHaveBeenCalled();
+  });
+
+  it('exportCommits 走查询状态：空页是 empty 并带着那一页，有提交是 success；只读，不重读 status', async () => {
+    const { commands, states, workingTree } = createFixture();
+    workingTree.exportCommits.mockResolvedValueOnce(exportWith(0)).mockResolvedValueOnce(exportWith(1));
+
+    await commands.exportCommits({ afterCommitId: 'commit-1' });
+    expect(states.exportCommitsState).toEqual({ phase: 'empty', value: exportWith(0) });
+    await commands.exportCommits();
+
+    expect(workingTree.exportCommits).toHaveBeenNthCalledWith(1, { afterCommitId: 'commit-1' });
+    expect(workingTree.exportCommits).toHaveBeenNthCalledWith(2, undefined);
+    expect(states.exportCommitsState).toEqual({ phase: 'success', value: exportWith(1) });
+    expect(untouchedKeys(states, 'exportCommitsState')).toEqual([]);
+    expect(workingTree.status).not.toHaveBeenCalled();
   });
 });

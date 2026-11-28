@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [collaboration, change-tracking, migration, history, cross-tab]
 ---
 
@@ -109,7 +109,7 @@ INVEST 检查清单:
 | 19  | binary 字段只发生原地修改             | save                      | 不产生隐式 change；重新赋值后 save 才产生可撤销 change | ✅   |
 | 20  | 既有 PropertyType 和旧 change fixture | 运行 adapter/version 回归 | 用户可见行为不变                                       | ✅   |
 
-状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 / ↪ 已转移至其他 story
+状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 ### AC13 说明
 

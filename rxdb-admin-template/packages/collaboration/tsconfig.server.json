@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "outDir": "dist/server",
+    "emitDeclarationOnly": false,
+    "tsBuildInfoFile": "dist/server.tsbuildinfo"
+  },
+  "extends": "./tsconfig.lib.json",
+  "include": [
+    "src/server/**/*.ts",
+    "src/model.ts",
+    "src/records.ts",
+    "src/changes.ts",
+    "src/commit.ts",
+    "src/schema.ts",
+    "src/checks.ts",
+    "src/derive.ts",
+    "src/rows.ts",
+    "src/approval.ts",
+    "src/reader.ts",
+    "src/read-source.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
+}

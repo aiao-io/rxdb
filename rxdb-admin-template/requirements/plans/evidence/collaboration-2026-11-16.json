@@ -1,0 +1,197 @@
+{
+  "acceptance": {
+    "total": 136,
+    "locallyVerified": 134,
+    "partialEvidence": 2
+  },
+  "architecture": "Product snapshot protocol and IndexedDB; rxdb-plugin-working-tree is not directly integrated",
+  "checks": {
+    "unit": {
+      "project": "admin-collaboration",
+      "passed": 72,
+      "files": 10
+    },
+    "postgresIntegration": {
+      "passed": 7,
+      "command": "NX_NO_CLOUD=true pnpm nx run admin-collaboration:test-integration"
+    },
+    "collaborationBrowser": {
+      "passed": 27,
+      "frameworks": {
+        "react": 9,
+        "angular": 9,
+        "vue": 9
+      },
+      "command": "NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e",
+      "singleGreenFullRun": false,
+      "batches": [
+        {
+          "scenariosPassed": 24,
+          "scope": "All cases except expanded workflow; initial workflow assertion timing failed"
+        },
+        {
+          "scenariosPassed": 3,
+          "scope": "Expanded workflow rerun after waiting for requested state and selected task",
+          "command": "NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e --grep='真实身份'"
+        }
+      ]
+    },
+    "applicationUnit": {
+      "react": 72,
+      "angular": 69,
+      "vue": 69
+    },
+    "applicationBrowserRegression": {
+      "react": {
+        "firstPass": 43
+      },
+      "angular": {
+        "firstPass": 43
+      },
+      "vue": {
+        "firstPass": 42,
+        "initialFailure": 1,
+        "passedAfterAssertionReadinessFix": 1
+      },
+      "i18nRetry": {
+        "react": 1,
+        "angular": 1,
+        "vue": 1
+      },
+      "singleGreenFullRun": false
+    },
+    "static": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "applicationProductionBuilds": ["react", "angular", "vue"]
+    },
+    "requirements": {
+      "consistency": "passed",
+      "guardTestsPassed": 56
+    }
+  },
+  "coverage": {
+    "scope": "Source modules loaded by unit tests only; excludes complete UI, production entrypoints, and repository integration/browser execution",
+    "threshold": 80,
+    "metrics": {
+      "statements": 90.97,
+      "branches": 83.59,
+      "functions": 90.53,
+      "lines": 93.67
+    }
+  },
+  "date": "2026-11-16",
+  "environment": {
+    "auth": "Isolated Supabase Auth; management-generated OTP verified using real verifyOtp",
+    "businessDatabase": "Per-run temporary PostgreSQL container",
+    "realtime": "Fixture mirrors versions and readable memberships into isolated Supabase CI database; no business records mirrored",
+    "production": "API and Realtime use the same Supabase PostgreSQL database",
+    "smtpDeliveryVerified": false
+  },
+  "remaining": [
+    "ADMIN-US-201 #2/#3: production SMTP delivery and OTP natural-expiration verification with a real mailbox",
+    "ADMIN-US-101: real domain entities, fields, relations and namespace",
+    "Production deployment and migration execution",
+    "PR review and merge evidence"
+  ],
+  "scope": "ADMIN-US-201–216 / product collaboration implementation",
+  "status": "In Review",
+  "stories": [
+    {
+      "id": "ADMIN-US-201",
+      "status": "In Review",
+      "locallyVerified": [1, 4, 5, 6, 7, 8, 9],
+      "partialEvidence": [2, 3]
+    },
+    {
+      "id": "ADMIN-US-202",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-203",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-204",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-205",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-206",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-207",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-208",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-209",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-210",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-211",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-212",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-213",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7, 8],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-214",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-215",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6],
+      "partialEvidence": []
+    },
+    {
+      "id": "ADMIN-US-216",
+      "status": "In Review",
+      "locallyVerified": [1, 2, 3, 4, 5, 6, 7],
+      "partialEvidence": []
+    }
+  ]
+}

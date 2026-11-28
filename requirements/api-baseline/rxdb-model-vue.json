@@ -162,6 +162,10 @@
         "kind": "value"
       },
       {
+        "name": "createEntityDirtyTracker",
+        "kind": "value"
+      },
+      {
         "name": "createEntityFormController",
         "kind": "value"
       },
@@ -372,6 +376,14 @@
       {
         "name": "EntityDialogSnapshot",
         "kind": "type"
+      },
+      {
+        "name": "EntityDirtyListener",
+        "kind": "type"
+      },
+      {
+        "name": "EntityDirtyTracker",
+        "kind": "both"
       },
       {
         "name": "EntityFieldConfig",
@@ -895,6 +907,10 @@
       },
       {
         "name": "positionOverlayPanel",
+        "kind": "value"
+      },
+      {
+        "name": "preserveActionsColumnWidthOnResize",
         "kind": "value"
       },
       {

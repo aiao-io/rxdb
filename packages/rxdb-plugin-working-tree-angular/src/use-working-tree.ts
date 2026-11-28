@@ -10,6 +10,11 @@ import {
   WORKING_TREE_INITIAL_ASYNC_STATES,
   type CommitCapabilityInfo,
   type CommitChangeSetPage,
+  type CommitExchangeRecord,
+  type CommitExportOptions,
+  type CommitExportPage,
+  type CommitImportOptions,
+  type CommitImportResult,
   type CommitLogOptions,
   type CommitLogPage,
   type CommitOptions,
@@ -37,8 +42,8 @@ import { computed, signal, Signal } from '@angular/core';
  * {@link useWorkingTree} 的返回值。
  *
  * @remarks
- * 十四个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
- * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十四个方法的签名
+ * 十六个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
+ * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十六个方法的签名
  * 与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）上的同名方法完全
  * 一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
@@ -47,7 +52,7 @@ import { computed, signal, Signal } from '@angular/core';
  * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。入口绑定创建时注入的库：
  * 注入器里的库不会换，换库就是重建组件（React 版在 Provider 换库时自己回到初态）。
  *
- * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
+ * `restore()` 的五个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
  * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个
  * 含义 —— 当前分支没有未结束的恢复会话；`conflicted` 的会话照样**不是**空，它仍占着唯一索引、
  * 仍拦着下一次恢复。
@@ -55,6 +60,11 @@ import { computed, signal, Signal } from '@angular/core';
  * `switchBranch(branchId, options?)` 的 `WorkingTreeSwitchBranchOptions` 由 T123 接进来：
  * 不传第二参时与今天逐字节一致（无条件切换），`{ requireClean: true }` 在工作树非空时**抛**
  * `WorkingTreeDirtyError` —— 被拒不是返回值，因为那一刻分支根本没切。
+ *
+ * `importCommits(commits, options)` / `exportCommits(options?)` 由 US-319 接进来：导入的十种被拒成因
+ * （`not_fast_forward`、`fingerprint_mismatch`、`precondition_mismatch` 等）走**返回值**，`importCommitsState` 因此**没有 empty**，成功与否
+ * 都重读一次 status（HEAD 快进过，或面板上那份凭据已经过期）；`exportCommitsState` 的空只有一个含义——那个提交之后
+ * 这条分支上没有新提交，上传逻辑据此跳过一轮。导入的提交不经 `commits$` 发事件。
  *
  * @public
  */
@@ -77,7 +87,7 @@ export interface WorkingTreeResource {
   readonly commitState: Signal<WorkingTreeCommandState<CommitResult>>;
   /** 上一次 `discard()` 的相位；**没有 empty** —— `discardedCount: 0` 是成功的 no-op */
   readonly discardState: Signal<WorkingTreeCommandState<WorkingTreeDiscardResult>>;
-  /** 上一次 `restore()` 的相位；**没有 empty** —— 四个被拒成因与 `restoredCount: 0` 都是结果 */
+  /** 上一次 `restore()` 的相位；**没有 empty** —— 五个被拒成因与 `restoredCount: 0` 都是结果 */
   readonly restoreState: Signal<WorkingTreeCommandState<WorkingTreeRestoreResult>>;
   /** 未结束恢复会话的相位；没有会话是 `empty`，**带着**那个 `null` */
   readonly restoreSessionState: Signal<WorkingTreeQueryState<WorkingTreeRestoreSessionInfo | null>>;
@@ -87,6 +97,10 @@ export interface WorkingTreeResource {
   readonly checkBranchFromCommitState: Signal<WorkingTreeCommandState<WorkingTreeBranchFromCommitCheck>>;
   /** 上一次 `createBranchFromCommit()` 的相位；**没有 empty** —— 建好了与三种被拒成因都是结果 */
   readonly createBranchFromCommitState: Signal<WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>>;
+  /** 上一次 `importCommits()` 的相位；**没有 empty** —— 被拒的各种成因与 no-op 都是结果（US-319） */
+  readonly importCommitsState: Signal<WorkingTreeCommandState<CommitImportResult>>;
+  /** 上一次 `exportCommits()` 的相位；那个提交之后没有新提交是 `empty`，**带着**那一页（US-319） */
+  readonly exportCommitsState: Signal<WorkingTreeQueryState<CommitExportPage>>;
 
   /** 读取这个库启没启用提交能力。 */
   readonly isEnabled: () => Promise<boolean>;
@@ -122,6 +136,13 @@ export interface WorkingTreeResource {
     branchId: string,
     commitId: string
   ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
+  /** 导入一段远端提交并快进分支头；被拒走返回值，不是异常。无论结果都重读一次 status（US-319）。 */
+  readonly importCommits: (
+    commits: readonly CommitExchangeRecord[],
+    options: CommitImportOptions
+  ) => Promise<CommitImportResult>;
+  /** 列出某个提交之后的提交供上传，父先于子、落库形态（US-319）。 */
+  readonly exportCommits: (options?: CommitExportOptions) => Promise<CommitExportPage>;
 }
 
 /**
@@ -162,10 +183,10 @@ export interface WorkingTreeResource {
  * ```
  *
  * @remarks
- * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十四格状态挂在本次调用
+ * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十六格状态挂在本次调用
  * 自己的 signal 上，没有跨组件共享的单例缓存。
  *
- * **创建入口本身一次 IO 都不发**：十四格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十六格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、
@@ -201,6 +222,8 @@ export const useWorkingTree = (): WorkingTreeResource => {
     switchBranchState: computed(() => states().switchBranchState),
     checkBranchFromCommitState: computed(() => states().checkBranchFromCommitState),
     createBranchFromCommitState: computed(() => states().createBranchFromCommitState),
+    importCommitsState: computed(() => states().importCommitsState),
+    exportCommitsState: computed(() => states().exportCommitsState),
     ...commands
   };
 };

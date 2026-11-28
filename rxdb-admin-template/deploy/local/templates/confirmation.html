@@ -1,0 +1,6 @@
+<!-- 新账号第一次请求验证码时 Supabase Auth 发的是注册确认邮件（Confirm signup 模板），同样只显示验证码。
+     本地预演由 GoTrue 经 GOTRUE_MAILER_TEMPLATES_CONFIRMATION 读取；托管 Supabase 把同样的内容填进 Email Templates。 -->
+<h2>Admin 模板登录验证码</h2>
+<p>你的一次性验证码：</p>
+<p style="font-size: 24px; font-weight: bold; letter-spacing: 4px">{{ .Token }}</p>
+<p>验证码有效期有限，只能使用一次。如果不是你本人在登录，请忽略这封邮件。</p>

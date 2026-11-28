@@ -80,8 +80,14 @@ afterEach(async () => {
   for (const db of apps.splice(0)) await db.destroy();
 });
 
+/** 条目按实体 id 排：`diff()` 按条目 id 排，同一笔 restore 写下的几条 id 先后不承诺 */
+const byEntityId = (entries: readonly WorkingTreeDiffEntry[]): WorkingTreeDiffEntry[] =>
+  [...entries].sort((left, right) => String(left.entityId).localeCompare(String(right.entityId)));
+
 describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
-  it('目标单元写入工作树而非业务投影，replay 与直接 restore 对照一致且可 discard 退场', async () => {
+  // US-320 之后 restore 把业务表写成目标提交的数据，条目是「HEAD → 目标」的差异（不再是目标节点自己的变更单元），
+  // discard 把业务表退回 HEAD。replay 只是现取凭据转调 restore()，两条路落下的业务表、条目与状态必须一模一样。
+  it('replay 恢复与直接 restore 对照一致：业务表呈现目标提交的数据、差异计为未提交改动，discard 退回 HEAD', async () => {
     const db = await createApp();
     const first = await createAndCommit(db, 'first');
     const second = await createAndCommit(db, 'second');
@@ -113,9 +119,11 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     expect(target.entries).toHaveLength(1);
     expect(target.entries[0]).toMatchObject({ entityId: first.noteId, operation: 'insert', patch: { title: 'first' } });
     expect(projectionBefore.find(row => row.id === first.noteId)?.title).toBe('changed');
+    // 目标提交里只有 first 一行、标题还是 'first'：second 是之后插进来的，first 的标题是之后改的——差异正好两条
+    const projectionAtTarget = [{ id: first.noteId, title: 'first' }];
     const restored = await db.replay.restoreToCommit(first.commitId);
-    expect(restored).toMatchObject({ ok: true, restoredCount: 1 });
-    expect(await noteIds(db)).toEqual([first.noteId, second.noteId].sort());
+    expect(restored).toMatchObject({ ok: true, restoredCount: 2 });
+    expect(await noteIds(db)).toEqual([first.noteId]);
     const restoredNotes = await adapter.transaction(
       executor =>
         executor.getRepository(ConformanceNote).find({
@@ -124,13 +132,30 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
       false
     );
     const diff = await db.workingTree.diff();
-    expect(diff.entries.map(contentOf)).toEqual(target.entries.map(contentOf));
-    expect(diff.entries[0]?.patch).toMatchObject({ title: 'first' });
-    expect(diff.entries[0]?.unitId).not.toBe(target.entries[0]?.unitId);
-    expect(diff.entries[0]?.transactionId).toBeNull();
+    const firstEntry = diff.entries.find(entry => entry.entityId === first.noteId);
+    const secondEntry = diff.entries.find(entry => entry.entityId === second.noteId);
+    expect(diff.entries).toHaveLength(2);
+    expect(firstEntry).toMatchObject({
+      entityId: first.noteId,
+      operation: 'update',
+      patch: { title: 'first' },
+      inversePatch: { title: 'changed' },
+      origin: 'local'
+    });
+    // 删除条目的 inversePatch 是 HEAD 上的整行：discard 拿它把这一行插回来（下面 discard 之后的投影对照就是证据）
+    expect(secondEntry).toMatchObject({
+      entityId: second.noteId,
+      operation: 'delete',
+      patch: null,
+      inversePatch: { title: 'second' },
+      origin: 'local'
+    });
+    // 条目是这次 restore 新写的单元，不借目标节点的 unitId，也不挂哪笔捕获事务
+    expect(diff.entries.map(entry => entry.unitId)).not.toContain(target.entries[0]?.unitId);
+    expect(diff.entries.map(entry => entry.transactionId)).toEqual([null, null]);
     expect(diff.baseHeadCommitId).toBe(history.headCommitId);
-    expect(restoredNotes[0]?.title).toBe('changed');
-    expect(await projectionOf(db)).toEqual(projectionBefore);
+    expect(restoredNotes[0]?.title).toBe('first');
+    expect(await projectionOf(db)).toEqual(projectionAtTarget);
     const after = await db.workingTree.status();
     expect(after.headRevision).toBe(before.headRevision);
     expect(after.branchId).toBe(before.branchId);
@@ -138,10 +163,10 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     expect(after.workingTreeRevision).toBe(before.workingTreeRevision + 1);
     expect(after).toMatchObject({
       clean: false,
-      entryCount: 1,
+      entryCount: 2,
       restoring: true,
       conflicted: false,
-      byOrigin: { local: 1, remote_sync: 0 }
+      byOrigin: { local: 2, remote_sync: 0 }
     });
     if (!restored.ok) throw new Error('复验夹具恢复被拒');
     expect(restored.workingTreeRevision).toBe(after.workingTreeRevision);
@@ -156,24 +181,26 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
       ok: false,
       reason: 'dirty_working_tree'
     });
-    expect(await noteIds(db)).toEqual([first.noteId, second.noteId].sort());
+    expect(await noteIds(db)).toEqual([first.noteId]);
     expect(await db.workingTree.status()).toEqual(after);
     expect(await db.workingTree.diff()).toEqual(diff);
+    expect(await projectionOf(db)).toEqual(projectionAtTarget);
+    await expect(db.workingTree.discard(credentialsOf(after))).resolves.toMatchObject({ ok: true, discardedCount: 2 });
+    // discard 把业务表退回 HEAD：second 按删除条目的 inversePatch 插回来，first 的标题回到 'changed'
     expect(await projectionOf(db)).toEqual(projectionBefore);
-    await expect(db.workingTree.discard(credentialsOf(after))).resolves.toMatchObject({ ok: true, discardedCount: 1 });
     const cleared = await db.workingTree.status();
     expect(cleared).toMatchObject({ clean: true, entryCount: 0, restoring: false, conflicted: false });
     expect(await db.workingTree.restoreSession()).toBeNull();
     const direct = await db.workingTree.restore({ commitId: first.commitId }, credentialsOf(cleared));
-    expect(direct).toMatchObject({ ok: true, restoredCount: 1 });
+    expect(direct).toMatchObject({ ok: true, restoredCount: 2 });
     const directDiff = await db.workingTree.diff();
-    expect(directDiff.entries.map(contentOf)).toEqual(diff.entries.map(contentOf));
-    expect(await projectionOf(db)).toEqual(projectionBefore);
+    expect(byEntityId(directDiff.entries).map(contentOf)).toEqual(byEntityId(diff.entries).map(contentOf));
+    expect(await projectionOf(db)).toEqual(projectionAtTarget);
     expect(await db.workingTree.listCommits()).toEqual(history);
     const directStatus = await db.workingTree.status();
     expect(directStatus).toMatchObject({
       clean: false,
-      entryCount: 1,
+      entryCount: 2,
       restoring: true,
       conflicted: false,
       headRevision: before.headRevision,
@@ -182,8 +209,9 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     });
     await expect(db.workingTree.discard(credentialsOf(directStatus))).resolves.toMatchObject({
       ok: true,
-      discardedCount: 1
+      discardedCount: 2
     });
+    expect(await projectionOf(db)).toEqual(projectionBefore);
     expect(await db.workingTree.restoreSession()).toBeNull();
     expect((await db.workingTree.diff()).entries).toEqual([]);
     expect(await db.workingTree.status()).toMatchObject({

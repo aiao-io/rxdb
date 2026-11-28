@@ -15,7 +15,7 @@
  * 排队窗口；`mergeChanges` 不是——工作树的 `interceptMergeChanges()` 先排队拿到事务，之后才取
  * 声明。于是每个作用域只存一条这件事，在适配器实例上就成了一个覆盖窗口：两个并发的
  * `adapter.mergeChanges()` 里，先执行的取到后声明者的意图（按错误的入口判定），后执行的取不到
- * 声明被当作未知入口拒绝。登记表里 6 行 `mergeChanges` 因此**一律**绑执行器；调用方手上没有
+ * 声明被当作未知入口拒绝。登记表里 11 行 `mergeChanges` 因此**一律**绑执行器；调用方手上没有
  * 执行器时，自己开一个事务（`merge-branch.ts` 的压缩出口与 `restore-entity.ts` 就是这么做的，
  * 并发用例在 `rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts`）。
  *
