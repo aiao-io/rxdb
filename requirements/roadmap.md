@@ -9,12 +9,12 @@
 | :------------- | :----- |
 | ✅ Done        | 100    |
 | 🚧 In Progress | 13     |
-| 👀 In Review   | 19     |
+| 👀 In Review   | 20     |
 | 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **59** |
+| **未完成合计** | **60** |
 
-仓库还剩 **59 条**未关闭故事（13 In Progress + 19 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **60 条**未关闭故事（13 In Progress + 20 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -46,6 +46,7 @@
 | [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                                                                                                                                                                                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                                                   | 立项池   |
 | [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 核心四条：[US-318](stories/collaboration/US-318-cascade-delete-one-transaction.md) / [US-316](stories/collaboration/US-316-multi-repository-history-scope.md) / [US-317](stories/collaboration/US-317-pushable-histories.md) / [US-233](stories/adapter/US-233-supabase-pullable-count-accuracy.md) | 👀 In Review   | AC 全部通过（单测、PGlite、SQLite 各适配器、Supabase 真栈），待 owner 评审后合入                                             | 批次 10  |
 | [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 应用层：[US-232](stories/adapter/US-232-supabase-catalog-server-drawer.md) / [US-230](stories/adapter/US-230-supabase-header-sync.md) / [US-231](stories/adapter/US-231-supabase-unified-undo-history.md) / [US-235](stories/adapter/US-235-supabase-orders-testability.md)                         | 👀 In Review   | AC 全部通过（单测、PGlite、SQLite 各适配器、Supabase 真栈），待 owner 评审后合入                                             | 批次 10  |
+| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 同步状态：[US-236](stories/adapter/US-236-supabase-sync-status-batching.md)                                                                                                                                                                                                                         | 👀 In Review   | AC 全部通过（SQL 回归、同步插件与适配器单测、Supabase 真栈），待 owner 评审后合入                                            | 批次 10  |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                                                                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                                               | 本轮执行 |
 
 ## 即办清单
@@ -53,7 +54,7 @@
 当前分支 `supabase-log-access-baseline` 上的计划，按先后：
 
 1. 批次 8、9 的 6 条故事（US-034、US-229、US-037、US-038、US-228、US-227）AC 全部通过，待 owner 评审合入。
-2. 批次 10（epic-016 本机修改工作台）的 8 条故事（US-318、US-316、US-317、US-233、US-230、US-231、US-232、US-235）AC 全部通过，待 owner 评审合入。
+2. 批次 10（epic-016 本机修改工作台）的 9 条故事（US-318、US-316、US-317、US-233、US-230、US-231、US-232、US-235、US-236）AC 全部通过，待 owner 评审合入。
 3. 批次 11（租户内成员权限）：US-234 阶段 A 完成（参考 SQL、真栈用例、文档、商品页演示与远端 e2e），
    US-029 阶段 A、B 完成（作用域声明与校验、授权快照 `rxdb.grants`、公开写入口按行判定，PGlite 与六个 SQLite 系后端一致），
    阶段 C 完成（Supabase 适配器读 `rxdb_caller_grants()`，连接时与同步每一轮刷新，缺函数时连接报错；真栈普通身份用例与文档），
@@ -162,6 +163,7 @@ US-038 改 `rxdb_mutations` 的签名，随 PR 附迁移文档与 `production/rx
 | 7    | 三页接入（US-232、US-231 阶段 B）                                    | 完成，待评审 | Todo、商品、订单登记按钮，移除页面内的推拉与撤销；商品「模拟服务端变更」收进右侧抽屉；订单页整条撤销跨实体的事务，接 US-316、US-318 |
 | 8    | 收尾                                                                 | 完成，待评审 | 远端 e2e 改锚点并补新用例、本地 e2e；README、各故事 AC 与状态；`pnpm audit:requirements` 与 lint / typecheck / test / build         |
 | 9    | 订单页一个窗口就能测（US-235）                                       | 完成，待评审 | 页面上的「怎么测」、远端数据面板与模拟别人改远端、未推送标记、生成示例数据、嵌套布局；远端 e2e 单窗口用例                           |
+| 10   | 同步状态一轮问完（US-236）                                           | 完成，待评审 | 打开页面状态统计只问几次远端、不随仓库数增加；频道订阅上只重算一次；系统表不进拉取；待拉数与逐仓同口径                              |
 
 e2e 锚点与界面改动在同一步迁移，场景一条不删。
 

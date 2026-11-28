@@ -5,6 +5,7 @@ import {
   RxDBIdentityMismatchError,
   sha256Hex,
   type RemoteChange,
+  type RepositoryIdentifier,
   type RuleGroup,
   type RxDBIdentity
 } from '@aiao/rxdb';
@@ -25,11 +26,28 @@ export interface ScopedSyncIdentitySource {
 }
 
 /**
+ * 实体在远端的登记信息：{@link ScopedSyncAdapter.getEntitySyncInfo} 的答案
+ */
+export interface ScopedEntitySyncInfo {
+  /** 实体命名空间 */
+  namespace: string;
+
+  /** 实体名 */
+  entity: string;
+
+  /** 业务表名；实体没在远端登记过时为 `null` */
+  tableName: string | null;
+
+  /** 为 `true` 的实体走按区同步 */
+  bucketed: boolean;
+}
+
+/**
  * 按授权分区只读同步（US-033）需要远端适配器提供的协议
  *
  * @remarks
- * 适配器六个方法都实现时，同步插件对登记为分区的实体改走「分区快照 + 快照点之后的增量」，
- * 其余实体照旧走通用日志拉取。
+ * 适配器六个必需的方法都实现时，同步插件对登记为分区的实体改走「分区快照 + 快照点之后的增量」，
+ * 其余实体照旧走通用日志拉取。{@link ScopedSyncAdapter.getEntitySyncInfos} 是可选的批量问法（US-236）。
  */
 export interface ScopedSyncAdapter {
   /** 当前调用者可读的分区 */
@@ -42,15 +60,18 @@ export interface ScopedSyncAdapter {
    * @param entity - 实体名
    * @returns `bucketed` 为 `true` 的实体走按区同步
    */
-  getEntitySyncInfo(
-    namespace: string,
-    entity: string
-  ): Promise<{
-    namespace: string;
-    entity: string;
-    tableName: string | null;
-    bucketed: boolean;
-  }>;
+  getEntitySyncInfo(namespace: string, entity: string): Promise<ScopedEntitySyncInfo>;
+
+  /**
+   * 一次问齐多个实体的登记信息（US-236），可选
+   *
+   * @param entities - 要问的实体
+   * @returns 与 `entities` 同序，每一项同 {@link ScopedSyncAdapter.getEntitySyncInfo}
+   *
+   * @remarks
+   * 实现了它，同步状态统计与 `pull()` 每一轮只问一次远端；没实现时逐个并发问 `getEntitySyncInfo`，见 {@link entitySyncInfosOf}。
+   */
+  getEntitySyncInfos?(entities: readonly RepositoryIdentifier[]): Promise<ScopedEntitySyncInfo[]>;
 
   /**
    * 分区在给定分支上的日志水位（最大日志 id）
@@ -132,6 +153,92 @@ export interface ScopedSyncAdapter {
     filter?: RuleGroup,
     branchId?: string
   ): Promise<RemoteChange[]>;
+}
+
+/**
+ * 状态查询按区数待拉数要用的那几个原语（与单仓的 `checkRepositoryUpdates` 同一组判据）
+ *
+ * @internal
+ */
+export type ScopedStatusAdapter = Pick<
+  ScopedSyncAdapter,
+  'getCallerBuckets' | 'getEntitySyncInfo' | 'getEntitySyncInfos' | 'getBucketSnapshotPoint' | 'getBucketChangeCount'
+>;
+
+/**
+ * 远端适配器实现了按区数待拉数要用的原语时，按 {@link ScopedStatusAdapter} 交回
+ *
+ * @param adapter - 远端适配器
+ * @returns 四个原语（`getCallerBuckets` / `getEntitySyncInfo` / `getBucketSnapshotPoint` / `getBucketChangeCount`）都在时为它本身，否则为 `undefined`
+ *
+ * @internal
+ */
+export function scopedStatusAdapterOf(adapter: object): ScopedStatusAdapter | undefined {
+  const candidate = adapter as Partial<ScopedSyncAdapter>;
+  const supported =
+    typeof candidate.getCallerBuckets === 'function' &&
+    typeof candidate.getEntitySyncInfo === 'function' &&
+    typeof candidate.getBucketSnapshotPoint === 'function' &&
+    typeof candidate.getBucketChangeCount === 'function';
+  return supported ? (candidate as ScopedStatusAdapter) : undefined;
+}
+
+/**
+ * 问齐一批实体在远端的登记信息（US-236）
+ *
+ * @param adapter - 支持按区同步的远端适配器
+ * @param entities - 要问的实体
+ * @returns 与 `entities` 同序的登记信息；`entities` 为空时不问
+ *
+ * @remarks
+ * 适配器能一次问完（{@link ScopedSyncAdapter.getEntitySyncInfos}）就一次问，否则逐个并发问。
+ */
+export function entitySyncInfosOf(
+  adapter: Pick<ScopedSyncAdapter, 'getEntitySyncInfo' | 'getEntitySyncInfos'>,
+  entities: readonly RepositoryIdentifier[]
+): Promise<ScopedEntitySyncInfo[]> {
+  if (entities.length === 0) return Promise.resolve([]);
+  if (typeof adapter.getEntitySyncInfos === 'function') return adapter.getEntitySyncInfos(entities);
+  return Promise.all(entities.map(({ namespace, entity }) => adapter.getEntitySyncInfo(namespace, entity)));
+}
+
+/**
+ * 待拉数探针：一个仓库（分区实体细到一个区）在游标之后、不是本库推上去的日志条数（US-236）
+ */
+export interface PendingChangeProbe {
+  /** 实体命名空间 */
+  readonly namespace: string;
+
+  /** 实体名 */
+  readonly entity: string;
+
+  /** 分区；未分区的日志为 `null` */
+  readonly bucket: string | null;
+
+  /** 游标：只数 id 大于它的日志 */
+  readonly afterId: number;
+
+  /** 本库推上去的远端 id（推送回执写下的 `RxDBChange.remoteId`）：落在范围里的不算 */
+  readonly excludeIds: readonly number[];
+}
+
+/**
+ * 一次数清多个仓库待拉数的远端适配器（US-236），可选能力
+ *
+ * @remarks
+ * 实现了它，同步状态统计一轮只问一次远端；没实现时逐个探针用 `getChangeCount` 与
+ * {@link ScopedSyncAdapter.getBucketChangeCount} 数，有并发上限。两条路的口径相同：游标之后、给定分支上、
+ * 不是本库推上去的变更；分区此刻已不属于调用者时数出 0。
+ */
+export interface PendingChangeCountAdapter {
+  /**
+   * 数清一批探针
+   *
+   * @param probes - 探针
+   * @param branchIds - 只数这些分支（当前分支及其祖先），与拉取同口径
+   * @returns 与 `probes` 同序的条数
+   */
+  countPendingChanges(probes: readonly PendingChangeProbe[], branchIds: readonly string[]): Promise<number[]>;
 }
 
 const IDENTITY_KEY_VERSION = 1;

@@ -19,6 +19,7 @@ import {
   getSyncCapability,
   getSyncType,
   isRepositorySyncEnabled,
+  isSystemEntity,
   LWWConflictResolver,
   type PullBatchRequest,
   type PullResult,
@@ -203,7 +204,8 @@ async function pullBatchOnce(
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const allRepos: RepoSyncInfo[] = [];
 
-  for (const EntityClass of rxdb.config.entities) {
+  // 系统表跟随库级配置会被判成能拉取，它们是不记变更日志的本地簿记表，远端日志里永远没有它们的行（US-236）
+  for (const EntityClass of rxdb.config.entities.filter(Entity => !isSystemEntity(Entity))) {
     const metadata = getEntityMetadata(EntityClass);
     const syncType = getSyncType(metadata, rxdb.entitySync);
 

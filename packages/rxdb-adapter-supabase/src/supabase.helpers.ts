@@ -54,6 +54,53 @@ export const REALTIME_RECONNECTABLE_STATUSES = new Set(['CHANNEL_ERROR', 'TIMED_
 export type RealtimeState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
 
 /**
+ * 一次建出的一批频道的订阅结局：据此请求重算待拉数（US-236）
+ *
+ * @typeParam T - 频道
+ *
+ * @remarks
+ * 统一频道加每个分区一个频道，一次建出的这一批各报一次状态。此前每报一次 SUBSCRIBED 就请求一次，
+ * 同步插件合成「正在数的一遍 + 收尾一遍」，打开页面就把所有仓库整整数两遍。改为等这一批每个频道都报过
+ * 一次状态（订阅上或失败），只要有频道订阅上就请求一次：数的时候这一批都已订阅上，断线期间攒下的变更
+ * 一次数进来，之后到达的由通知计数。
+ *
+ * 这一批都有了结局之后，某个频道再报 SUBSCRIBED 是它自己重新加入（Realtime 客户端的 rejoin）：断开的那一段
+ * 没听见，单独请求一次。
+ */
+export class RealtimeSubscriptionBatch<T> {
+  readonly #awaiting = new Set<T>();
+  #subscribed = false;
+
+  /**
+   * @param request - 请求重算待拉数；即发即忘
+   */
+  constructor(private readonly request: () => void) {}
+
+  /**
+   * 登记这一批里的一个频道，在订阅它之前调用
+   *
+   * @param channel - 频道
+   */
+  add(channel: T): void {
+    this.#awaiting.add(channel);
+  }
+
+  /**
+   * 收到一个频道的订阅状态
+   *
+   * @param channel - 报状态的频道
+   * @param status - Realtime 报的状态
+   */
+  settle(channel: T, status: string): void {
+    const settledNow = this.#awaiting.delete(channel);
+    const subscribed = status === 'SUBSCRIBED';
+    this.#subscribed ||= subscribed;
+    const batchSettled = settledNow && this.#awaiting.size === 0 && this.#subscribed;
+    if (batchSettled || (!settledNow && subscribed)) this.request();
+  }
+}
+
+/**
  * 读取 JWT 的载荷。
  *
  * @param token - 会话令牌

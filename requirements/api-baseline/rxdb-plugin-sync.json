@@ -62,6 +62,14 @@
         "kind": "both"
       },
       {
+        "name": "PendingChangeCountAdapter",
+        "kind": "type"
+      },
+      {
+        "name": "PendingChangeProbe",
+        "kind": "type"
+      },
+      {
         "name": "pendingQueryCacheWriteIds",
         "kind": "value"
       },
@@ -128,6 +136,10 @@
       {
         "name": "scopedDatabaseName",
         "kind": "value"
+      },
+      {
+        "name": "ScopedEntitySyncInfo",
+        "kind": "type"
       },
       {
         "name": "scopedIdentityKind",

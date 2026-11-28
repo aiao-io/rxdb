@@ -119,7 +119,9 @@ BEGIN
     'public.rxdb_caller_grants()',
     'public.rxdb_caller_scopes(text)',
     'public.rxdb_entity_sync_info(text, text)',
+    'public.rxdb_entity_sync_infos(jsonb)',
     'public.rxdb_bucket_snapshot_point(text, text, text, text[])',
+    'public.rxdb_pending_change_counts(jsonb, text[])',
     'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)',
     'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer)',
     'public.rxdb_jsonb_matches_rule(jsonb, jsonb)',
@@ -159,6 +161,9 @@ GRANT EXECUTE ON FUNCTION public.rxdb_caller_grants() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_caller_scopes(text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text, text[]) TO anon, authenticated;
+-- 批量登记信息与批量待拉数（US-236）：同步状态统计一轮各调一次；待拉数以调用者身份按日志表 RLS 数
+GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_infos(jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pending_change_counts(jsonb, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer) TO anon, authenticated;
 -- 快照 RPC 在调用者权限下执行，需允许它使用纯 JSON filter helper；helper 不访问业务表。

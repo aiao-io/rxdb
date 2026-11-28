@@ -55,7 +55,7 @@ import {
 import { cycleMemberPullDetail } from './pull-cycle.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
-import type { ScopedSyncAdapter } from './scoped-sync.js';
+import type { ScopedEntitySyncInfo, ScopedSyncAdapter } from './scoped-sync.js';
 import { assertPullLimit, assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
@@ -124,12 +124,21 @@ const DEFAULT_PULL_REPOSITORY_OPTIONS: Required<Omit<PullRepositoryOptions, 'fil
 };
 
 /**
+ * 这一轮已经问到的远端登记信息里，逐仓拉取要用的那一位（US-236）
+ *
+ * @internal
+ */
+export type RemoteSyncInfoHint = Pick<ScopedEntitySyncInfo, 'bucketed'>;
+
+/**
  * 为单个仓库拉取变更
  *
  * @param sm - SyncManager 实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param options - 拉取选项
+ * @param syncInfo - 这一轮已经问到的远端登记信息（`pull()` 一轮问一次，US-236）；不给时自己问。只用于这一个仓库，
+ *   级联拉取的其他仓库照旧各自判
  * @returns 拉取结果
  *
  * @example
@@ -149,7 +158,8 @@ export async function pullRepository(
   sm: SyncManager,
   namespace: string,
   entity: string,
-  options?: PullRepositoryOptions
+  options?: PullRepositoryOptions,
+  syncInfo?: RemoteSyncInfoHint
 ): Promise<PullRepositoryResult> {
   assertPullLimit(options?.limit, 'pullRepository');
   const opts = { ...DEFAULT_PULL_REPOSITORY_OPTIONS, ...options };
@@ -159,7 +169,7 @@ export async function pullRepository(
   rxdb.dispatchEvent(new RepositorySyncBeginEvent('pull', namespace, entity, opts.includeRelated));
 
   try {
-    const result = await _pullRepositoryImpl(sm, namespace, entity, opts);
+    const result = await _pullRepositoryImpl(sm, namespace, entity, opts, syncInfo);
 
     // 触发完成事件
     rxdb.dispatchEvent(
@@ -186,7 +196,8 @@ async function _pullRepositoryImpl(
   sm: SyncManager,
   namespace: string,
   entity: string,
-  opts: typeof DEFAULT_PULL_REPOSITORY_OPTIONS
+  opts: typeof DEFAULT_PULL_REPOSITORY_OPTIONS,
+  syncInfo: RemoteSyncInfoHint | undefined
 ): Promise<PullRepositoryResult> {
   // 验证仓库是否存在
   const EntityType = sm.rxdb.config.entities.find(e => {
@@ -217,13 +228,13 @@ async function _pullRepositoryImpl(
   // 创建带有 filter 的选项
   const optsWithFilter = { ...opts, filter: effectiveFilter };
 
-  // 处理级联拉取
+  // 处理级联拉取：登记信息只答这一个仓库，级联的其他仓库各自判
   if (opts.includeRelated) {
     return await pullWithCascade(sm, namespace, entity, optsWithFilter);
   }
 
   // 单仓库拉取（传递 filter）
-  return await pullSingleRepository(sm, namespace, entity, optsWithFilter);
+  return await pullSingleRepository(sm, namespace, entity, optsWithFilter, syncInfo);
 }
 
 /**
@@ -638,7 +649,8 @@ async function pullSingleRepository(
   sm: SyncManager,
   namespace: string,
   entity: string,
-  options: typeof DEFAULT_PULL_REPOSITORY_OPTIONS
+  options: typeof DEFAULT_PULL_REPOSITORY_OPTIONS,
+  syncInfo?: RemoteSyncInfoHint
 ): Promise<PullRepositoryResult> {
   const rxdb = sm.rxdb;
 
@@ -687,7 +699,8 @@ async function pullSingleRepository(
     entity,
     branch.id,
     options,
-    options.filter
+    options.filter,
+    syncInfo
   );
   if (bucketedResult) return bucketedResult;
 

@@ -6,6 +6,7 @@
 
 import {
   countRxDBChangeRecords,
+  type EntityMetadata,
   getEntityMetadata,
   getSyncCapability,
   getSyncType,
@@ -176,7 +177,31 @@ export async function getRepositorySyncStatus(
     throw new Error(`Entity not found: ${namespace}.${entity}`);
   }
 
-  const metadata = getEntityMetadata(EntityClass);
+  return repositorySyncStatusOf(rxdb, getEntityMetadata(EntityClass), () =>
+    calculatePullableCount(rxdb, namespace, entity)
+  );
+}
+
+/**
+ * 按实体元数据算一个仓库的同步状态
+ *
+ * @param rxdb - RxDB 实例
+ * @param metadata - 仓库的实体元数据
+ * @param pullableCount - 数这个仓库的待拉数；只在仓库能拉取时调用
+ * @returns 仓库同步状态
+ *
+ * @remarks
+ * 单仓查询交进来的是逐仓的 `checkRepositoryUpdates`；整库查询交进来的是一轮数清的结果（US-236）。
+ *
+ * @internal
+ */
+export async function repositorySyncStatusOf(
+  rxdb: RxDB,
+  metadata: EntityMetadata,
+  pullableCount: () => Promise<number>
+): Promise<RepositorySyncStatus> {
+  const namespace = metadata.namespace;
+  const entity = metadata.name;
   const syncType = getSyncType(metadata, rxdb.entitySync);
   const syncCapability = getSyncCapability(syncType);
 
@@ -203,7 +228,7 @@ export async function getRepositorySyncStatus(
 
   // 4. 计算 pushableCount 和 pullableCount
   let pushableCount = 0;
-  let pullableCount = 0;
+  let pullable = 0;
 
   // 推拉能力取开头那一次解析的结果：中间隔着几个 await，重新解析可能与返回的 syncType 不一致
   if (syncCapability.push) {
@@ -211,7 +236,7 @@ export async function getRepositorySyncStatus(
   }
 
   if (syncCapability.pull) {
-    pullableCount = await calculatePullableCount(rxdb, namespace, entity);
+    pullable = await pullableCount();
   }
 
   // 5. 构建并返回状态
@@ -227,6 +252,6 @@ export async function getRepositorySyncStatus(
     lastPulledAt: repoSync?.lastPulledAt ?? null,
     lastPullRemoteChangeId: repoSync?.lastPullRemoteChangeId ?? null,
     pushableCount,
-    pullableCount
+    pullableCount: pullable
   };
 }

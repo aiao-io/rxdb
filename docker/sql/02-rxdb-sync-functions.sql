@@ -445,6 +445,61 @@ AS $$
     )
 $$;
 
+-- 一次问齐多个实体的登记信息（US-236）：同步状态统计与拉取每一轮问一次，不再逐个实体各打一次 rxdb_entity_sync_info。
+-- p_entities 是 [{"namespace": …, "entity": …}]；结果按传入顺序，每一项就是 rxdb_entity_sync_info 的答案。
+-- SECURITY INVOKER：登记表只经 rxdb_entity_sync_info 读，调用者对它没有执行权限时这里同样不能读
+CREATE OR REPLACE FUNCTION public.rxdb_entity_sync_infos(p_entities jsonb)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT COALESCE(
+        pg_catalog.jsonb_agg(
+            public.rxdb_entity_sync_info(requested.item->>'namespace', requested.item->>'entity')
+            ORDER BY requested.position
+        ),
+        '[]'::jsonb
+    )
+    FROM pg_catalog.jsonb_array_elements(p_entities) WITH ORDINALITY AS requested(item, position)
+$$;
+
+-- 一次数清多个待拉数探针（US-236）：每个探针数一个实体（分区实体细到一个区）在游标之后、给定分支上、
+-- 不是调用方自己推上去的日志条数，结果按传入顺序。
+-- p_probes 是 [{"namespace", "entity", "bucket"（未分区日志为 null）, "afterId", "excludeIds"}]，
+-- excludeIds 是调用方本地记着的、自己推上去的远端 id（推送回执写下的），落在范围里的不算。
+-- SECURITY INVOKER：以调用方身份数，rxdb_change 的 RLS 只放行可读分区与 authenticated 的未分区日志，
+-- 分区此刻已被撤销时数出 0，与直接数 rxdb_change 同口径。p_branch_ids 为 NULL 时数全部分支，与水位同口径。
+CREATE OR REPLACE FUNCTION public.rxdb_pending_change_counts(
+    p_probes jsonb,
+    p_branch_ids text[] DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT COALESCE(pg_catalog.jsonb_agg(pending.count ORDER BY probe.position), '[]'::jsonb)
+    FROM pg_catalog.jsonb_array_elements(p_probes) WITH ORDINALITY AS probe(item, position)
+    CROSS JOIN LATERAL (
+        SELECT ARRAY(
+            SELECT pg_catalog.jsonb_array_elements_text(COALESCE(probe.item->'excludeIds', '[]'::jsonb))::integer
+        ) AS ids
+    ) AS excluded
+    CROSS JOIN LATERAL (
+        SELECT pg_catalog.count(*)::integer AS count
+        FROM public.rxdb_change AS change
+        WHERE change.namespace = probe.item->>'namespace'
+          AND change.entity = probe.item->>'entity'
+          AND change.bucket IS NOT DISTINCT FROM (probe.item->>'bucket')
+          AND change.id > (probe.item->>'afterId')::integer
+          AND (p_branch_ids IS NULL OR change."branchId" = ANY(p_branch_ids))
+          AND change.id <> ALL (excluded.ids)
+    ) AS pending
+$$;
+
 -- 水位只算调用方会拉的分支（p_branch_ids，通常是当前分支及其祖先）。拉取按分支过滤，
 -- 别的分支写进同一个 bucket 的日志永远拉不下来；算进水位，客户端的游标就永远追不上，状态一直是「有更新」。
 DROP FUNCTION IF EXISTS public.rxdb_bucket_snapshot_point(text, text, text);
@@ -994,7 +1049,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.rxdb_caller_buckets() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_infos(jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text, text[]) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pending_change_counts(jsonb, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer) TO anon, authenticated;
 

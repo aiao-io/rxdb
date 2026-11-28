@@ -4,12 +4,9 @@
  * 提供查询所有仓库同步状态的功能，支持按 syncType、启用状态和待处理变更进行过滤。
  */
 
-import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
-import {
-  getRepositorySyncStatus,
-  type RepositorySyncStatus,
-  type SyncTypeValue
-} from './get-repository-sync-status.js';
+import { getEntityMetadata, isSystemEntity, repositoryKey, type RxDB } from '@aiao/rxdb';
+import { repositorySyncStatusOf, type RepositorySyncStatus, type SyncTypeValue } from './get-repository-sync-status.js';
+import { countPendingByRepository } from './pending-counts.js';
 
 /**
  * getAllRepositorySyncStatus 的过滤选项
@@ -42,6 +39,8 @@ export interface GetAllRepositorySyncStatusFilter {
  * 获取所有仓库的同步状态
  *
  * 遍历所有注册实体并查询它们的同步状态，支持按 syncType、启用状态和待处理变更进行过滤。
+ * 待拉数一轮数清：远端身份核一次、登记信息问一次，远端适配器支持时全部仓库只数一次（US-236）；
+ * 系统表不记变更日志，待拉恒为 0，不为它们问远端。
  *
  * @param rxdb - RxDB 实例
  * @param filter - 可选的过滤条件
@@ -74,20 +73,23 @@ export async function getAllRepositorySyncStatus(
 ): Promise<RepositorySyncStatus[]> {
   // 1. 从配置中获取所有实体
   const entities = rxdb.config.entities;
-  const allStatuses: RepositorySyncStatus[] = [];
 
-  // 2. 查询每个实体的状态
+  // 2. 待拉数一轮数清（US-236）：此前逐个仓库各核一次远端身份、各问一次登记信息、各数一次日志。
+  //    系统表不问远端：它们不带自己的 `sync`、跟随库级配置会被判成能拉取，却不记变更日志，远端日志里永远没有它们的行
+  const consumers = entities
+    .filter(EntityClass => !isSystemEntity(EntityClass))
+    .map(EntityClass => getEntityMetadata(EntityClass));
+  const pending = await countPendingByRepository(rxdb, consumers);
+
+  // 3. 逐个仓库补上本地那一半（同步记录、待推数）；系统表的待拉恒为 0
+  const allStatuses: RepositorySyncStatus[] = [];
   for (const EntityClass of entities) {
     const metadata = getEntityMetadata(EntityClass);
-    const namespace = metadata.namespace;
-    const entity = metadata.name;
-
-    // 获取该实体的状态
-    const status = await getRepositorySyncStatus(rxdb, namespace, entity);
-    allStatuses.push(status);
+    const key = repositoryKey({ namespace: metadata.namespace, entity: metadata.name });
+    allStatuses.push(await repositorySyncStatusOf(rxdb, metadata, async () => pending.get(key) ?? 0));
   }
 
-  // 3. 应用过滤条件
+  // 4. 应用过滤条件
   let filteredStatuses = allStatuses;
 
   // 按 syncType 过滤

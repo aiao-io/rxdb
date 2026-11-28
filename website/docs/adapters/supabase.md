@@ -528,6 +528,7 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 - 库里没有 `realtime.send`（没有 Realtime 服务的部署）时通知触发器什么都不发，推送与业务写照常提交。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
 - 当订阅状态变成 `CHANNEL_ERROR`、`TIMED_OUT` 或 `CLOSED` 时，适配器会自动以指数退避重连。成功重新订阅后，退避计数清零，并按各仓库的水位线重算一次可拉取条数。
+- 一次建出的一批频道（统一频道加每个分区一个）都有了订阅结局才请求一次重算，不是每个频道各请求一次：数的时候这一批都已订阅上，断线期间攒下的变更一次数进来。这一批之后某个频道自己重新加入时，再为它单独重算一次。重算一轮只核一次远端身份、调一次 `rxdb_entity_sync_infos` 与 `rxdb_pending_change_counts`，见[同步状态统计 RPC](#同步状态统计-rpc)。
 
 ```text
 客户端 A 推送（rxdb_mutations RPC）或直接写业务表
@@ -645,6 +646,17 @@ const { data } = await client.rpc('rxdb_mutations', {
 | 列所在的复合外键是 `MATCH FULL`（一列空就违约） | `rxdb: deferred column … belongs to a MATCH FULL foreign key`                             |
 
 延迟列只对 main 分支生效：非 main 分支只写日志、不写业务表，客户端不发这个参数。服务端还没有这个参数时，PostgREST 找不到七个参数的签名（`PGRST202`），客户端报 `SupabaseConfigError`，指向[迁移说明](../migration/supabase-fk-cycle-push.md)；没有环的模型不发这个参数，照常推送。
+
+### 同步状态统计 RPC
+
+同步插件的状态统计（`syncManager.getAllRepositorySyncStatus()`，以及实时订阅恢复之后的待拉数重算）一轮只问一次远端，不随仓库数增加；`pull()` 也只在开头问一次登记信息（US-236）：
+
+| 函数                         | 参数                                  | 用途                                                                                                                                |
+| ---------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `rxdb_entity_sync_infos`     | `p_entities jsonb`                    | 一次问齐多个实体的登记信息，按传入顺序返回，每一项就是 `rxdb_entity_sync_info` 的答案                                               |
+| `rxdb_pending_change_counts` | `p_probes jsonb, p_branch_ids text[]` | 一次数清多个仓库（分区实体细到一个区）在游标之后、给定分支上、不是本机推上去（`excludeIds`）的日志条数，以调用者身份按日志表 RLS 数 |
+
+两个函数都是 `SECURITY INVOKER`，授给 `anon` 与 `authenticated`：anon 只数得到可读的分区，数不到未分区日志；分区此刻已被撤销时数出 0。自定义远端适配器可以不实现对应的 `getEntitySyncInfos` / `countPendingChanges`，同步插件会逐个问，结果相同。
 
 ### 树查询 RPC
 
@@ -913,6 +925,10 @@ REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLI
 
 已有部署在同一个事务里执行新版 `docker/sql/04-rxdb-utils-functions.sql`、自己的覆盖与生产权限脚本：04 装上 `rxdb_caller_grants()` 与 `rxdb_caller_scopes()`，同时把 `rxdb_caller_can_edit` 恢复成平台默认，覆盖要在生产权限脚本之前重新加载。只装平台默认、不覆盖时，每个登录用户只在自己的 user 区上有 `read + edit`，现有的写策略与同步都不受影响。要按成员权限分管理员与员工，先覆盖 `rxdb_caller_grants()`，再把写策略与历史判定改判 `edit`（[配置成员权限](#配置成员权限)），三者放进同一个事务。客户端无需升级；给实体声明作用域、让本机也按成员权限判定的客户端（[本机按成员权限判定](#本机按成员权限判定)），要等服务端装好之后再上线，否则连接报错。完整步骤见[迁移说明](../migration/supabase-member-permissions.md)。
 
+### 装上批量状态统计
+
+已有部署在同一个事务里执行新版 `docker/sql/02-rxdb-sync-functions.sql`、自己的 `rxdb_caller_buckets` 覆盖与生产权限脚本，装上 `rxdb_entity_sync_infos` 与 `rxdb_pending_change_counts`（[同步状态统计 RPC](#同步状态统计-rpc)），再升级客户端。02 会把 `rxdb_caller_buckets()` 恢复成平台默认，覆盖要放在生产权限脚本之前。旧客户端不调这两个函数，照常同步；新客户端连到旧版 SQL 时，状态统计与拉取报 `Could not find the function public.rxdb_entity_sync_infos`。完整步骤见[迁移说明](../migration/supabase-sync-status-batch.md)。
+
 ### 日志同步只对已登录身份开放
 
 基础 SQL 里的 `docker/sql/01-rxdb-system-tables.sql` 与 `03-business-tables.sql` 以 `GRANT ALL ON ALL TABLES IN SCHEMA public` 给 `anon` / `authenticated` 授权；Supabase 的默认权限还会在建表、建函数时把执行权授给 `anon`。执行完基础 SQL 之后，再执行一次生产权限脚本：
@@ -1044,6 +1060,8 @@ ERROR: function rxdb_mutations does not exist
 同步入口报 `Could not find the function public.rxdb_backend_id`：库里还没有远端身份，按[远端身份迁移说明](../migration/supabase-remote-backend.md)建表并重跑 02。
 
 拉取或检查更新报 `Could not find the function public.rxdb_entity_sync_info`（或 `rxdb_caller_buckets`、`rxdb_bucket_snapshot_point`）：客户端已经升级、服务端还是旧版 SQL。新客户端按区同步要用这些函数，先按[日志同步迁移说明](../migration/supabase-sync-access.md)更新服务端 SQL，再升级客户端。
+
+状态统计或拉取报 `Could not find the function public.rxdb_entity_sync_infos`（或 `rxdb_pending_change_counts`，错误码 `PGRST202`）：服务端还没装批量状态统计的两个函数。按[迁移说明](../migration/supabase-sync-status-batch.md)更新 02 与生产权限脚本；已经部署了仍报时，执行一次 `NOTIFY pgrst, 'reload schema';` 刷新 PostgREST 的 schema cache。
 
 ### 同步报 RemoteBackendMismatchError
 

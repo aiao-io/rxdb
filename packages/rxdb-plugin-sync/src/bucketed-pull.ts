@@ -38,7 +38,7 @@ import {
 } from './pull-conflict-utils.js';
 import { RemoteBackendMismatchError } from './remote-backend.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from './scoped-sync.entity.js';
-import { filterFingerprint, type ScopedSyncAdapter } from './scoped-sync.js';
+import { filterFingerprint, type ScopedEntitySyncInfo, type ScopedSyncAdapter } from './scoped-sync.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 
@@ -84,12 +84,14 @@ export async function pullBucketedRepositoryIfSupported(
   entity: string,
   branchId: string,
   options: PullRepositoryOptions,
-  filter: RuleGroup | undefined
+  filter: RuleGroup | undefined,
+  syncInfo?: Pick<ScopedEntitySyncInfo, 'bucketed'>
 ): Promise<PullRepositoryResult | null> {
   if (!isBucketedRemoteAdapter(remoteAdapter)) return null;
 
-  const syncInfo = await remoteAdapter.getEntitySyncInfo(namespace, entity);
-  if (!syncInfo.bucketed) return null;
+  // `pull()` 一轮问一次全部仓库的登记信息，带着答案来的不再重问（US-236）
+  const { bucketed } = syncInfo ?? (await remoteAdapter.getEntitySyncInfo(namespace, entity));
+  if (!bucketed) return null;
 
   const branchIds = await getAncestorBranchIds(sm, branchId);
   return pullBucketedRepository(

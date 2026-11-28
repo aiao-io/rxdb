@@ -104,6 +104,29 @@ export interface SupabaseEntitySyncInfo {
 }
 
 /**
+ * 待拉数探针：`rxdb_pending_change_counts()` 的一项入参（US-236）
+ *
+ * @remarks
+ * 数一个实体（分区实体细到一个区）在游标之后、不是本库推上去的日志条数。
+ */
+export interface SupabasePendingChangeProbe {
+  /** 实体命名空间 */
+  readonly namespace: string;
+
+  /** 实体名 */
+  readonly entity: string;
+
+  /** 分区；数未分区日志时为 `null` */
+  readonly bucket: string | null;
+
+  /** 游标：只数 id 大于它的日志 */
+  readonly afterId: number;
+
+  /** 本库推上去的远端 id（推送回执写下的 `RxDBChange.remoteId`）：落在范围里的不算 */
+  readonly excludeIds: readonly number[];
+}
+
+/**
  * 同步插件绑定本地库时用的调用者身份，与 `RxDBAdapterSupabase.callerIdentity()` 同一编码（US-033）
  */
 export type SupabaseScopedSyncIdentity = RxDBIdentity;

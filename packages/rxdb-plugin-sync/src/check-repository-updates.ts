@@ -22,7 +22,7 @@ import { getAncestorBranchIds } from './branch-utils.js';
 import { resolveConfiguredFilter } from './pull-repository.js';
 import { assertRemoteBackend } from './remote-backend.js';
 import { RxDBSyncBucketProgress } from './scoped-sync.entity.js';
-import { filterFingerprint, type ScopedSyncAdapter } from './scoped-sync.js';
+import { filterFingerprint, scopedStatusAdapterOf } from './scoped-sync.js';
 // `RepositoryIdentifier` 此前在 4 个文件里各写了一份同形状定义，
 // 统一收敛到 `VersionManager.interface.ts`（那份才是 `index.ts` 真正导出的）。
 export type { RepositoryIdentifier };
@@ -135,14 +135,8 @@ export async function checkRepositoryUpdates(
   // 游标属于另一个远端时，拿它去数只会数出一个看似可信的 0。状态查询只读，只比对、不绑定。
   const { backendId } = await assertRemoteBackend(sm);
 
-  const scopedRemote = remoteAdapter as typeof remoteAdapter & Partial<ScopedSyncAdapter>;
-  if (
-    typeof scopedRemote.getCallerBuckets === 'function' &&
-    typeof scopedRemote.getEntitySyncInfo === 'function' &&
-    typeof scopedRemote.getBucketSnapshotPoint === 'function' &&
-    typeof scopedRemote.getBucketChangeCount === 'function' &&
-    (await scopedRemote.getEntitySyncInfo(namespace, entity)).bucketed
-  ) {
+  const scopedRemote = scopedStatusAdapterOf(remoteAdapter);
+  if (scopedRemote && (await scopedRemote.getEntitySyncInfo(namespace, entity)).bucketed) {
     const progressRepository = localAdapter.getRepository(RxDBSyncBucketProgress);
     // 只认当前远端的进度：换了远端、旧远端的进度行因为清理被挡（RxDBBucketCleanupBlockedError）还留着时，
     // pull() 认得出它属于别的远端、会从头重拉，这里拿它的游标去比就会报成「已全部同步」或幻影待拉
@@ -268,8 +262,10 @@ const OWN_ID_BATCH_SIZE = 100;
  * 认「自己推的」不能靠 `clientId`：它是每个 RxDB 实例启动时新生成的，刷新页面之后上一次会话推上去的修改
  * 就带着另一个 `clientId`，会被数成别人的。推送回执给每条本地变更写下的 `remoteId` 跟着库走，刷新也还在。
  * 压缩推送会把几条本地变更记成同一个远端 id，所以去重。
+ *
+ * @internal
  */
-async function ownRemoteIdsAfter(
+export async function ownRemoteIdsAfter(
   rxdb: RxDB,
   metadata: EntityMetadata,
   changeRepository: IRepository<typeof RxDBChange>,
@@ -293,8 +289,12 @@ async function ownRemoteIdsAfter(
   return [...ids].sort((a, b) => a - b);
 }
 
-/** 把 id 切成每批不超过 {@link OWN_ID_BATCH_SIZE} 个 */
-function batchesOf(ids: readonly number[]): number[][] {
+/**
+ * 把 id 切成每批不超过 {@link OWN_ID_BATCH_SIZE} 个
+ *
+ * @internal
+ */
+export function batchesOf(ids: readonly number[]): number[][] {
   const batches: number[][] = [];
   for (let start = 0; start < ids.length; start += OWN_ID_BATCH_SIZE) {
     batches.push(ids.slice(start, start + OWN_ID_BATCH_SIZE));
@@ -336,8 +336,10 @@ async function bucketPendingCount(
  * 不按错误码猜是不是撤销：失败之后重读一次可读分区，确实不在了才跳过，下一次拉取会清掉它的本地范围，
  * 与拉取逐分区记失败的口径一致（RV-01a21194e68f7aacb5782c196d2ea870）。还在列表里，或者重读本身也失败，
  * 就原样抛出原来的错误：网络与配置错误不能被当成撤销吞掉。
+ *
+ * @internal
  */
-async function unlessBucketRevoked(
+export async function unlessBucketRevoked(
   ask: () => Promise<number>,
   getCallerBuckets: () => Promise<string[]>,
   bucket: string

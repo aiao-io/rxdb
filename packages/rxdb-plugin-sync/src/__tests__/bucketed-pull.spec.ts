@@ -301,7 +301,13 @@ const matchesFilter = (row: Record<string, unknown>, filter: RuleGroup): boolean
   return filter.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
 };
 
-const pull = (harness: BucketHarness, filter?: RuleGroup, limit = 2, fetchAll = true) =>
+const pull = (
+  harness: BucketHarness,
+  filter?: RuleGroup,
+  limit = 2,
+  fetchAll = true,
+  syncInfo?: { bucketed: boolean }
+) =>
   pullBucketedRepositoryIfSupported(
     harness.sm,
     harness.adapter as never,
@@ -312,7 +318,8 @@ const pull = (harness: BucketHarness, filter?: RuleGroup, limit = 2, fetchAll = 
     'BucketPullItem',
     'main',
     { limit, fetchAll, includeRelated: false },
-    filter
+    filter,
+    syncInfo
   );
 
 const activeFilter: RuleGroup = {
@@ -341,6 +348,30 @@ describe('bucketed pull', () => {
     expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
     expect(harness.entities.find(item => item['id'] === 'one')?.['value']).toBe('updated');
     expect(harness.progress[0]).toMatchObject({ snapshotComplete: true, snapshotAfterId: 'two', cursor: 3 });
+  });
+
+  // US-236：pull() 一轮问一次全部仓库的登记信息，再逐仓拉；逐仓拉取不再各自重问一遍
+  it('这一轮已经问过登记信息：不再重问，按区照常拉', async () => {
+    const harness = createHarness({
+      buckets: ['public'],
+      snapshotRows: { public: [row('one')] },
+      changes: { public: [] },
+      snapshotPoint: 1
+    });
+
+    const result = await pull(harness, undefined, 2, true, { bucketed: true });
+
+    expect(result).toMatchObject({ pulled: 1, applied: 1, hasMore: false });
+    expect(harness.adapter.getEntitySyncInfo).not.toHaveBeenCalled();
+  });
+
+  it('这一轮已经知道它不分区：不问、不拉，交回通用日志拉取', async () => {
+    const harness = createHarness({ buckets: ['public'], snapshotRows: { public: [row('one')] }, changes: {} });
+
+    await expect(pull(harness, undefined, 2, true, { bucketed: false })).resolves.toBeNull();
+
+    expect(harness.adapter.getEntitySyncInfo).not.toHaveBeenCalled();
+    expect(harness.adapter.pullBucketSnapshot).not.toHaveBeenCalled();
   });
 
   // RV-01a21194e6b6742e98c9d90c0a3e6270：快照与增量同口径受 fetchAll 约束，默认只拉一页并以 hasMore 告知

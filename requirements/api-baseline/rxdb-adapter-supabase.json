@@ -46,6 +46,10 @@
         "kind": "both"
       },
       {
+        "name": "SupabasePendingChangeProbe",
+        "kind": "type"
+      },
+      {
         "name": "SupabaseRepository",
         "kind": "both"
       },

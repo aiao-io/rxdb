@@ -71,6 +71,7 @@ import {
   REALTIME_RECONNECT_BASE_DELAY_MS,
   REALTIME_RECONNECT_MAX_DELAY_MS,
   REALTIME_RECONNECTABLE_STATUSES,
+  RealtimeSubscriptionBatch,
   RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS,
   RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS,
   SUPABASE_SDK_VERSION,
@@ -88,6 +89,7 @@ import {
   type SupabaseEntityHistoryItem,
   type SupabaseEntityHistoryOptions,
   type SupabaseEntitySyncInfo,
+  type SupabasePendingChangeProbe,
   type SupabaseRlsCheckTable,
   type SupabaseScopedSyncIdentity
 } from './supabase.interface.js';
@@ -114,6 +116,29 @@ const isGrantRow = (row: unknown): row is RxDBGrant => {
   const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
   return isText(scope) && Array.isArray(permissions) && permissions.every(isText);
 };
+
+/** `rxdb_entity_sync_info()` 的答案：字符串的命名空间与实体名，字符串或 `null` 的表名，布尔的分区标记 */
+const isEntitySyncInfo = (value: unknown): value is SupabaseEntitySyncInfo => {
+  const { namespace, entity, tableName, bucketed } = (value ?? {}) as Partial<
+    Record<keyof SupabaseEntitySyncInfo, unknown>
+  >;
+  return (
+    typeof namespace === 'string' &&
+    typeof entity === 'string' &&
+    (typeof tableName === 'string' || tableName === null) &&
+    typeof bucketed === 'boolean'
+  );
+};
+
+/**
+ * 计数类 RPC 的一项答案：非负安全整数
+ *
+ * @remarks
+ * 参考 SQL 交回 JSON 数字，只收数字，不先转成数字再校验：`Number(null)` 与 `Number('')` 都是 0，
+ * 坏应答会被当成「没有待拉」，把「远端有变更」显示成「已同步」。
+ */
+const isChangeCount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 
 /**
  * Supabase 适配器
@@ -618,17 +643,78 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       p_entity: entity
     });
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve entity sync info');
-    if (
-      !data ||
-      typeof data !== 'object' ||
-      typeof data['namespace'] !== 'string' ||
-      typeof data['entity'] !== 'string' ||
-      (typeof data['tableName'] !== 'string' && data['tableName'] !== null) ||
-      typeof data['bucketed'] !== 'boolean'
-    ) {
+    if (!isEntitySyncInfo(data)) {
       throw new SupabaseDataError('Failed to resolve entity sync info: invalid response data');
     }
-    return data as SupabaseEntitySyncInfo;
+    return data;
+  }
+
+  /**
+   * 一次问齐多个实体的登记信息（US-236）
+   *
+   * @param entities - 要问的实体
+   * @returns 与 `entities` 同序，每一项同 {@link RxDBAdapterSupabase.getEntitySyncInfo}；`entities` 为空时不发请求
+   * @throws {SupabaseDataError} 远端返回的形状不对，或项数、顺序与请求对不上
+   *
+   * @remarks
+   * 同步状态统计与拉取每一轮问一次，不再逐个实体打 `rxdb_entity_sync_info`。按下标交回答案，所以逐项核对实体：
+   * 错位会把别的实体的分区标记安到这个实体头上，分区实体被当成不分区，拉取只读未分区日志、静默拉空。
+   *
+   * 服务端要部署了 `rxdb_entity_sync_infos`（参考 SQL 的 `02-rxdb-sync-functions.sql`），旧服务端报 PostgREST 的 `PGRST202`：
+   * 与按区函数同一个升级顺序，先升级 SQL，再升级客户端。
+   */
+  async getEntitySyncInfos(
+    entities: readonly { namespace: string; entity: string }[]
+  ): Promise<SupabaseEntitySyncInfo[]> {
+    if (entities.length === 0) return [];
+    const { data, error, status } = await this.#client.rpc('rxdb_entity_sync_infos', {
+      p_entities: entities.map(({ namespace, entity }) => ({ namespace, entity }))
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve entity sync infos');
+    const answers: unknown[] = Array.isArray(data) ? data : [];
+    const matches = (info: unknown, index: number) =>
+      isEntitySyncInfo(info) && info.namespace === entities[index].namespace && info.entity === entities[index].entity;
+    if (answers.length !== entities.length || !answers.every(matches)) {
+      throw new SupabaseDataError('Failed to resolve entity sync infos: invalid response data');
+    }
+    return answers as SupabaseEntitySyncInfo[];
+  }
+
+  /**
+   * 一次数清多个待拉数探针（US-236）
+   *
+   * @param probes - 探针：实体（分区实体细到一个区）、游标与本库推上去的远端 id
+   * @param branchIds - 只数这些分支，与拉取同口径
+   * @returns 与 `probes` 同序的条数；`probes` 为空时不发请求
+   * @throws {SupabaseDataError} 远端返回的不是与探针等长的非负安全整数数组
+   *
+   * @remarks
+   * 以调用者身份数（`rxdb_pending_change_counts` 是 `SECURITY INVOKER`）：`rxdb_change` 的 RLS 只放行调用者可读的分区
+   * 与 authenticated 的未分区日志，分区此刻已被撤销时数出 0，与 {@link RxDBAdapterSupabase.getBucketChangeCount} 同口径。
+   * 本库推上去的远端 id 随请求体发出，不受请求地址长度的限制，不用分批。旧服务端没有这个函数时同
+   * {@link RxDBAdapterSupabase.getEntitySyncInfos}，报 `PGRST202`。
+   */
+  async countPendingChanges(
+    probes: readonly SupabasePendingChangeProbe[],
+    branchIds: readonly string[]
+  ): Promise<number[]> {
+    if (probes.length === 0) return [];
+    const { data, error, status } = await this.#client.rpc('rxdb_pending_change_counts', {
+      p_probes: probes.map(({ namespace, entity, bucket, afterId, excludeIds }) => ({
+        namespace,
+        entity,
+        bucket,
+        afterId,
+        excludeIds: [...excludeIds]
+      })),
+      p_branch_ids: [...branchIds]
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to count pending changes');
+    const counts: unknown[] = Array.isArray(data) ? data : [];
+    if (counts.length !== probes.length || !counts.every(isChangeCount)) {
+      throw new SupabaseDataError('Failed to count pending changes: invalid response data');
+    }
+    return counts as number[];
   }
 
   /**
@@ -660,7 +746,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       p_branch_ids: branchIds ?? null
     });
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read bucket snapshot point');
-    if (typeof data !== 'number' || !Number.isSafeInteger(data) || data < 0) {
+    if (!isChangeCount(data)) {
       throw new SupabaseDataError('Failed to read bucket snapshot point: invalid response data');
     }
     return data;
@@ -1440,6 +1526,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     this.#subscribedBuckets = new Set(buckets);
 
     const generation = this.#realtimeGeneration;
+    // 这一批都有了结局才请求一次重算，见 RealtimeSubscriptionBatch（US-236）
+    const batch = new RealtimeSubscriptionBatch<RealtimeChannel>(() => this.#refreshPullableCount());
     return [...new Set(topics)].map(topic => {
       const channel = this.#client
         .channel(topic, { config: { private: true } })
@@ -1447,6 +1535,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
           if (generation !== this.#realtimeGeneration || !this.#channels.includes(channel)) return;
           handleSupabaseChanges(this, message['payload']);
         });
+      batch.add(channel);
 
       channel.subscribe((status, err) => {
         void this.#enqueueRealtime(async () => {
@@ -1457,20 +1546,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
           )
             return;
 
-          if (status === 'SUBSCRIBED') {
-            this.#realtimeState = 'connected';
-            this.#reconnectAttempt = 0;
-            this.#refreshPullableCount();
-            return;
-          }
-
-          if (err) {
-            console.error('Supabase Realtime subscription failed:', err);
-          }
-
-          if (REALTIME_RECONNECTABLE_STATUSES.has(status)) {
-            this.#scheduleRealtimeReconnect(channel, status, err?.message);
-          }
+          this.#followRealtimeStatus(channel, status, err);
+          batch.settle(channel, status);
         }).catch(error => {
           console.error('[RxDB Supabase] Realtime status handling failed:', error);
         });
@@ -1478,6 +1555,29 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
       return channel;
     });
+  }
+
+  /**
+   * 按一个频道报的订阅状态更新连接状态：订阅上记为已连接，可重连的失败排一次重连
+   *
+   * @param channel - 报状态的频道
+   * @param status - Realtime 报的状态
+   * @param err - 订阅失败时 Realtime 给的错误
+   */
+  #followRealtimeStatus(channel: RealtimeChannel, status: string, err: Error | undefined): void {
+    if (status === 'SUBSCRIBED') {
+      this.#realtimeState = 'connected';
+      this.#reconnectAttempt = 0;
+      return;
+    }
+
+    if (err) {
+      console.error('Supabase Realtime subscription failed:', err);
+    }
+
+    if (REALTIME_RECONNECTABLE_STATUSES.has(status)) {
+      this.#scheduleRealtimeReconnect(channel, status, err?.message);
+    }
   }
 
   #scheduleRealtimeReconnect(channel: RealtimeChannel, status: string, reason?: string): void {

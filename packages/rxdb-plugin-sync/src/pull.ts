@@ -1,9 +1,11 @@
 import {
+  type EntityMetadata,
   findCurrentSyncRecord,
   getEntityMetadata,
   getSyncCapability,
   getSyncType,
   isRepositorySyncEnabled,
+  isSystemEntity,
   PullOptions,
   PullRepositoryResult,
   PullResult,
@@ -23,7 +25,7 @@ import { RxDBForeignKeyCycleError } from './foreign-key-cycle-error.js';
 import { pullBatch } from './pull-batch.js';
 import { cycleMemberPullDetail, unsupportedPullCycles } from './pull-cycle.js';
 import { pullRepository } from './pull-repository.js';
-import type { ScopedSyncAdapter } from './scoped-sync.js';
+import { entitySyncInfosOf, type ScopedEntitySyncInfo, type ScopedSyncAdapter } from './scoped-sync.js';
 import { assertPullLimit } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 
@@ -56,8 +58,10 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
     let pullResult: PullResult;
 
     if (!options?.repositoryFilter?.length) {
-      // 无过滤时使用批量拉取（单次 HTTP 请求）；远端登记为分区的仓库每次 pull 只问一次，批量跳过、随后逐个按区拉
-      const bucketedRepositories = await findBucketedRepositories(sm);
+      // 无过滤时使用批量拉取（单次 HTTP 请求）。远端登记信息每次 pull 只问一次（US-236）：登记为分区的整仓同步仓库
+      // 批量跳过、随后逐个按区拉；按区与按条件拉取的仓库带着这一轮的答案进逐仓拉取，不再各自重问
+      const syncInfos = await remoteSyncInfos(sm);
+      const bucketedRepositories = bucketedBatchRepositories(sm, syncInfos);
       // 拉取补不齐的外键环与它们的下游这一次不拉，各记一条失败；其余仓库照常（US-038）
       const blocked = await blockedPullCycles(sm, bucketedRepositories);
       pullResult = await pullBatch(sm, {
@@ -73,7 +77,7 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
       // 拼不进一次批量请求）。不补这一趟，pull() 就会对 filter 仓库一条不拉却报告
       // `hasMore:false, failures:[]` —— isCompletePull 判真、pullableCount 归零，
       // 用户看到的是「已全部同步」。
-      await pullFilterRepositories(sm, options, pullResult, blocked.excluded);
+      await pullFilterRepositories(sm, options, pullResult, blocked.excluded, syncInfos);
     } else {
       // 指定仓库过滤时降级为逐仓库拉取
       pullResult = await pullWithBulkSync(sm, options);
@@ -153,34 +157,51 @@ function downstreamOf(graph: DependencyGraph, seeds: readonly RepositoryIdentifi
   return downstream;
 }
 
+/** 能拉取的接入方仓库：系统表跟随库级配置会被判成能拉取，远端却从不登记、也从不记它们的日志 */
+function pullableConsumers(sm: SyncManager): EntityMetadata[] {
+  return sm.rxdb.config.entities
+    .filter(EntityType => !isSystemEntity(EntityType))
+    .map(EntityType => getEntityMetadata(EntityType))
+    .filter(metadata => getSyncCapability(getSyncType(metadata, sm.rxdb.entitySync)).pull);
+}
+
 /**
- * 远端登记为分区的仓库（`namespace:entity`），只看批量拉取会覆盖的仓库（能 pull、不是 filter）
+ * 能拉取的接入方仓库在远端的登记信息：`namespace:entity` → 登记信息
  *
  * @remarks
- * 并发问一次：批量拉取的每一轮与随后的按区拉取都用这一份，不再逐轮、逐实体串行打同一个 RPC。
- * 远端适配器不支持按区同步时为空集。
+ * 每次 pull 只问一次（US-236），远端适配器支持时一个请求问齐：批量拉取的每一轮、随后的按区拉取与按条件拉取都用这一份，
+ * 不再逐轮、逐实体打同一个 RPC。远端适配器不支持按区同步时为空表。
  */
-async function findBucketedRepositories(sm: SyncManager): Promise<ReadonlySet<string>> {
-  const candidates = sm.rxdb.config.entities
-    .map(EntityType => getEntityMetadata(EntityType))
-    .filter(metadata => {
-      const syncType = getSyncType(metadata, sm.rxdb.entitySync);
-      return syncType !== 'filter' && getSyncCapability(syncType).pull;
-    });
-  if (candidates.length === 0) return new Set();
+async function remoteSyncInfos(sm: SyncManager): Promise<ReadonlyMap<string, ScopedEntitySyncInfo>> {
+  const candidates = pullableConsumers(sm).map(metadata => ({ namespace: metadata.namespace, entity: metadata.name }));
+  if (candidates.length === 0) return new Map();
 
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
   const scopedAdapter = remoteAdapter as unknown as Partial<ScopedSyncAdapter>;
-  const getEntitySyncInfo = scopedAdapter.getEntitySyncInfo;
-  if (typeof getEntitySyncInfo !== 'function') return new Set();
+  if (typeof scopedAdapter.getEntitySyncInfo !== 'function') return new Map();
 
-  const infos = await Promise.all(
-    candidates.map(metadata => getEntitySyncInfo.call(scopedAdapter, metadata.namespace, metadata.name))
-  );
+  const infos = await entitySyncInfosOf(scopedAdapter as ScopedSyncAdapter, candidates);
+  return new Map(candidates.map((repository, index) => [repositoryKey(repository), infos[index]]));
+}
+
+/**
+ * 远端登记为分区、批量拉取会覆盖（不是 filter）的仓库：批量跳过它们，随后逐区拉
+ */
+function bucketedBatchRepositories(
+  sm: SyncManager,
+  syncInfos: ReadonlyMap<string, ScopedEntitySyncInfo>
+): ReadonlySet<string> {
   return new Set(
-    candidates.filter((_, index) => infos[index].bucketed).map(metadata => `${metadata.namespace}:${metadata.name}`)
+    pullableConsumers(sm)
+      .filter(metadata => getSyncType(metadata, sm.rxdb.entitySync) !== 'filter')
+      .map(metadata => `${metadata.namespace}:${metadata.name}`)
+      .filter(key => syncInfos.get(key)?.bucketed === true)
   );
 }
+
+/** 这一轮问到的登记信息里，逐仓拉取要用的那一位；没问过（远端不支持按区同步）时由逐仓拉取自己判 */
+const syncInfoHintOf = (info: ScopedEntitySyncInfo | undefined): { bucketed: boolean } | undefined =>
+  info && { bucketed: info.bucketed };
 
 async function pullBucketedRepositories(
   sm: SyncManager,
@@ -200,12 +221,19 @@ async function pullBucketedRepositories(
     if (!isRepositorySyncEnabled(repoSync)) continue;
 
     try {
-      const result = await pullRepository(sm, metadata.namespace, metadata.name, {
-        limit: options?.limit,
-        fetchAll: options?.fetchAll,
-        conflictResolver: options?.conflictResolver,
-        includeRelated: false
-      });
+      // 这一轮问过：它就是分区仓库，逐仓拉取不再重问（US-236）
+      const result = await pullRepository(
+        sm,
+        metadata.namespace,
+        metadata.name,
+        {
+          limit: options?.limit,
+          fetchAll: options?.fetchAll,
+          conflictResolver: options?.conflictResolver,
+          includeRelated: false
+        },
+        { bucketed: true }
+      );
       accumulatePullProgress(aggregated, result);
       aggregated.failures.push(...result.failures);
     } catch (error) {
@@ -227,6 +255,8 @@ async function pullBucketedRepositories(
  * @param sm - SyncManager 实例
  * @param options - 调用方传给 `pull()` 的选项，`limit` / `fetchAll` 原样透传
  * @param aggregated - `pullBatch` 的结果，**就地**累加
+ * @param excluded - 这一轮不拉的仓库键（补不齐的外键环与它们的下游）
+ * @param syncInfos - 这一轮问到的远端登记信息，交给逐仓拉取，不再各自重问（US-236）
  *
  * @remarks
  * `includeRelated: false`：批量那一趟已经覆盖了所有非 filter 仓库，再级联一次只会重复拉取。
@@ -236,27 +266,35 @@ async function pullFilterRepositories(
   sm: SyncManager,
   options: PullOptions | undefined,
   aggregated: PullResult,
-  excluded: ReadonlySet<string>
+  excluded: ReadonlySet<string>,
+  syncInfos: ReadonlyMap<string, ScopedEntitySyncInfo>
 ) {
   const rxdb = sm.rxdb;
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
     const syncType = getSyncType(metadata, rxdb.entitySync);
+    const key = `${metadata.namespace}:${metadata.name}`;
     if (syncType !== 'filter' || !getSyncCapability(syncType).pull) continue;
-    if (excluded.has(`${metadata.namespace}:${metadata.name}`)) continue;
+    if (excluded.has(key)) continue;
 
     const repoSync = await findCurrentSyncRecord(sm.rxdb, metadata.namespace, metadata.name);
     if (!isRepositorySyncEnabled(repoSync)) continue;
 
     let result: PullRepositoryResult;
     try {
-      result = await pullRepository(sm, metadata.namespace, metadata.name, {
-        limit: options?.limit,
-        fetchAll: options?.fetchAll,
-        conflictResolver: options?.conflictResolver,
-        includeRelated: false
-      });
+      result = await pullRepository(
+        sm,
+        metadata.namespace,
+        metadata.name,
+        {
+          limit: options?.limit,
+          fetchAll: options?.fetchAll,
+          conflictResolver: options?.conflictResolver,
+          includeRelated: false
+        },
+        syncInfoHintOf(syncInfos.get(key))
+      );
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
       // 失败前已提交的进度挂在 RxDBPartialSyncError.result 上，同样要并进聚合

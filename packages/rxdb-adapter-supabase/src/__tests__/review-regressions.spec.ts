@@ -640,6 +640,134 @@ describe('supabase review regressions', () => {
     );
   });
 
+  // US-236：同步状态统计此前逐个实体各问一次登记信息、各数一次日志，一个页面打开要几十次串行往返
+  describe('批量登记信息与批量待拉数（US-236）', () => {
+    const TODO = { namespace: 'public', entity: 'Todo' };
+    const CATALOG = { namespace: 'public', entity: 'CatalogItem' };
+    const info = (repository: { namespace: string; entity: string }, bucketed: boolean, tableName: string | null) => ({
+      ...repository,
+      tableName,
+      bucketed
+    });
+    const respond = (data: unknown) => vi.fn(async () => ({ data, error: null, status: 200 }));
+
+    it('getEntitySyncInfos 一次问齐，按请求的顺序交回', async () => {
+      const answer = [info(TODO, false, 'todos'), info(CATALOG, true, 'catalog_items')];
+      const rpc = respond(answer);
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(adapter.getEntitySyncInfos([TODO, CATALOG])).resolves.toEqual(answer);
+
+      expect(rpc).toHaveBeenCalledOnce();
+      expect(rpc).toHaveBeenCalledWith('rxdb_entity_sync_infos', { p_entities: [TODO, CATALOG] });
+    });
+
+    it('getEntitySyncInfos 没有要问的实体：一个请求都不发', async () => {
+      const rpc = vi.fn();
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(adapter.getEntitySyncInfos([])).resolves.toEqual([]);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    // 按下标对答案：少一项、顺序错了，就会把别的实体的分区标记安到这个实体头上，
+    // 分区实体被当成不分区，拉取只读未分区日志，静默拉空
+    it.each([
+      ['不是数组', info(TODO, false, 'todos')],
+      ['少一项', [info(TODO, false, 'todos')]],
+      ['顺序对不上', [info(CATALOG, true, 'catalog_items'), info(TODO, false, 'todos')]],
+      ['bucketed 不是布尔值', [info(TODO, false, 'todos'), { ...info(CATALOG, true, null), bucketed: 'true' }]],
+      ['tableName 不是字符串也不是 null', [info(TODO, false, 'todos'), { ...info(CATALOG, true, null), tableName: 1 }]]
+    ])('getEntitySyncInfos 应答%s时报数据错误', async (_label, data) => {
+      const adapter = createAdapter({ rpc: respond(data) }, {}, [Todo]);
+
+      await expect(adapter.getEntitySyncInfos([TODO, CATALOG])).rejects.toThrow(
+        new SupabaseDataError('Failed to resolve entity sync infos: invalid response data')
+      );
+    });
+
+    // 旧服务端没部署这个函数：与 rxdb_entity_sync_info 那次同一个约定，先升级 SQL 再升级客户端，这里响亮报错
+    it('getEntitySyncInfos reports query errors', async () => {
+      const rpc = vi.fn(async () => ({
+        data: null,
+        error: { message: 'Could not find the function public.rxdb_entity_sync_infos', code: 'PGRST202' },
+        status: 404
+      }));
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      // 错误码原样保留：调用方据 PGRST202 看得出是服务端还没升级
+      await expect(adapter.getEntitySyncInfos([TODO])).rejects.toThrow(
+        new SupabaseDataError(
+          'Failed to resolve entity sync infos: Could not find the function public.rxdb_entity_sync_infos',
+          { code: 'PGRST202' }
+        )
+      );
+    });
+
+    it('countPendingChanges 一次数清全部探针：游标、分区、本库推上去的远端 id 与分支随请求体发出', async () => {
+      const rpc = respond([3, 0]);
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(
+        adapter.countPendingChanges(
+          [
+            { ...TODO, bucket: null, afterId: 40, excludeIds: [41, 42] },
+            { ...CATALOG, bucket: 'tenant:a', afterId: 68, excludeIds: [] }
+          ],
+          ['feature', 'main']
+        )
+      ).resolves.toEqual([3, 0]);
+
+      expect(rpc).toHaveBeenCalledOnce();
+      expect(rpc).toHaveBeenCalledWith('rxdb_pending_change_counts', {
+        p_probes: [
+          { ...TODO, bucket: null, afterId: 40, excludeIds: [41, 42] },
+          { ...CATALOG, bucket: 'tenant:a', afterId: 68, excludeIds: [] }
+        ],
+        p_branch_ids: ['feature', 'main']
+      });
+    });
+
+    it('countPendingChanges 没有探针：一个请求都不发', async () => {
+      const rpc = vi.fn();
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(adapter.countPendingChanges([], ['main'])).resolves.toEqual([]);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    // 条数少了、多了或不是非负安全整数：按下标对会把数安到别的仓库头上，当成 0 会把「有更新」显示成「已同步」
+    it.each([
+      ['null', null],
+      ['少一项', [3]],
+      ['多一项', [3, 0, 1]],
+      ['有数字字符串', [3, '0']],
+      ['有负数', [3, -1]],
+      ['有小数', [3, 0.5]]
+    ])('countPendingChanges 应答是%s时报数据错误', async (_label, data) => {
+      const adapter = createAdapter({ rpc: respond(data) }, {}, [Todo]);
+
+      await expect(
+        adapter.countPendingChanges(
+          [
+            { ...TODO, bucket: null, afterId: 0, excludeIds: [] },
+            { ...CATALOG, bucket: 'public', afterId: 0, excludeIds: [] }
+          ],
+          ['main']
+        )
+      ).rejects.toThrow(new SupabaseDataError('Failed to count pending changes: invalid response data'));
+    });
+
+    it('countPendingChanges reports query errors', async () => {
+      const rpc = vi.fn(async () => ({ data: null, error: { message: 'count denied' }, status: 403 }));
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(
+        adapter.countPendingChanges([{ ...TODO, bucket: null, afterId: 0, excludeIds: [] }], ['main'])
+      ).rejects.toThrow(new SupabaseDataError('Failed to count pending changes: count denied'));
+    });
+  });
+
   it('getChangeCount preserves the cursor when count data has no latest row', async () => {
     const query = resolvedRecordingQuery({ data: [], count: 2, error: null });
     const from = vi.fn(() => query.proxy);
@@ -1962,13 +2090,13 @@ describe('supabase review regressions', () => {
       });
 
       await adapter.connect();
-      // 三个频道各报一次 SUBSCRIBED
-      await vi.waitFor(() => expect(recounts).toHaveLength(3));
+      // 三个频道各报一次 SUBSCRIBED，这一批只请求一次（US-236）
+      await vi.waitFor(() => expect(recounts).toHaveLength(1));
 
       bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
       await adapter.getCallerBuckets();
-      // 重建出的四个频道各报一次 SUBSCRIBED
-      await vi.waitFor(() => expect(recounts).toHaveLength(7));
+      // 重建出的四个频道是新的一批，同样只请求一次
+      await vi.waitFor(() => expect(recounts).toHaveLength(2));
       await Promise.all(recounts);
       await adapter.disconnect();
 
@@ -2130,6 +2258,98 @@ describe('supabase review regressions', () => {
     await adapter.connect();
     handlers[0]('SUBSCRIBED');
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
+  // US-236：统一频道加每个分区一个频道，一次建出的这一批各报一次 SUBSCRIBED。此前每报一次就请求一次重算，
+  // 同步插件合成「正在数的一遍 + 收尾一遍」，打开页面就把所有仓库整整数两遍。等这一批都有了结局再请求一次：
+  // 数的时候这一批都已订阅上，不存在「数的途中才订阅上的频道」
+  describe('一批频道只请求一次待拉数重算（US-236）', () => {
+    type StatusHandler = (status: string, err?: { message?: string }) => void;
+
+    function createBatchRealtime() {
+      const handlers: StatusHandler[] = [];
+      const channel = vi.fn(() => {
+        const instance: Record<string, unknown> = {};
+        instance['on'] = vi.fn(() => instance);
+        instance['subscribe'] = vi.fn((handler: StatusHandler) => {
+          handlers.push(handler);
+          return instance;
+        });
+        return instance;
+      });
+      const rpc = vi.fn(async (name: string) =>
+        name === 'rxdb_caller_buckets' ?
+          { data: ['public', 'user:test-user'], error: null, status: 200 }
+        : { data: null, error: null, status: 200 }
+      );
+      const removeChannel = vi.fn(async () => undefined);
+      const adapter = createAdapter({ channel, rpc, removeChannel }, { rlsCheck: false }, [Todo]);
+      const refresh = vi.fn();
+      adapter.rxdb.syncState.bindPullableRefresh(refresh);
+      return { adapter, handlers, refresh };
+    }
+
+    /** 状态回调排在实时队列里处理：等队列走完再看请求了几次 */
+    const settleQueue = () => new Promise(resolve => setTimeout(resolve, 0));
+
+    it('三个频道都订阅上才请求，而且只请求一次', async () => {
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+      expect(handlers).toHaveLength(3);
+
+      handlers[0]('SUBSCRIBED');
+      handlers[1]('SUBSCRIBED');
+      await settleQueue();
+      expect(refresh).not.toHaveBeenCalled();
+
+      handlers[2]('SUBSCRIBED');
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+      await settleQueue();
+      expect(refresh).toHaveBeenCalledOnce();
+      await adapter.disconnect();
+    });
+
+    it('有频道订阅失败：这一批都有了结局之后，为订阅上的那几个数一次', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+
+      handlers[0]('SUBSCRIBED');
+      handlers[1]('TIMED_OUT');
+      await settleQueue();
+      expect(refresh).not.toHaveBeenCalled();
+
+      handlers[2]('SUBSCRIBED');
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+      await adapter.disconnect();
+    });
+
+    it('一个频道都没订阅上：不请求，等重连之后的那一批', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+
+      for (const handler of handlers) handler('CHANNEL_ERROR', { message: 'join refused' });
+      await settleQueue();
+
+      expect(refresh).not.toHaveBeenCalled();
+      await adapter.disconnect();
+    });
+
+    // 频道自己重新加入（Realtime 客户端的 rejoin）会再报一次 SUBSCRIBED：断开的那一段没听见，照旧请求重数
+    it('这一批都有了结局之后，某个频道再报 SUBSCRIBED：单独请求一次', async () => {
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+      for (const handler of handlers) handler('SUBSCRIBED');
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+
+      handlers[1]('SUBSCRIBED');
+
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      await adapter.disconnect();
+    });
   });
 
   // 跳板是即发即忘的：执行者慢（这里干脆永不 settle）也不能把 `disconnect()` 拖住。

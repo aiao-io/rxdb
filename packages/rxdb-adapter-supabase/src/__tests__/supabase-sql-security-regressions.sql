@@ -4256,6 +4256,55 @@ AS $$
   RETURNING id;
 $$;
 
+-- 批量待拉数的对照（bucketed-read-sync，US-236）：以属主身份列出分区日志的 id，不受日志表 RLS 影响
+CREATE FUNCTION rxdb_sql_regression.bucket_change_ids(p_bucket text, p_branch_ids text[] DEFAULT NULL)
+RETURNS integer[]
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT COALESCE(pg_catalog.array_agg(id ORDER BY id), '{}')::integer[]
+  FROM public.rxdb_change
+  WHERE namespace = 'rxdb_sql_regression'
+    AND entity = 'IdentityScopedRow'
+    AND bucket = p_bucket
+    AND (p_branch_ids IS NULL OR "branchId" = ANY(p_branch_ids));
+$$;
+
+-- 一条未分区日志（bucketed-read-sync，US-236）：用独立的实体名，不混进分区实体的日志
+CREATE FUNCTION rxdb_sql_regression.seed_unbucketed_pending_change()
+RETURNS integer
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO public.rxdb_change (namespace, entity, "entityId", type, "branchId", "clientId")
+  VALUES ('rxdb_sql_regression', 'PendingCountRow', 'pending-unbucketed', 'INSERT', 'main', 'sql-pending-unbucketed')
+  RETURNING id;
+$$;
+
+-- rxdb_pending_change_counts 的一个探针（US-236）
+CREATE FUNCTION rxdb_sql_regression.pending_probe(
+  p_entity text,
+  p_bucket text,
+  p_after_id integer,
+  p_exclude_ids integer[] DEFAULT '{}'
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'namespace', 'rxdb_sql_regression',
+    'entity', p_entity,
+    'bucket', p_bucket,
+    'afterId', p_after_id,
+    'excludeIds', pg_catalog.to_jsonb(p_exclude_ids)
+  );
+$$;
+
 -- 推送写下的日志落在哪个 bucket（bucketed-push）：以属主身份读，不受日志表 RLS 影响
 CREATE FUNCTION rxdb_sql_regression.logged_bucket(p_client_id text, p_local_id integer)
 RETURNS text
@@ -4418,6 +4467,10 @@ DECLARE
   user_a constant uuid := '00000000-0000-4000-8000-0000000000a1';
   user_b constant uuid := '00000000-0000-4000-8000-0000000000b2';
   v_info jsonb;
+  v_infos jsonb;
+  v_counts jsonb;
+  v_ids integer[];
+  v_unbucketed integer;
   v_snapshot jsonb;
   v_point integer;
   v_count integer;
@@ -4430,10 +4483,45 @@ BEGIN
     'bucketed-read-sync: entity registry must expose the generated bucket column'
   );
 
+  -- 批量登记信息（US-236）：一次答完，按传入顺序，与逐个问同口径；没登记的实体同样答「不分区、没有表名」
+  SELECT public.rxdb_entity_sync_infos(
+    '[{"namespace":"rxdb_sql_regression","entity":"IdentityScopedRow"},'
+    '{"namespace":"rxdb_sql_regression","entity":"UnregisteredRow"},'
+    '{"namespace":"rxdb_sql_regression","entity":"IdentityScopedRow"}]'
+  ) INTO v_infos;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_infos = pg_catalog.jsonb_build_array(
+      public.rxdb_entity_sync_info('rxdb_sql_regression', 'IdentityScopedRow'),
+      public.rxdb_entity_sync_info('rxdb_sql_regression', 'UnregisteredRow'),
+      public.rxdb_entity_sync_info('rxdb_sql_regression', 'IdentityScopedRow')
+    )
+      AND public.rxdb_entity_sync_infos('[]') = '[]'::jsonb,
+    pg_catalog.format('bucketed-read-sync: batched entity registry must answer like the single lookup, in order: %s', v_infos)
+  );
+
   PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
   PERFORM rxdb_sql_regression.assert_true(
     public.rxdb_caller_buckets() = ARRAY['public']::text[],
     'bucketed-read-sync: anon must only receive the public bucket'
+  );
+  -- 批量待拉数（US-236）以调用者身份数：anon 数得到 public 区，数不到别人的区与未分区日志
+  v_unbucketed := rxdb_sql_regression.seed_unbucketed_pending_change();
+  SELECT public.rxdb_pending_change_counts(
+    pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'public', 0),
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'user:' || user_a::text, 0),
+      rxdb_sql_regression.pending_probe('PendingCountRow', NULL, v_unbucketed - 1)
+    ),
+    ARRAY['main']
+  ) INTO v_counts;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_counts = pg_catalog.jsonb_build_array(
+      pg_catalog.cardinality(rxdb_sql_regression.bucket_change_ids('public', ARRAY['main'])), 0, 0
+    )
+      AND pg_catalog.cardinality(rxdb_sql_regression.bucket_change_ids('public', ARRAY['main'])) > 0
+      AND pg_catalog.cardinality(rxdb_sql_regression.bucket_change_ids('user:' || user_a::text)) > 0
+      AND public.rxdb_pending_change_counts('[]', ARRAY['main']) = '[]'::jsonb,
+    pg_catalog.format('bucketed-read-sync: anon must only count rows it can read: %s', v_counts)
   );
   SELECT public.rxdb_pull_bucket_snapshot(
     'rxdb_sql_regression', 'IdentityScopedRow', 'public', NULL, NULL, 100
@@ -4477,6 +4565,29 @@ BEGIN
     v_snapshot @> '[{"id":"bucket-a"}]'::jsonb
       AND NOT v_snapshot @> '[{"id":"bucket-b"}]'::jsonb,
     'bucketed-read-sync: user A snapshot must exclude user B'
+  );
+  -- 批量待拉数（US-236）：按游标与「本库推的」id 数用户 A 的区；用户 B 的区在 RLS 下数出 0，未分区日志对登录者可见
+  v_ids := rxdb_sql_regression.bucket_change_ids('user:' || user_a::text, ARRAY['main']);
+  SELECT public.rxdb_pending_change_counts(
+    pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'user:' || user_a::text, 0),
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'user:' || user_a::text, 0, v_ids[1:1]),
+      rxdb_sql_regression.pending_probe(
+        'IdentityScopedRow', 'user:' || user_a::text, v_ids[pg_catalog.cardinality(v_ids)]
+      ),
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'user:' || user_b::text, 0),
+      rxdb_sql_regression.pending_probe('PendingCountRow', NULL, v_unbucketed - 1),
+      rxdb_sql_regression.pending_probe('PendingCountRow', NULL, v_unbucketed - 1, ARRAY[v_unbucketed])
+    ),
+    ARRAY['main']
+  ) INTO v_counts;
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.cardinality(v_ids) > 0
+      AND pg_catalog.cardinality(rxdb_sql_regression.bucket_change_ids('user:' || user_b::text)) > 0
+      AND v_counts = pg_catalog.jsonb_build_array(
+        pg_catalog.cardinality(v_ids), pg_catalog.cardinality(v_ids) - 1, 0, 0, 1, 0
+      ),
+    pg_catalog.format('bucketed-read-sync: user A must count its own rows after the cursor, minus its own pushes: %s', v_counts)
   );
   PERFORM rxdb_sql_regression.seed_bucket_snapshot_interleaving();
   SELECT public.rxdb_bucket_snapshot_point(
@@ -4587,6 +4698,22 @@ BEGIN
       'bucketed-read-sync: without branches the watermark covers every branch: %s <> %s',
       v_point, v_other_branch_change
     )
+  );
+  -- 批量待拉数与水位同口径（US-236）：只数给定分支，不给分支时数全部分支
+  SELECT public.rxdb_pending_change_counts(
+    pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'user:' || user_a::text, v_other_branch_change - 1)
+    ),
+    ARRAY['main']
+  ) || public.rxdb_pending_change_counts(
+    pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.pending_probe('IdentityScopedRow', 'user:' || user_a::text, v_other_branch_change - 1)
+    ),
+    NULL
+  ) INTO v_counts;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_counts = '[0, 1]'::jsonb,
+    pg_catalog.format('bucketed-read-sync: pending counts must only cover the given branches: %s', v_counts)
   );
 END;
 $$;
@@ -5652,7 +5779,9 @@ BEGIN
       'public.rxdb_caller_grants()'::regprocedure,
       'public.rxdb_caller_scopes(text)'::regprocedure,
       'public.rxdb_entity_sync_info(text, text)'::regprocedure,
+      'public.rxdb_entity_sync_infos(jsonb)'::regprocedure,
       'public.rxdb_bucket_snapshot_point(text, text, text, text[])'::regprocedure,
+      'public.rxdb_pending_change_counts(jsonb, text[])'::regprocedure,
       'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)'::regprocedure,
       'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer)'::regprocedure,
       'public.rxdb_jsonb_matches_rule(jsonb, jsonb)'::regprocedure,

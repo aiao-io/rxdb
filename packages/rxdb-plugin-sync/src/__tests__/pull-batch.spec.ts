@@ -406,6 +406,19 @@ describe('pullBatch 生产路径', () => {
     expect(harness.pullChanges).not.toHaveBeenCalled();
   });
 
+  // US-236：系统表不带自己的 `sync`，跟随库级 Full 被判成能拉取，此前各建一条同步记录、各占批量请求里的一个条件；
+  // 它们是 `log: false` 的本地簿记表，远端日志里永远没有它们的行
+  it('系统表跟随库级 Full 也不进批量拉取：不建同步记录，不进请求', async () => {
+    const harness = createHarness({ entities: [RxDBBranch, RxDBChange, RxDBSync] });
+
+    const result = await pullBatch(harness.vm, { limit: 5 });
+
+    expect(result).toMatchObject({ pulled: 0, hasMore: false, failures: [] });
+    expect(harness.syncRepository.create).not.toHaveBeenCalled();
+    expect(harness.pullChangesBatch).not.toHaveBeenCalled();
+    expect(harness.pullChanges).not.toHaveBeenCalled();
+  });
+
   it('uses per-repository watermarks, dependency order, compaction, conflict merge, and watermark updates', async () => {
     const parentSync = createSyncRecord('PullBatchParent', 'main', 10);
     const childSync = createSyncRecord('PullBatchChild', 'main', 20, 100);

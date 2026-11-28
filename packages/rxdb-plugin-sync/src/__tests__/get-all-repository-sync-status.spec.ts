@@ -1,8 +1,10 @@
 import {
+  createEntitySyncResolver,
   type EntityMetadata,
   type EntityType,
   type IRepository,
   type RxDB,
+  RxDBBranch,
   RxDBChange,
   RxDBSync,
   type SyncOptions,
@@ -10,6 +12,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { getAllRepositorySyncStatus } from '../get-all-repository-sync-status.js';
+import type { PendingChangeProbe } from '../scoped-sync.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
@@ -104,7 +107,16 @@ function getRuleValue(options: QueryOptions, field: string): unknown {
   return options.where?.rules.find(rule => rule.field === field)?.value;
 }
 
-function createAllStatusHarness() {
+interface AllStatusHarnessOptions {
+  /** 配置里还有哪些实体（追加在四个业务实体之后） */
+  extraEntities?: EntityType[];
+  /** 实例的同步解析器；不给时每个实体只看自己的 `sync` */
+  entitySync?: SyncOptions;
+  /** 远端能一次数完多个仓库的待拉数（US-236） */
+  batchCount?: boolean;
+}
+
+function createAllStatusHarness(options: AllStatusHarnessOptions = {}) {
   const syncRecords = new Map<string, RxDBSync>([
     ['public:AllFull:main', createSyncRecord('AllFull', true, 10)],
     ['public:AllRemote:main', createSyncRecord('AllRemote', false, 4)],
@@ -145,20 +157,27 @@ function createAllStatusHarness() {
     const entity = repositoryFilter?.[0];
     return entity ? (remoteCounts.get(entity) ?? { count: 0, latestChangeId: 0 }) : { count: 0, latestChangeId: 0 };
   });
+  const countPendingChanges = vi.fn(async (probes: readonly PendingChangeProbe[]) =>
+    probes.map(probe => remoteCounts.get(`${probe.namespace}:${probe.entity}`)?.count ?? 0)
+  );
+  const backendId = vi.fn(async () => 'backend-a');
+  const remoteAdapter =
+    options.batchCount ? { getChangeCount, countPendingChanges, backendId } : { getChangeCount, backendId };
   const rxdb = {
+    ...(options.entitySync ? { entitySync: createEntitySyncResolver(options.entitySync) } : {}),
     config: {
-      entities: ALL_ENTITIES,
+      entities: [...ALL_ENTITIES, ...(options.extraEntities ?? [])],
       sync: FULL_SYNC
     },
     syncManager: {
       rxdb: noIdentityDeclared,
       getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
       getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-      getRemoteRepositories: vi.fn(async () => ({ adapter: { getChangeCount, backendId: async () => 'backend-a' } }))
+      getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter }))
     }
   } as unknown as RxDB;
 
-  return { rxdb, syncFind, changeCount, getChangeCount };
+  return { rxdb, syncFind, changeCount, getChangeCount, countPendingChanges, backendId };
 }
 
 function entityNames(statuses: Awaited<ReturnType<typeof getAllRepositorySyncStatus>>): string[] {
@@ -233,5 +252,46 @@ describe('getAllRepositorySyncStatus', () => {
     });
 
     expect(entityNames(statuses)).toEqual(['AllFull']);
+  });
+});
+
+describe('getAllRepositorySyncStatus 一轮数清（US-236）', () => {
+  // 系统表不带自己的 `sync`，跟随库级 Full 被判成能拉取；此前每张都各打三次远端往返去数，
+  // 而它们是 `log: false` 的本地簿记表，远端日志里永远没有它们的行。状态照报（公开契约），只是不再问远端
+  it('系统表跟随库级 Full：照样报状态，待拉为 0，不为它们问远端', async () => {
+    const harness = createAllStatusHarness({
+      extraEntities: [RxDBBranch, RxDBChange, RxDBSync],
+      entitySync: FULL_SYNC
+    });
+
+    const statuses = await getAllRepositorySyncStatus(harness.rxdb);
+
+    expect(statuses.map(status => [status.repository.entity, status.pullableCount])).toEqual([
+      ['AllFull', 3],
+      ['AllRemote', 2],
+      ['AllLocal', 0],
+      ['AllNone', 0],
+      ['RxDBBranch', 0],
+      ['RxDBChange', 0],
+      ['RxDBSync', 0]
+    ]);
+    expect(harness.getChangeCount.mock.calls.map(call => call[1])).toEqual([['public:AllFull'], ['public:AllRemote']]);
+  });
+
+  it('远端能一次数完：不论几个仓库，一轮只核一次远端身份、只数一次', async () => {
+    const harness = createAllStatusHarness({ batchCount: true });
+
+    const statuses = await getAllRepositorySyncStatus(harness.rxdb);
+
+    expect(statuses.map(status => [status.repository.entity, status.pullableCount])).toEqual([
+      ['AllFull', 3],
+      ['AllRemote', 2],
+      ['AllLocal', 0],
+      ['AllNone', 0]
+    ]);
+    expect(harness.backendId).toHaveBeenCalledOnce();
+    expect(harness.countPendingChanges).toHaveBeenCalledOnce();
+    expect(harness.countPendingChanges.mock.calls[0][0].map(probe => probe.entity)).toEqual(['AllFull', 'AllRemote']);
+    expect(harness.getChangeCount).not.toHaveBeenCalled();
   });
 });
