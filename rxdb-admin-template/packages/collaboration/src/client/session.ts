@@ -122,6 +122,20 @@ export class AuthSession extends EventTarget {
     return { scope: new URL(config.supabaseUrl.trim()).origin, subject: user.id };
   }
 
+  /**
+   * 打开 `userId` 的本机库要用的身份（ADMIN-US-222）：会话已经不是这个用户（另一个页面换了账号、或已经退出）时
+   * 按会话失效处理，不替别人打开库。
+   *
+   * @param userId - 要打开的库所属的账号 id
+   * @returns 这个账号的库身份，口径同 {@link AuthSession.databaseIdentity}
+   * @throws CollaborationError `unauthenticated`：会话没有身份，或不是这个账号
+   */
+  databaseIdentityFor(userId: string): RxDBIdentity {
+    const identity = this.databaseIdentity();
+    demand(identity?.subject === userId, 'unauthenticated', '会话已失效，请重新登录');
+    return identity;
+  }
+
   /** 设置登录提示与语气（不派发事件，调用方随后 `changed()`）；传空串即清除。 */
   notify(message: string, tone: MessageTone = 'info'): void {
     this.message = message;

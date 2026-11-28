@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createCategory, resetE2eState } from './e2e-utils.js';
+import { createCategory, expectListEmpty, expectListHasRows, resetE2eState } from './e2e-utils.js';
 
 /**
  * ADMIN-US-222：本机工作台库按账号隔离。每个账号打开自己的库（库名由账号身份派生、库记下身份），
@@ -39,6 +39,14 @@ async function expectTotal(page: Page, count: number): Promise<void> {
   await expect(page.getByTestId('dashboard-total')).toContainText(`记录总数：${count}`);
 }
 
+/** 搜索页里按名字搜当前账号工作台库的记录：命中 `count` 条，0 条时显示「无匹配结果」。 */
+async function expectSearchHits(page: Page, term: string, count: number): Promise<void> {
+  await page.goto('/search');
+  await page.getByTestId('search-input').fill(term);
+  if (count === 0) await expect(page.getByTestId('search-results')).toContainText('无匹配结果');
+  await expect(page.getByTestId('search-result')).toHaveCount(count);
+}
+
 /** 本页所在浏览器上下文里的 IndexedDB 库名。 */
 async function indexedDatabaseNames(page: Page): Promise<string[]> {
   return page.evaluate(async () => (await indexedDB.databases()).map(database => database.name ?? ''));
@@ -55,14 +63,22 @@ test.describe('本机工作台库按账号隔离（ADMIN-US-222）', () => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '甲的分类');
     await expectTotal(page, 1);
+    await expectSearchHits(page, '甲的分类', 1);
 
+    // 另一个账号：工作台列表、搜索与 Dashboard 都是它自己的空库
     await signOut(page);
     await signIn(page, OTHER_EMAIL);
     await expectTotal(page, 0);
+    await expectSearchHits(page, '甲的分类', 0);
+    await page.goto('/entities/assets/AssetCategory');
+    await expectListEmpty(page);
 
     await signOut(page);
     await signIn(page, DEFAULT_EMAIL);
     await expectTotal(page, 1);
+    await expectSearchHits(page, '甲的分类', 1);
+    await page.goto('/entities/assets/AssetCategory');
+    await expectListHasRows(page, { name: '甲的分类' });
 
     // 两个账号各一个库：都以本上下文的基础名开头、各带一段身份摘要；没有以基础名本身命名的库（那是旧的设备共用口径）
     const base = await page.evaluate(key => sessionStorage.getItem(key), DB_BASE_KEY);
@@ -101,7 +117,10 @@ test.describe('本机工作台库按账号隔离（ADMIN-US-222）', () => {
     await expectTotal(page, 1);
   });
 
-  test('AC#7 备份按账号：同一账号在另一个浏览器里恢复成功；别的账号恢复被拒，自己的库不变', async ({ page, browser }) => {
+  test('AC#7 备份按账号：同一账号在另一个浏览器里恢复成功；别的账号恢复被拒，自己的库不变', async ({
+    page,
+    browser
+  }) => {
     const dir = await mkdtemp(join(tmpdir(), 'rxdb-admin-account-backup-'));
     try {
       await page.goto('/entities/assets/AssetCategory');

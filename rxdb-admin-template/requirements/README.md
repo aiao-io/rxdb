@@ -1,6 +1,6 @@
 # Admin 产品需求
 
-当前交付：[8/30 已交付]。17 条 In Review：ADMIN-US-201 与 ADMIN-US-220 各有 AC 等待真实环境证据，ADMIN-US-202～216 的 AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭。ADMIN-US-217（生产部署）进行中，ADMIN-US-101 因缺少真实业务输入保持 Backlog；ADMIN-US-222～224（Supabase 接入标准化，[D-11](decisions.md#d-11supabase-接入走平台标准层)）待排期。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[8/30 已交付]。18 条 In Review：ADMIN-US-201 与 ADMIN-US-220 各有 AC 等待真实环境证据，ADMIN-US-202～216 与 ADMIN-US-222 的 AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭。ADMIN-US-217（生产部署）进行中，ADMIN-US-101 因缺少真实业务输入保持 Backlog；ADMIN-US-223 / 224（Supabase 接入标准化，[D-11](decisions.md#d-11supabase-接入走平台标准层)）等平台前置。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 

@@ -101,6 +101,6 @@ pnpm nx run rxdb-admin-template-vue:requirements-check
 
 ## 团队协作
 
-三个应用的 `/collaboration` 页面使用同一个产品私有包，支持团队邀请、任务草稿、离线排队、双设备分叉恢复、PR、字段讨论、候选审批和原子合并。登录是全局的：全局登录页、路由守卫与外壳顶栏的账号菜单共用协作包的全局会话（`@rxdb-admin-template/collaboration/auth`），团队协作只跟随它的身份；本机资产工作台与连接前恢复入口登录后照常使用，每个账号打开自己的本机库，换了账号就是另一个库（ADMIN-US-222）。
+三个应用的 `/collaboration` 页面使用同一个产品私有包，支持团队邀请、任务草稿、离线排队、双设备分叉恢复、PR、字段讨论、候选审批和原子合并。登录是全局的：全局登录页、路由守卫与外壳顶栏的账号菜单共用协作包的全局会话（`@rxdb-admin-template/collaboration/auth`），团队协作只跟随它的身份；本机资产工作台与连接前恢复入口登录后照常使用，每个账号打开自己的本机库，换了账号就是另一个库，别的账号导出的备份也恢复不进来（ADMIN-US-222）。
 
 协作 API 需要 Supabase Auth 与 PostgreSQL。服务配置、迁移、可信初始化、测试入口和当前容量边界见 [协作包运行说明](packages/collaboration/README.md)，实现与验收边界见 [协作记录](requirements/plans/collaboration-implementation.md)。

@@ -16,7 +16,7 @@
 
 ## D-03：数据兼容与宿主边界
 
-保留默认数据库名 `admin-workbench`、偏好前缀 `aiao.workbench` 和旧偏好迁移。新业务改名意味着使用另一份本机数据，不自动迁移原库。更换既有数据标识须另设迁移故事。
+保留默认数据库名 `admin-workbench`、偏好前缀 `aiao.workbench` 和旧偏好迁移。新业务改名意味着使用另一份本机数据，不自动迁移原库。更换既有数据标识须另设迁移故事。ADMIN-US-222 起，`admin-workbench` 是按账号身份派生库名的基础名，旧的设备共用库直接弃用（见 [D-11](#d-11supabase-接入走平台标准层) 第 4 条）。
 
 当前数据库组合固定为 sqlite-wasm 主线程 + IndexedDB，见 [setup_rxdb](../apps/react/src/app/rxdb/setup_rxdb.ts)。搜索依赖 FTS5，备份恢复有后端组合限制；适配器选择不是本批次模板配置选项。
 

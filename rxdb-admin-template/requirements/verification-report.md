@@ -38,7 +38,7 @@
 - [ADMIN-US-201～ADMIN-US-216](status-overview.md) 已有本地实现和分层验证，详见 [协作记录](plans/collaboration-implementation.md)；ADMIN-US-201 的 AC#2 / #3 缺真实邮件环境证据，ADMIN-US-202～216 随这条硬依赖关闭，正式部署由 ADMIN-US-217 承接。
 - 独立复制、仓外安装、正式部署或发行；当前继续在本仓库孵化。
 - 生产 SMTP 投递与正式 Supabase 项目部署；本地隔离环境已验证真实 Auth 会话、RLS、双设备协作和 PostgreSQL 原子合并。
-- ADMIN-US-222～224（Supabase 接入标准化）尚未开始，平台前置见 [roadmap](roadmap.md#supabase-接入标准化)。
+- ADMIN-US-222（本机库按账号隔离）已在本地三端验收：三端单测、协作包单测与三端各自完整的 e2e 用例集通过，备份按账号恢复依赖平台 US-040；ADMIN-US-223 / 224 尚未开始，平台前置见 [roadmap](roadmap.md#supabase-接入标准化)。
 
 ## 产品根需求迁移
 

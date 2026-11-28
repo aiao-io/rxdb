@@ -20,7 +20,7 @@ pnpm nx run rxdb-admin-template-vue:build
 pnpm nx run rxdb-admin-template-vue-e2e:e2e --workers=2
 ```
 
-开发地址为 `http://127.0.0.1:4208`。默认数据库的基础名为 `admin-workbench-vue`，实际库名按登录账号的身份派生（每个账号一个本机库，ADMIN-US-222），偏好前缀为 `aiao.workbench.vue`，三端数据互不覆盖。恢复备份必须先进入首页的「从备份恢复」，不能先打开实体列表或搜索页初始化目标库；清理失败后可继续重试。
+开发地址为 `http://127.0.0.1:4208`。默认数据库的基础名为 `admin-workbench-vue`，实际库名按登录账号的身份派生（每个账号一个本机库，ADMIN-US-222），偏好前缀为 `aiao.workbench.vue`，三端数据互不覆盖。恢复备份必须先进入首页的「从备份恢复」，不能先打开实体列表或搜索页初始化目标库；清理失败后可继续重试。别的账号导出的备份会被拒绝，恢复不进当前账号的库。
 
 Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面板与搜索分页偏好扩展步骤见 [三端页面扩展指南](../../requirements/plans/custom-pages-navigation.md)。
 

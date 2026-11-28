@@ -1,6 +1,7 @@
 import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRouteError, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
+import LoginPage from './pages/login-page';
 import setup_rxdb from './rxdb/setup_rxdb';
 import { requireLogin } from './shell/auth-gate';
 
@@ -36,8 +37,10 @@ const lazyRoute =
   };
 
 export const routes: RouteObject[] = [
-  // 登录页在后台外壳之外；其余页面都要先登录（布局路由的 loader 是全站登录门禁）
-  { path: '/login', lazy: lazyRoute(() => import('./pages/login-page')) },
+  // 登录页在后台外壳之外；其余页面都要先登录（布局路由的 loader 是全站登录门禁）。
+  // 登录页随入口一起加载、不拆分包：登录成功后整页载入目标地址（ADMIN-US-222），那次页面加载不会再取登录页；
+  // 协作的离线外壳只缓存本次页面加载取过的资源，离线时缓存授权过期要打得开登录页（C01）
+  { path: '/login', Component: LoginPage },
   {
     path: '/',
     element: <AppLayout />,

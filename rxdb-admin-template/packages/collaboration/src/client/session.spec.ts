@@ -253,4 +253,15 @@ describe('本机库的身份（ADMIN-US-222）', () => {
     await next.session.initialize();
     expect(next.session.databaseIdentity()?.subject).toBe('carol');
   });
+  it('按用户取库身份：会话就是这个用户时给出；会话换了人或已退出时按会话失效拒绝，不替别人打开库', async () => {
+    authClient('bob');
+    const { session } = create();
+    await session.initialize();
+    expect(session.databaseIdentityFor('bob')).toEqual({ scope: 'http://auth.test', subject: 'bob' });
+    expect(() => session.databaseIdentityFor('alice')).toThrow(
+      expect.objectContaining({ code: 'unauthenticated', message: '会话已失效，请重新登录' })
+    );
+    session.signOut();
+    expect(() => session.databaseIdentityFor('bob')).toThrow(expect.objectContaining({ code: 'unauthenticated' }));
+  });
 });

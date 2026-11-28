@@ -26,7 +26,7 @@ pnpm nx run rxdb-admin-template-react:build
 pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 ```
 
-开发服务地址为 `http://127.0.0.1:4206`，配置见 [Vite 配置](vite.config.mts)。浏览器数据保存在本机；恢复备份必须先进入「从备份恢复」，不能先打开实体页面初始化目标库。
+开发服务地址为 `http://127.0.0.1:4206`，配置见 [Vite 配置](vite.config.mts)。浏览器数据保存在本机；恢复备份必须先进入「从备份恢复」，不能先打开实体页面初始化目标库；别的账号导出的备份会被拒绝，恢复不进当前账号的库（ADMIN-US-222）。
 
 `serve` / `dev` 自动构建 HTML 配置使用的后台公共包，首次启动无需手工准备其产物。三端应用 `test` 共用产品需求结构门禁及门禁测试。
 
