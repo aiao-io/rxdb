@@ -113,7 +113,10 @@ services:
       GOTRUE_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
       GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
       GOTRUE_MAILER_AUTOCONFIRM: 'true'
-      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+      # 日志同步只对已登录身份开放（US-225）：dev-rxdb-supabase 无会话时匿名登录，e2e 每个浏览器上下文都是
+      # 一个新的匿名用户。默认每 IP 每小时 30 个，本地反复跑 e2e 会撞上限，测试栈放宽
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'true'
+      GOTRUE_RATE_LIMIT_ANONYMOUS_USERS: '10000'
 
   rest:
     container_name: ${SUPABASE_REST_CONTAINER:-supabase-rest}

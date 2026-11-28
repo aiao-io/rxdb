@@ -26,21 +26,34 @@ DECLARE
   result jsonb := '[]'::jsonb;
   item jsonb;
   row_result jsonb;
+  writable_columns text;
+  writable_names text[];
 BEGIN
   -- 验证表名（防止 SQL 注入）
   IF p_table !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
     RAISE EXCEPTION 'Invalid table name: %', p_table;
   END IF;
 
+  -- 生成列（例如分区实体的 rxdb_bucket）由数据库自己算，写入里出现它就是错（428C9）：插入与冲突更新都只写可写列
+  SELECT
+    pg_catalog.string_agg(pg_catalog.format('%I', attribute.attname), ', ' ORDER BY attribute.attnum),
+    pg_catalog.array_agg(attribute.attname::text)
+  INTO writable_columns, writable_names
+  FROM pg_catalog.pg_attribute AS attribute
+  WHERE attribute.attrelid = pg_catalog.format('%I.%I', p_schema, p_table)::regclass
+    AND attribute.attnum > 0
+    AND NOT attribute.attisdropped
+    AND attribute.attgenerated = '';
+
   FOR item IN SELECT * FROM pg_catalog.jsonb_array_elements(p_data)
   LOOP
     EXECUTE pg_catalog.format(
-      'INSERT INTO %I.%I SELECT * FROM pg_catalog.jsonb_populate_record(null::%I.%I, $1)
+      'INSERT INTO %I.%I (%s) SELECT %s FROM pg_catalog.jsonb_populate_record(null::%I.%I, $1)
        ON CONFLICT (id) DO UPDATE SET %s
        RETURNING pg_catalog.to_jsonb(%I.*)',
-      p_schema, p_table, p_schema, p_table,
+      p_schema, p_table, writable_columns, writable_columns, p_schema, p_table,
       (SELECT pg_catalog.string_agg(pg_catalog.format('%I = EXCLUDED.%I', key, key), ', ')
-       FROM pg_catalog.jsonb_object_keys(item) AS keys(key) WHERE key != 'id'),
+       FROM pg_catalog.jsonb_object_keys(item) AS keys(key) WHERE key != 'id' AND key = ANY(writable_names)),
       p_table
     ) INTO row_result USING item;
     result := result || row_result;
@@ -336,8 +349,11 @@ $$;
 /**
  * rxdb_check_rls - 检查指定业务表是否启用了 Row Level Security
  *
+ * 视图没有自己的 RLS：普通视图以属主权限执行，有它 SELECT 权的人都能绕过底层表的 RLS；只有
+ * security_invoker 视图沿用调用者的权限与 RLS。securityInvoker 按选项值解析（true / on / 1 都算），表恒为 false
+ *
  * @param p_tables JSONB 数组，每个元素: {schema?, table}
- * @returns 每张表的存在性与 RLS 状态
+ * @returns 每张表的存在性、RLS 状态与视图是否 security_invoker
  */
 CREATE OR REPLACE FUNCTION public.rxdb_check_rls(
   p_tables jsonb DEFAULT '[]'::jsonb
@@ -354,6 +370,8 @@ DECLARE
   v_exists boolean;
   v_rls_enabled boolean;
   v_rls_forced boolean;
+  v_relation_kind text;
+  v_security_invoker boolean;
   result jsonb := '[]'::jsonb;
 BEGIN
   FOR item IN SELECT * FROM pg_catalog.jsonb_array_elements(p_tables)
@@ -372,25 +390,41 @@ BEGIN
     SELECT
       TRUE,
       c.relrowsecurity,
-      c.relforcerowsecurity
-    INTO v_exists, v_rls_enabled, v_rls_forced
+      c.relforcerowsecurity,
+      CASE c.relkind
+        WHEN 'r' THEN 'table'
+        WHEN 'p' THEN 'partitioned_table'
+        WHEN 'v' THEN 'view'
+        ELSE c.relkind::text
+      END,
+      c.relkind = 'v' AND COALESCE(
+        (SELECT option.option_value::boolean
+         FROM pg_catalog.pg_options_to_table(c.reloptions) AS option
+         WHERE option.option_name = 'security_invoker'),
+        false
+      )
+    INTO v_exists, v_rls_enabled, v_rls_forced, v_relation_kind, v_security_invoker
     FROM pg_catalog.pg_class AS c
     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
     WHERE n.nspname = v_schema
       AND c.relname = v_table
-      AND c.relkind IN ('r', 'p');
+      AND c.relkind IN ('r', 'p', 'v');
 
     result := result || pg_catalog.jsonb_build_object(
       'schema', v_schema,
       'table', v_table,
       'exists', COALESCE(v_exists, false),
       'rlsEnabled', COALESCE(v_rls_enabled, false),
-      'rlsForced', COALESCE(v_rls_forced, false)
+      'rlsForced', COALESCE(v_rls_forced, false),
+      'relationKind', v_relation_kind,
+      'securityInvoker', COALESCE(v_security_invoker, false)
     );
 
     v_exists := NULL;
     v_rls_enabled := NULL;
     v_rls_forced := NULL;
+    v_relation_kind := NULL;
+    v_security_invoker := NULL;
   END LOOP;
 
   RETURN result;
@@ -757,6 +791,20 @@ DECLARE
   max_change_id bigint := NULL;
   mapped_max_change_id bigint := NULL;
   change_id_mapping jsonb := '[]'::jsonb;
+  normalized_changes jsonb := '[]'::jsonb;
+  v_change jsonb;
+  v_table_name text;
+  v_bucket_column text;
+  v_bucket text;
+  v_row_bucket text;
+  v_old_bucket text;
+  v_move_key text;
+  v_moved jsonb := '{}'::jsonb;
+  v_id_type text;
+  v_is_main boolean;
+  v_entity_id text;
+  v_branch_id text;
+  v_inserted jsonb;
 BEGIN
   IF pg_catalog.current_setting('rxdb.insert_changes', true) IS DISTINCT FROM 'on' THEN
     RAISE EXCEPTION USING
@@ -766,44 +814,222 @@ BEGIN
   -- 消费守卫：一次授权只够一次调用
   PERFORM pg_catalog.set_config('rxdb.insert_changes', '', true);
 
+  -- 非 main 日志只能写进调用者拥有的分支，第一次写入即认领（US-225）。非 main 推送不做业务写，
+  -- 不经过任何业务表的 RLS，这里是它唯一的授权点。按分支 id 排序认领，并发推送多个分支时加锁顺序一致
+  FOR v_branch_id IN
+    SELECT DISTINCT c->>'branchId'
+    FROM pg_catalog.jsonb_array_elements(p_changes) AS changes(c)
+    WHERE COALESCE(c->>'branchId', 'main') <> 'main'
+    ORDER BY 1
+  LOOP
+    PERFORM public.rxdb_claim_branch(v_branch_id);
+  END LOOP;
+
+  -- 分区日志的 bucket 只认服务端状态，载荷里的 bucket 字段一律不认，未分区实体的日志也不带 bucket。
+  -- main 的业务写已经在调用方事务中完成，SECURITY DEFINER 读得到最终行；行已不在时用 rxdb_mutations
+  -- 固化的前后快照（前快照是业务写之前读的行，显式删除的换成了触发器捕获的实际 OLD）。
+  -- 非 main 推送不做业务写、不经过业务表的 RLS：不以 definer 回读业务行（否则调用者看不见的行在不在、
+  -- 在谁的区，会从报错里漏出来），只用 rxdb_mutations 以调用者身份读到的前快照或客户端补的 inversePatch，
+  -- bucket 还必须是调用者自己可读的分区，否则谁都能往别人的分区频道发通知、抬别人的水位。
+  -- entityId 必须能转成业务表 id 列的类型：按区拉取按这个类型找当前行。main 的业务写已经按它转过，
+  -- 这里统一校验一次，转不了就整批拒绝（22P02）。
+  -- 业务表按 namespace 定位：登记时 namespace 就是 schema（rxdb_enable_sync_for_table），载荷的 schema 字段已被 rxdb_mutations 去掉。
+  -- 换区与触发器同口径：main 的业务写把行从 A 区挪到 B 区时，A 区先记一条不带内容的移除、本条记成 B 区的写入，
+  -- 否则只能读 A 区的客户端永远不知道这一行已经离开。换区前的区取前快照；同一实体同批多次写入只补一条移除。
+  -- 变更历史（US-229）：main 上落库的每条源日志记一条完整快照的历史，来源取 rxdbHistorySource（rxdb_mutations
+  -- 给被级联删除的子行标 cascade，其余为 push）；换区补的那条移除不记。rxdbHistory / rxdbHistoryType 是本函数
+  -- 自己打的标，入口一律先摘掉，载荷带进来的不认
+  FOR v_change IN SELECT value FROM pg_catalog.jsonb_array_elements(p_changes)
+  LOOP
+    SELECT "tableName", "bucketColumn"
+    INTO v_table_name, v_bucket_column
+    FROM public.rxdb_sync_entity
+    WHERE namespace = v_change->>'namespace'
+      AND entity = v_change->>'entity';
+
+    v_change := v_change - 'bucket' - 'rxdbHistory' - 'rxdbHistoryType';
+    IF COALESCE(v_change->>'branchId', 'main') = 'main' THEN
+      v_change := v_change || pg_catalog.jsonb_build_object(
+        'rxdbHistory', COALESCE(v_change->>'rxdbHistorySource', 'push')
+      );
+    END IF;
+    IF v_bucket_column IS NOT NULL THEN
+      v_entity_id := v_change->>'entityId';
+      v_row_bucket := NULL;
+      v_is_main := COALESCE(v_change->>'branchId', 'main') = 'main';
+      SELECT pg_catalog.format_type(attribute.atttypid, attribute.atttypmod)
+      INTO v_id_type
+      FROM pg_catalog.pg_attribute AS attribute
+      WHERE attribute.attrelid = pg_catalog.format('%I.%I', v_change->>'namespace', v_table_name)::regclass
+        AND attribute.attname = 'id'
+        AND NOT attribute.attisdropped;
+
+      IF v_is_main AND v_change->>'type' <> 'DELETE' THEN
+        EXECUTE pg_catalog.format(
+          'SELECT NULLIF(%I::text, '''') FROM %I.%I WHERE id = $1::%s LIMIT 1',
+          v_bucket_column,
+          v_change->>'namespace',
+          v_table_name,
+          v_id_type
+        ) INTO v_row_bucket USING v_entity_id;
+      ELSE
+        EXECUTE pg_catalog.format('SELECT CAST($1 AS %s)', v_id_type) USING v_entity_id;
+      END IF;
+
+      v_bucket := COALESCE(
+        v_row_bucket,
+        NULLIF(v_change->'afterData'->>v_bucket_column, ''),
+        NULLIF(v_change->'beforeData'->>v_bucket_column, '')
+      );
+      IF v_bucket IS NULL THEN
+        RAISE EXCEPTION 'rxdb: bucketed change %.%/% has no bucket',
+          v_change->>'namespace', v_change->>'entity', v_entity_id
+          USING ERRCODE = 'not_null_violation';
+      END IF;
+      IF NOT v_is_main AND NOT (v_bucket = ANY(public.rxdb_caller_buckets())) THEN
+        RAISE EXCEPTION USING
+          ERRCODE = 'insufficient_privilege',
+          MESSAGE = 'rxdb: bucket is not authorized for the current caller';
+      END IF;
+      v_change := pg_catalog.jsonb_set(v_change, ARRAY['bucket'], pg_catalog.to_jsonb(v_bucket), true);
+
+      v_old_bucket := NULLIF(v_change->'beforeData'->>v_bucket_column, '');
+      v_move_key := pg_catalog.jsonb_build_array(
+        v_change->>'namespace', v_change->>'entity', v_entity_id, v_old_bucket
+      )::text;
+      IF v_is_main AND v_row_bucket IS NOT NULL AND v_old_bucket IS NOT NULL AND v_old_bucket <> v_row_bucket THEN
+        normalized_changes := normalized_changes || CASE
+          WHEN v_moved ? v_move_key THEN '[]'::jsonb
+          ELSE pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+            'namespace', v_change->>'namespace', 'entity', v_change->>'entity', 'entityId', v_entity_id,
+            'type', 'DELETE', 'branchId', 'main', 'bucket', v_old_bucket,
+            'createdAt', v_change->'createdAt', 'updatedAt', v_change->'updatedAt'
+          ))
+        END;
+        v_moved := v_moved || pg_catalog.jsonb_build_object(v_move_key, true);
+        v_change := pg_catalog.jsonb_set(
+          v_change || pg_catalog.jsonb_build_object('rxdbHistoryType', v_change->'type'), ARRAY['type'], '"INSERT"'::jsonb
+        );
+      END IF;
+    END IF;
+
+    normalized_changes := normalized_changes || pg_catalog.jsonb_build_array(v_change);
+  END LOOP;
+
+  -- 整批一条 INSERT：日志按原顺序拿 id，实时通知按语句分批（rxdb_change_broadcast 是语句级触发器）
   WITH inserted AS (
     INSERT INTO public.rxdb_change (
-      namespace, entity, "entityId", type, patch, "inversePatch",
+      namespace, entity, bucket, "entityId", type, patch, "inversePatch",
       "branchId", "clientId", "localId", "createdAt", "updatedAt",
       "beforeData", "afterData", "snapshotComplete"
     )
     SELECT
       c->>'namespace',
       c->>'entity',
+      c->>'bucket',
       c->>'entityId',
       c->>'type',
-      c->'patch',
-      c->'inversePatch',
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'patch' END,
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'inversePatch' END,
       COALESCE(c->>'branchId', 'main'),
       c->>'clientId',
       (c->>'localId')::integer,
       COALESCE((c->>'createdAt')::timestamptz, pg_catalog.now()),
       COALESCE((c->>'updatedAt')::timestamptz, pg_catalog.now()),
-      c->'beforeData',
-      c->'afterData',
-      COALESCE((c->>'snapshotComplete')::boolean, false)
-    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS changes(c, ordinality)
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'beforeData' END,
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'afterData' END,
+      CASE WHEN metadata.bucketed THEN false ELSE COALESCE((c->>'snapshotComplete')::boolean, false) END
+    FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS changes(c, ordinality)
+    CROSS JOIN LATERAL (
+      SELECT EXISTS (
+        SELECT 1
+        FROM public.rxdb_sync_entity AS entity
+        WHERE entity.namespace = c->>'namespace'
+          AND entity.entity = c->>'entity'
+          AND entity."bucketColumn" IS NOT NULL
+      ) AS bucketed
+    ) AS metadata
     ORDER BY ordinality
     ON CONFLICT ("clientId", "localId")
       WHERE "clientId" IS NOT NULL AND "localId" IS NOT NULL
       DO NOTHING
-    RETURNING id
+    RETURNING id, "clientId", "localId", namespace, entity, "entityId", type
   )
-  SELECT pg_catalog.count(*), pg_catalog.max(id)
-  INTO changes_count, max_change_id
+  SELECT
+    pg_catalog.count(*),
+    pg_catalog.max(id),
+    COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(inserted)), '[]'::jsonb)
+  INTO changes_count, max_change_id, v_inserted
   FROM inserted;
+
+  -- 历史对上它自己那条日志：客户端的源变更按 ("clientId", "localId")，服务端补的（级联删除）按实体与操作，
+  -- 同键多条按出现顺序配。重放被 ON CONFLICT 跳过的源变更没有日志，也就不记历史
+  INSERT INTO public.rxdb_change_history (
+    "changeId", namespace, entity, "entityId", bucket, type, patch, "inversePatch",
+    "beforeData", "afterData", actor, role, source, "clientId", "localId", "branchId"
+  )
+  SELECT
+    logged.id,
+    source.c->>'namespace',
+    source.c->>'entity',
+    source.c->>'entityId',
+    source.c->>'bucket',
+    COALESCE(source.c->>'rxdbHistoryType', source.c->>'type'),
+    -- 规范化后的变更用 JSON null 表示「没有」（新增没有前快照、删除没有后快照），历史里存成 SQL NULL
+    NULLIF(source.c->'patch', 'null'::jsonb),
+    NULLIF(source.c->'inversePatch', 'null'::jsonb),
+    NULLIF(source.c->'beforeData', 'null'::jsonb),
+    NULLIF(source.c->'afterData', 'null'::jsonb),
+    auth.uid(),
+    auth.role(),
+    source.c->>'rxdbHistory',
+    source.c->>'clientId',
+    (source.c->>'localId')::integer,
+    'main'
+  FROM (
+    SELECT
+      keyed.c,
+      keyed.ordinality,
+      keyed.match_key,
+      pg_catalog.row_number() OVER (PARTITION BY keyed.match_key ORDER BY keyed.ordinality) AS match_rank
+    FROM (
+      SELECT
+        c,
+        ordinality,
+        CASE
+          WHEN c->>'clientId' IS NOT NULL AND c->>'localId' IS NOT NULL
+            THEN pg_catalog.jsonb_build_array(c->>'clientId', (c->>'localId')::integer)::text
+          ELSE pg_catalog.jsonb_build_array(c->>'namespace', c->>'entity', c->>'entityId', c->>'type')::text
+        END AS match_key
+      FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS changes(c, ordinality)
+    ) AS keyed
+  ) AS source
+  JOIN (
+    SELECT
+      keyed.id,
+      keyed.match_key,
+      pg_catalog.row_number() OVER (PARTITION BY keyed.match_key ORDER BY keyed.id) AS match_rank
+    FROM (
+      SELECT
+        (row->>'id')::integer AS id,
+        CASE
+          WHEN row->>'clientId' IS NOT NULL AND row->>'localId' IS NOT NULL
+            THEN pg_catalog.jsonb_build_array(row->>'clientId', (row->>'localId')::integer)::text
+          ELSE pg_catalog.jsonb_build_array(row->>'namespace', row->>'entity', row->>'entityId', row->>'type')::text
+        END AS match_key
+      FROM pg_catalog.jsonb_array_elements(v_inserted) AS rows(row)
+    ) AS keyed
+  ) AS logged
+    ON logged.match_key = source.match_key AND logged.match_rank = source.match_rank
+  WHERE source.c ? 'rxdbHistory'
+  ORDER BY source.ordinality;
 
   WITH requested AS (
     SELECT
       c->>'clientId' AS client_id,
       (c->>'localId')::integer AS local_id,
       pg_catalog.min(ordinality) AS ordinality
-    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS changes(c, ordinality)
+    FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS changes(c, ordinality)
     WHERE c->>'clientId' IS NOT NULL AND c->>'localId' IS NOT NULL
     GROUP BY c->>'clientId', (c->>'localId')::integer
   )
@@ -838,6 +1064,278 @@ END;
 $$;
 
 /**
+ * rxdb_mutations_deferred_columns - 校验 rxdb_mutations 的延迟外键列（US-038）
+ *
+ * 每一列都必须：标识符合法、表与列存在、不是 id、可空、属于某个外键、所在的外键都不是 MATCH FULL
+ * （MATCH FULL 下复合外键的一列为空、另一列不空直接违约，先写空行不通）。不合格抛 RX003，此时什么都还没写。
+ *
+ * @param p_deferred_columns JSONB 数组，每个元素: {schema, table, column}
+ * @returns {["schema","table"]: [column, ...]}；空数组返回 {}
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_mutations_deferred_columns(p_deferred_columns jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_item jsonb;
+  v_schema text;
+  v_table text;
+  v_column text;
+  v_relation regclass;
+  v_attnum smallint;
+  v_not_null boolean;
+  v_key text;
+  v_result jsonb := '{}'::jsonb;
+BEGIN
+  IF p_deferred_columns IS NULL OR pg_catalog.jsonb_typeof(p_deferred_columns) != 'array' THEN
+    RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = 'rxdb: p_deferred_columns must be a JSON array';
+  END IF;
+
+  FOR v_item IN SELECT value FROM pg_catalog.jsonb_array_elements(p_deferred_columns)
+  LOOP
+    v_schema := CASE WHEN pg_catalog.jsonb_typeof(v_item) = 'object' THEN v_item->>'schema' END;
+    v_table := CASE WHEN pg_catalog.jsonb_typeof(v_item) = 'object' THEN v_item->>'table' END;
+    v_column := CASE WHEN pg_catalog.jsonb_typeof(v_item) = 'object' THEN v_item->>'column' END;
+    IF v_schema IS NULL OR v_table IS NULL OR v_column IS NULL
+       OR v_schema !~ '^[A-Za-z_][A-Za-z0-9_]*$' OR v_table !~ '^[A-Za-z_][A-Za-z0-9_]*$'
+       OR v_column !~ '^[A-Za-z_][A-Za-z0-9_]*$' THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: invalid deferred column %s', v_item);
+    END IF;
+
+    v_relation := pg_catalog.to_regclass(pg_catalog.format('%I.%I', v_schema, v_table));
+    IF v_relation IS NULL THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: deferred column table %I.%I does not exist', v_schema, v_table);
+    END IF;
+    SELECT attribute.attnum, attribute.attnotnull INTO v_attnum, v_not_null
+    FROM pg_catalog.pg_attribute AS attribute
+    WHERE attribute.attrelid = v_relation AND attribute.attname = v_column
+      AND attribute.attnum > 0 AND NOT attribute.attisdropped;
+    IF v_attnum IS NULL THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: deferred column %I.%I.%I does not exist', v_schema, v_table, v_column);
+    END IF;
+    IF v_column = 'id' THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: the id of %I.%I cannot be deferred', v_schema, v_table);
+    END IF;
+    IF v_not_null THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: deferred column %I.%I.%I is NOT NULL', v_schema, v_table, v_column);
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_constraint AS constraint_row
+      WHERE constraint_row.conrelid = v_relation AND constraint_row.contype = 'f' AND v_attnum = ANY(constraint_row.conkey)
+    ) THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: deferred column %I.%I.%I is not part of a foreign key', v_schema, v_table, v_column);
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM pg_catalog.pg_constraint AS constraint_row
+      WHERE constraint_row.conrelid = v_relation AND constraint_row.contype = 'f' AND v_attnum = ANY(constraint_row.conkey)
+        AND constraint_row.confmatchtype = 'f'
+    ) THEN
+      RAISE EXCEPTION USING ERRCODE = 'RX003', MESSAGE = pg_catalog.format('rxdb: deferred column %I.%I.%I belongs to a MATCH FULL foreign key', v_schema, v_table, v_column);
+    END IF;
+
+    v_key := pg_catalog.jsonb_build_array(v_schema, v_table)::text;
+    IF NOT COALESCE(v_result->v_key, '[]'::jsonb) ? v_column THEN
+      v_result := v_result || pg_catalog.jsonb_build_object(v_key, COALESCE(v_result->v_key, '[]'::jsonb) || pg_catalog.to_jsonb(v_column));
+    END IF;
+  END LOOP;
+  RETURN v_result;
+END;
+$$;
+
+/**
+ * rxdb_mutations_apply_groups - rxdb_mutations 第 3 步：按载荷顺序执行业务写（US-218 阶段 B，US-038 抽出）
+ *
+ * 只执行 p_ops 里的那几类组，跳过不是 pending 的实体。p_receipts = true 时每组一个子事务，组失败且错误可归类时
+ * 逐实体重放；否则第一个错误原样上抛。INSERT / UPDATE 组里属于 p_deferred 的列先拿掉，记进返回值的 deferred。
+ *
+ * @param p_groups rxdb_mutations 固化的组
+ * @param p_entities 实体状态（键为 ["schema","table","entityId"] 的文本）
+ * @param p_ops 本遍执行的操作
+ * @param p_skip_sync 同 rxdb_mutations
+ * @param p_receipts 同 rxdb_mutations
+ * @param p_deferred rxdb_mutations_deferred_columns 的结果
+ * @returns {entities, upserted, updated, deleted, deferred: {实体键: {schema, table, entityId, values}}}
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_mutations_apply_groups(
+  p_groups jsonb,
+  p_entities jsonb,
+  p_ops text[],
+  p_skip_sync boolean,
+  p_receipts boolean,
+  p_deferred jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_entities jsonb := p_entities;
+  v_phase_group record;
+  v_item jsonb;
+  v_filtered_items jsonb;
+  entity_id text;
+  v_entity_key text;
+  v_group_ok boolean;
+  v_group_result jsonb;
+  v_columns text[];
+  v_column text;
+  v_values jsonb;
+  v_deferred_values jsonb := '{}'::jsonb;
+  v_upserted jsonb := '[]'::jsonb;
+  v_updated int := 0;
+  v_deleted int := 0;
+BEGIN
+  FOR v_phase_group IN
+    SELECT g.ord AS grp_ord, g.val->>'schema' AS schema_name, g.val->>'table' AS table_name,
+           g.val->>'op' AS op, g.val->'items' AS items
+    FROM pg_catalog.jsonb_array_elements(p_groups) WITH ORDINALITY AS g(val, ord)
+    WHERE g.val->>'op' = ANY(p_ops)
+    ORDER BY g.ord
+  LOOP
+    v_columns := ARRAY(
+      SELECT pg_catalog.jsonb_array_elements_text(
+        COALESCE(p_deferred->(pg_catalog.jsonb_build_array(v_phase_group.schema_name, v_phase_group.table_name)::text), '[]'::jsonb)
+      )
+    );
+    v_filtered_items := '[]'::jsonb;
+    FOR v_item IN SELECT value FROM pg_catalog.jsonb_array_elements(v_phase_group.items) AS t(value)
+    LOOP
+      entity_id := CASE WHEN v_phase_group.op = 'DELETE' THEN v_item #>> '{}' ELSE v_item->>'id' END;
+      v_entity_key := pg_catalog.jsonb_build_array(v_phase_group.schema_name, v_phase_group.table_name, entity_id)::text;
+      CONTINUE WHEN v_entities->v_entity_key->>'status' IS DISTINCT FROM 'pending';
+      -- 延迟列：拿掉非空的值（新建即为空、修改即不改），记下来留给补写
+      IF v_phase_group.op != 'DELETE' AND pg_catalog.cardinality(v_columns) > 0 THEN
+        v_values := '{}'::jsonb;
+        FOREACH v_column IN ARRAY v_columns
+        LOOP
+          IF v_item ? v_column AND pg_catalog.jsonb_typeof(v_item->v_column) != 'null' THEN
+            v_values := v_values || pg_catalog.jsonb_build_object(v_column, v_item->v_column);
+            v_item := v_item - v_column;
+          END IF;
+        END LOOP;
+        IF v_values != '{}'::jsonb THEN
+          v_deferred_values := v_deferred_values || pg_catalog.jsonb_build_object(v_entity_key, pg_catalog.jsonb_build_object(
+            'schema', v_phase_group.schema_name, 'table', v_phase_group.table_name, 'entityId', entity_id,
+            'values', COALESCE(v_deferred_values->v_entity_key->'values', '{}'::jsonb) || v_values
+          ));
+        END IF;
+        -- 修改只改了延迟列：拿掉之后只剩 id，这一遍没有可写的，直接留给补写（被拒、已不存在都在补写时判）
+        IF v_phase_group.op = 'UPDATE' AND v_item = pg_catalog.jsonb_build_object('id', v_item->'id') THEN
+          v_entities := pg_catalog.jsonb_set(v_entities, ARRAY[v_entity_key, 'status'], '"applied"'::jsonb, true);
+          CONTINUE;
+        END IF;
+      END IF;
+      v_filtered_items := v_filtered_items || pg_catalog.jsonb_build_array(v_item);
+    END LOOP;
+
+    CONTINUE WHEN pg_catalog.jsonb_array_length(v_filtered_items) = 0;
+
+    v_group_ok := true;
+    IF p_receipts THEN
+      BEGIN
+        v_group_result := public.rxdb_mutations_apply_group(
+          v_phase_group.op, v_phase_group.schema_name, v_phase_group.table_name, v_filtered_items, p_skip_sync
+        );
+      EXCEPTION
+        WHEN insufficient_privilege OR SQLSTATE 'RX001' OR foreign_key_violation THEN
+          v_group_ok := false;
+      END;
+    ELSE
+      -- p_receipts = false：不开子事务，第一个错误原样上抛（全有或全无，等于阶段 A）
+      v_group_result := public.rxdb_mutations_apply_group(
+        v_phase_group.op, v_phase_group.schema_name, v_phase_group.table_name, v_filtered_items, p_skip_sync
+      );
+    END IF;
+
+    IF v_group_ok THEN
+      FOR v_item IN SELECT value FROM pg_catalog.jsonb_array_elements(v_filtered_items) AS t(value)
+      LOOP
+        entity_id := CASE WHEN v_phase_group.op = 'DELETE' THEN v_item #>> '{}' ELSE v_item->>'id' END;
+        v_entity_key := pg_catalog.jsonb_build_array(v_phase_group.schema_name, v_phase_group.table_name, entity_id)::text;
+        v_entities := pg_catalog.jsonb_set(v_entities, ARRAY[v_entity_key, 'status'], '"applied"'::jsonb, true);
+      END LOOP;
+    ELSE
+      -- 组失败（只有 p_receipts = true 才会走到这）：整组已回滚，逐实体各自子事务重放，
+      -- 每个实体的 applied / rejected 结果合并回 v_entities（保留已有的 localIds 等字段）
+      v_group_result := public.rxdb_mutations_replay_group(
+        v_phase_group.op, v_phase_group.schema_name, v_phase_group.table_name, v_filtered_items, p_skip_sync
+      );
+      SELECT v_entities || pg_catalog.jsonb_object_agg(r.key, (v_entities->r.key) || r.value)
+      INTO v_entities
+      FROM pg_catalog.jsonb_each(v_group_result->'entities') AS r(key, value);
+    END IF;
+
+    v_upserted := v_upserted || (v_group_result->'upserted');
+    v_updated := v_updated + (v_group_result->>'updated')::int;
+    v_deleted := v_deleted + (v_group_result->>'deleted')::int;
+  END LOOP;
+
+  RETURN pg_catalog.jsonb_build_object(
+    'entities', v_entities, 'upserted', v_upserted, 'updated', v_updated, 'deleted', v_deleted,
+    'deferred', v_deferred_values
+  );
+END;
+$$;
+
+/**
+ * rxdb_mutations_fill_deferred - 补写延迟的外键列（US-038），在执行 DELETE 之前
+ *
+ * 只补本轮写进去的实体（状态 applied）。p_receipts = true 时一个实体补写失败（23503 / 42501 / RX001）就返回它的键与
+ * 被拒原因，由 rxdb_mutations 整轮回滚后把它标为被拒重来；否则错误原样上抛。
+ *
+ * @returns {key, outcome}：补写失败的实体键与被拒原因；全部补写成功时为 NULL
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_mutations_fill_deferred(p_deferred jsonb, p_entities jsonb, p_receipts boolean)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_rec record;
+  v_item jsonb;
+  v_message text;
+  v_constraint text;
+  v_outcome jsonb;
+BEGIN
+  FOR v_rec IN SELECT key, value FROM pg_catalog.jsonb_each(COALESCE(p_deferred, '{}'::jsonb))
+  LOOP
+    CONTINUE WHEN p_entities->v_rec.key->>'status' IS DISTINCT FROM 'applied';
+    v_item := pg_catalog.jsonb_build_object('id', v_rec.value->>'entityId') || (v_rec.value->'values');
+    IF NOT p_receipts THEN
+      PERFORM public.rxdb_batch_update(v_rec.value->>'table', v_rec.value->>'schema', pg_catalog.jsonb_build_array(v_item));
+      CONTINUE;
+    END IF;
+    v_outcome := NULL;
+    BEGIN
+      PERFORM public.rxdb_batch_update(v_rec.value->>'table', v_rec.value->>'schema', pg_catalog.jsonb_build_array(v_item));
+    EXCEPTION
+      WHEN foreign_key_violation THEN
+        GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT, v_constraint = CONSTRAINT_NAME;
+        v_outcome := pg_catalog.jsonb_build_object(
+          'status', 'rejected', 'code', '23503', 'reason', 'dependency', 'message', v_message,
+          'dependsOn', public.rxdb_mutations_depends_on(v_rec.value->>'schema', v_rec.value->>'table', v_constraint, v_item)
+        );
+      WHEN insufficient_privilege THEN
+        GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+        v_outcome := pg_catalog.jsonb_build_object('status', 'rejected', 'code', '42501', 'reason', 'denied', 'message', v_message);
+      WHEN SQLSTATE 'RX001' THEN
+        GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+        v_outcome := pg_catalog.jsonb_build_object('status', 'rejected', 'code', 'RX001', 'reason', 'gone', 'message', v_message);
+    END;
+    IF v_outcome IS NOT NULL THEN
+      RETURN pg_catalog.jsonb_build_object('key', v_rec.key, 'outcome', v_outcome);
+    END IF;
+  END LOOP;
+  RETURN NULL;
+END;
+$$;
+
+/**
  * rxdb_mutations - 事务性批量修改函数（US-218 阶段 B：逐实体回执）
  *
  * 在单个数据库事务中执行：
@@ -849,7 +1347,8 @@ $$;
  *    p_receipts = true 时每组一个子事务；组失败且错误可归类（42501/RX001/23503）→
  *    回滚该组、组内逐实体各自子事务重放，每个实体各自 applied / rejected；
  *    p_receipts = false 时不开子事务，第一个错误原样上抛（全有或全无，等于阶段 A）
- * 4. 经 rxdb_insert_changes（SECURITY DEFINER）写 rxdb_change：按 p_changes 原顺序，只写 applied 实体的 main 日志与全部非 main 日志
+ * 4. 经 rxdb_insert_changes（SECURITY DEFINER）写 rxdb_change：按 p_changes 原顺序，只写 applied 实体的 main 日志与全部非 main 日志；
+ *    main 上落库的每条日志同时记一条变更历史（rxdb_change_history，US-229），被级联删除的子行记为服务端级联
  * 5. 返回；entity_results 只在 p_receipts = true 时出现，按载荷顺序排列
  *
  * @param p_upserts JSONB 数组，每个元素: {table, schema?, data: [...]}
@@ -858,12 +1357,16 @@ $$;
  * @param p_skip_sync 是否跳过同步触发器 (默认 false)
  * @param p_updates JSONB 数组，每个元素: {table, schema?, data: [{id, ...本次修改的列}]}
  * @param p_receipts 是否返回逐实体回执 entity_results（默认 false，向后兼容）
+ * @param p_deferred_columns JSONB 数组，每个元素: {schema, table, column}——外键成环（US-038）时先写空、
+ *        在 DELETE 之前补写的外键列；必须可空、属于某个外键、不是 id、所在复合外键不是 MATCH FULL，否则 RX003
  * @returns 操作结果，p_receipts = true 时额外带 entity_results
  */
 DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb);
 DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, boolean);
 DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean);
 DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb);
+-- US-038 加了第七个参数：旧的 6 参数签名必须删掉，否则两个重载并存，PostgREST 按命名参数选不出唯一的一个
+DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean);
 
 CREATE OR REPLACE FUNCTION public.rxdb_mutations(
   p_upserts jsonb DEFAULT '[]'::jsonb,
@@ -871,7 +1374,8 @@ CREATE OR REPLACE FUNCTION public.rxdb_mutations(
   p_changes jsonb DEFAULT '[]'::jsonb,
   p_skip_sync boolean DEFAULT false,
   p_updates jsonb DEFAULT '[]'::jsonb,
-  p_receipts boolean DEFAULT false
+  p_receipts boolean DEFAULT false,
+  p_deferred_columns jsonb DEFAULT '[]'::jsonb
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -906,12 +1410,6 @@ DECLARE
   v_pairs jsonb;
   v_all_exist boolean;
   v_client_id text;
-  v_phase_group record;
-  v_item jsonb;
-  v_filtered_items jsonb;
-  v_entity_key text;
-  v_group_ok boolean;
-  v_group_result jsonb;
   v_changes_to_log jsonb;
   v_log_result jsonb;
   v_entity_results jsonb;
@@ -925,9 +1423,16 @@ DECLARE
   v_matched_keys text[] := '{}'::text[];
   v_relation regclass;
   v_root_oid oid;
+  v_deferred jsonb;
+  v_round jsonb;
+  v_deletes jsonb;
+  v_round_entities jsonb;
+  v_excluded jsonb := '{}'::jsonb;
+  v_retry_outcome jsonb;
 BEGIN
-  -- 0. 只读载荷校验配对，失败时快照、日志与业务表都还没动
+  -- 0. 只读载荷校验配对与延迟外键列，失败时快照、日志与业务表都还没动
   PERFORM public.rxdb_assert_push_integrity(p_upserts, p_deletes, p_changes, p_skip_sync, p_updates);
+  v_deferred := public.rxdb_mutations_deferred_columns(p_deferred_columns);
 
   PERFORM pg_catalog.set_config('rxdb.sync_enabled', CASE WHEN p_skip_sync THEN 'false' ELSE 'true' END, true);
   -- 推送路径打开删除捕获：同步触发器把实际 DELETE 的 OLD 收进事务上下文，业务写之后再与显式删除配对
@@ -976,8 +1481,9 @@ BEGIN
         RAISE EXCEPTION 'Unsupported rxdb change type: %', change_type;
     END CASE;
 
+    -- rxdbHistorySource 只由本函数给级联删除的子行打（见第 4 步），载荷里带的不认
     normalized_changes := normalized_changes || pg_catalog.jsonb_build_array(
-      (op - 'schema' - 'table') || pg_catalog.jsonb_build_object(
+      (op - 'schema' - 'table' - 'rxdbHistorySource') || pg_catalog.jsonb_build_object(
         'beforeData', before_data,
         'afterData', after_data,
         'snapshotComplete', snapshot_complete,
@@ -1111,63 +1617,57 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- 3. 按载荷顺序分组执行业务写；跳过已判定为 applied 的实体（幂等重放）
-  FOR v_phase_group IN
-    SELECT g.ord AS grp_ord, g.val->>'schema' AS schema_name, g.val->>'table' AS table_name,
-           g.val->>'op' AS op, g.val->'items' AS items
-    FROM pg_catalog.jsonb_array_elements(v_groups) WITH ORDINALITY AS g(val, ord)
-  LOOP
-    v_filtered_items := '[]'::jsonb;
-    FOR v_item IN SELECT value FROM pg_catalog.jsonb_array_elements(v_phase_group.items) AS t(value)
+  -- 3. 按载荷顺序分组执行业务写；跳过已判定为 applied 的实体（幂等重放）。
+  --    外键成环（US-038）时客户端带 p_deferred_columns：分三遍执行——写 INSERT / UPDATE 时这些列先拿掉（新建即为空、
+  --    修改即不改），在执行 DELETE 之前补写，最后执行 DELETE。补写失败时整轮回滚，把该实体按补写的错误标为被拒后重来；
+  --    排除集只增不减，循环必然收敛。不带延迟列时只走一遍，与从前逐字相同
+  IF v_deferred = '{}'::jsonb THEN
+    v_round := public.rxdb_mutations_apply_groups(
+      v_groups, v_entities, ARRAY['INSERT', 'UPDATE', 'DELETE'], p_skip_sync, p_receipts, '{}'::jsonb
+    );
+  ELSE
+    v_round_entities := v_entities;
     LOOP
-      entity_id := CASE WHEN v_phase_group.op = 'DELETE' THEN v_item #>> '{}' ELSE v_item->>'id' END;
-      v_entity_key := pg_catalog.jsonb_build_array(v_phase_group.schema_name, v_phase_group.table_name, entity_id)::text;
-      IF v_entities->v_entity_key->>'status' = 'pending' THEN
-        v_filtered_items := v_filtered_items || pg_catalog.jsonb_build_array(v_item);
-      END IF;
-    END LOOP;
-
-    CONTINUE WHEN pg_catalog.jsonb_array_length(v_filtered_items) = 0;
-
-    v_group_ok := true;
-    IF p_receipts THEN
-      BEGIN
-        v_group_result := public.rxdb_mutations_apply_group(
-          v_phase_group.op, v_phase_group.schema_name, v_phase_group.table_name, v_filtered_items, p_skip_sync
-        );
-      EXCEPTION
-        WHEN insufficient_privilege OR SQLSTATE 'RX001' OR foreign_key_violation THEN
-          v_group_ok := false;
-      END;
-    ELSE
-      -- p_receipts = false：不开子事务，第一个错误原样上抛（全有或全无，等于阶段 A）
-      v_group_result := public.rxdb_mutations_apply_group(
-        v_phase_group.op, v_phase_group.schema_name, v_phase_group.table_name, v_filtered_items, p_skip_sync
-      );
-    END IF;
-
-    IF v_group_ok THEN
-      FOR v_item IN SELECT value FROM pg_catalog.jsonb_array_elements(v_filtered_items) AS t(value)
+      v_entities := v_round_entities;
+      FOR v_rec IN SELECT key, value FROM pg_catalog.jsonb_each(v_excluded)
       LOOP
-        entity_id := CASE WHEN v_phase_group.op = 'DELETE' THEN v_item #>> '{}' ELSE v_item->>'id' END;
-        v_entity_key := pg_catalog.jsonb_build_array(v_phase_group.schema_name, v_phase_group.table_name, entity_id)::text;
-        v_entities := pg_catalog.jsonb_set(v_entities, ARRAY[v_entity_key, 'status'], '"applied"'::jsonb, true);
+        v_entities := pg_catalog.jsonb_set(v_entities, ARRAY[v_rec.key], (v_entities->v_rec.key) || v_rec.value);
       END LOOP;
-    ELSE
-      -- 组失败（只有 p_receipts = true 才会走到这）：整组已回滚，逐实体各自子事务重放，
-      -- 每个实体的 applied / rejected 结果合并回 v_entities（保留已有的 localIds 等字段）
-      v_group_result := public.rxdb_mutations_replay_group(
-        v_phase_group.op, v_phase_group.schema_name, v_phase_group.table_name, v_filtered_items, p_skip_sync
-      );
-      SELECT v_entities || pg_catalog.jsonb_object_agg(r.key, (v_entities->r.key) || r.value)
-      INTO v_entities
-      FROM pg_catalog.jsonb_each(v_group_result->'entities') AS r(key, value);
-    END IF;
-
-    upsert_results := upsert_results || (v_group_result->'upserted');
-    update_count := update_count + (v_group_result->>'updated')::int;
-    delete_count := delete_count + (v_group_result->>'deleted')::int;
-  END LOOP;
+      v_retry_outcome := NULL;
+      BEGIN
+        v_round := public.rxdb_mutations_apply_groups(
+          v_groups, v_entities, ARRAY['INSERT', 'UPDATE'], p_skip_sync, p_receipts, v_deferred
+        );
+        v_entities := v_round->'entities';
+        -- 补写失败的实体与原因放在变量里带出去：整轮回滚会连同事务设置一起撤销，变量不会
+        v_retry_outcome := public.rxdb_mutations_fill_deferred(v_round->'deferred', v_entities, p_receipts);
+        IF v_retry_outcome IS NOT NULL THEN
+          RAISE EXCEPTION USING ERRCODE = 'RX004', MESSAGE = 'rxdb: deferred foreign key retry';
+        END IF;
+        v_deletes := public.rxdb_mutations_apply_groups(
+          v_groups, v_entities, ARRAY['DELETE'], p_skip_sync, p_receipts, '{}'::jsonb
+        );
+        v_round := pg_catalog.jsonb_build_object(
+          'entities', v_deletes->'entities',
+          'upserted', (v_round->'upserted') || (v_deletes->'upserted'),
+          'updated', (v_round->>'updated')::int + (v_deletes->>'updated')::int,
+          'deleted', (v_round->>'deleted')::int + (v_deletes->>'deleted')::int
+        );
+        EXIT;
+      EXCEPTION
+        WHEN SQLSTATE 'RX004' THEN
+          -- 补写失败的实体：整轮已回滚（含本轮的业务写与删除捕获），下一轮不再写它
+          IF v_excluded ? (v_retry_outcome->>'key') THEN
+            RAISE EXCEPTION 'rxdb: deferred foreign key retry did not converge for %', v_retry_outcome->>'key';
+          END IF;
+          v_excluded := v_excluded || pg_catalog.jsonb_build_object(v_retry_outcome->>'key', v_retry_outcome->'outcome');
+      END;
+    END LOOP;
+  END IF;
+  v_entities := v_round->'entities';
+  upsert_results := v_round->'upserted';
+  update_count := (v_round->>'updated')::int;
+  delete_count := (v_round->>'deleted')::int;
 
   -- 显式删除与捕获的实际删除按 id 列类型的等值配对，与 rxdb_batch_delete 的 id = ANY($1::类型[]) 同一判据：
   -- uuid 大小写、numeric 的精度与小数位（"1" 与存储的 1.00）这类拼写差异都认成同一行，不比文本。
@@ -1228,10 +1728,12 @@ BEGIN
      OR (v_entities->(c->>'rxdbEntityKey')->>'status') = 'applied';
 
   -- 隐式删除必须排在源 INSERT / UPDATE 之后，避免拉取端把同批已删子行重新插回。
+  -- 变更历史按 rxdbHistorySource 把它们记成服务端级联（US-229）
   SELECT v_changes_to_log || COALESCE(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
     'namespace', value->>'namespace', 'entity', value->>'entity', 'entityId', value->'beforeData'->>'id',
     'type', 'DELETE', 'patch', value->'beforeData', 'branchId', 'main',
-    'clientId', NULL, 'localId', NULL, 'beforeData', value->'beforeData', 'snapshotComplete', true
+    'clientId', NULL, 'localId', NULL, 'beforeData', value->'beforeData', 'snapshotComplete', true,
+    'rxdbHistorySource', 'cascade'
   ) ORDER BY key), '[]'::jsonb)
   INTO v_changes_to_log
   FROM pg_catalog.jsonb_each(v_delete_context)
@@ -1268,21 +1770,245 @@ BEGIN
 END;
 $$;
 
--- 授权
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_upsert(text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_execute_batch_update(text, text, jsonb, boolean) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_update_rows(text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, authenticated;
+-- ============================================
+-- 调用者在各作用域上的成员权限（US-234）
+-- ============================================
+-- 一个作用域一行：作用域键（如 user:<id>、tenant:<租户 id>）与调用者在它上面的权限。权限名归部署方，
+-- 参考实现用 epic-015 的六项（read 对应查看，edit 对应增删改）。平台默认与 rxdb_caller_can_edit_default 同口径：
+-- anon 没有任何作用域，登录用户只在自己的 user:<auth.uid()> 上有 read + edit。
+-- 部署方按自己的成员表 CREATE OR REPLACE 覆盖（签名与返回列不变），与 rxdb_caller_buckets() 同一模式。
+-- 重新执行本文件会把它恢复成平台默认，升级之后要重新加载自己的覆盖。
+-- 客户端读它拿到自己的授权；写策略与历史判定经 rxdb_caller_scopes 读同一份结果，三处同口径
+CREATE OR REPLACE FUNCTION public.rxdb_caller_grants()
+RETURNS TABLE (scope text, permissions text[])
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT 'user:' || auth.uid()::text, ARRAY['read', 'edit']::text[]
+  WHERE auth.uid() IS NOT NULL
+$$;
+
+-- 调用者带有某项权限的全部作用域键，按键排序。RLS 里写成 `= ANY((SELECT public.rxdb_caller_scopes('edit'))::text[])`：
+-- 外层的 (SELECT …) 让它每条语句只求值一次，不按行重复查成员表
+CREATE OR REPLACE FUNCTION public.rxdb_caller_scopes(p_permission text)
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT COALESCE(pg_catalog.array_agg(caller.scope ORDER BY caller.scope), ARRAY[]::text[])
+  FROM public.rxdb_caller_grants() AS caller
+  WHERE p_permission = ANY(caller.permissions)
+$$;
+
+-- ============================================
+-- 远端变更历史的读取（US-229）
+-- ============================================
+-- 历史表只经本节的 rxdb_entity_history 读取：只返回调用者**当前**能编辑的行的历史，四个正文字段逐列按
+-- 调用者的列权限脱敏。可见性按每条历史记录时的行判定（afterData，删除取 beforeData），所以一行换了租户之后，
+-- 改动前的历史只对旧租户的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+-- 一条修改的两侧分开判：换租户那一条记在新租户，调用者不能编辑改动前的行时，前像 beforeData 与逆补丁
+-- inversePatch 是旧租户的内容，交回 NULL，只留改动后的一侧（afterData 与 patch）。
+
+-- 平台默认的编辑权限判定：未分区实体看调用者角色对业务表有没有 UPDATE 权限；分区实体只认调用者自己的
+-- user:<auth.uid()> 区，公开区与别人的区默认谁都不能编辑。调用者角色取 JWT 的 role，取不到（没有会话的直连）一律判否
+CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit_default(p_namespace text, p_entity text, p_row jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_table text;
+  v_bucket_column text;
+  v_role text := NULLIF(auth.role(), '');
+BEGIN
+  SELECT registered."tableName", registered."bucketColumn"
+  INTO v_table, v_bucket_column
+  FROM public.rxdb_sync_entity AS registered
+  WHERE registered.namespace = p_namespace AND registered.entity = p_entity;
+
+  IF v_table IS NULL OR v_role IS NULL OR p_row IS NULL THEN
+    RETURN false;
+  END IF;
+  IF v_bucket_column IS NOT NULL THEN
+    RETURN auth.uid() IS NOT NULL AND p_row->>v_bucket_column = 'user:' || auth.uid()::text;
+  END IF;
+  RETURN pg_catalog.has_table_privilege(v_role, pg_catalog.format('%I.%I', p_namespace, v_table), 'UPDATE');
+END;
+$$;
+
+-- 调用者当前能否编辑这一行，变更历史按它开放。部署方按自己的权限模型 CREATE OR REPLACE 覆盖（签名不变），
+-- 与 rxdb_caller_buckets() 同一模式；覆盖时可以只改自己关心的实体，其余交回 rxdb_caller_can_edit_default。
+-- 重新执行本文件会把它恢复成平台默认，升级之后要重新加载自己的覆盖。只在 rxdb_entity_history 里以属主身份调用
+CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT public.rxdb_caller_can_edit_default(p_namespace, p_entity, p_row)
+$$;
+
+-- 只留下给定的键；输入为 NULL 时仍是 NULL，键全被摘掉时是空对象
+CREATE OR REPLACE FUNCTION public.rxdb_jsonb_pick(p_value jsonb, p_keys text[])
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT CASE
+    WHEN p_value IS NULL OR pg_catalog.jsonb_typeof(p_value) <> 'object' THEN p_value
+    ELSE COALESCE(
+      (SELECT pg_catalog.jsonb_object_agg(entry.key, entry.value)
+       FROM pg_catalog.jsonb_each(p_value) AS entry
+       WHERE entry.key = ANY(p_keys)),
+      '{}'::jsonb
+    )
+  END
+$$;
+
+/**
+ * rxdb_entity_history - 读一行的远端变更历史（US-229）
+ *
+ * SECURITY DEFINER：客户端对 rxdb_change_history 没有任何权限。每条历史按记录时的行交给
+ * rxdb_caller_can_edit 判定调用者当前能否编辑，判否的不返回；修改的前像再判一次，判否时
+ * beforeData 与 inversePatch 为 NULL。正文按调用者角色的列权限逐列脱敏，业务表已经不在时一条都不返回。
+ * 按 id 升序（即写入顺序）分页。
+ *
+ * @param p_namespace 实体命名空间（业务表所在的 schema）
+ * @param p_entity 实体名（rxdb_enable_sync_for_table 登记的名字）
+ * @param p_entity_id 行 id 的文本形式
+ * @param p_after_id 只返回 id 大于它的历史，翻页时传上一页最后一条的 id
+ * @param p_limit 一页最多几条，1～1000
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_entity_history(
+  p_namespace text,
+  p_entity text,
+  p_entity_id text,
+  p_after_id bigint DEFAULT 0,
+  p_limit integer DEFAULT 100
+)
+RETURNS TABLE (
+  id bigint,
+  "changeId" integer,
+  namespace text,
+  entity text,
+  "entityId" text,
+  bucket text,
+  type text,
+  patch jsonb,
+  "inversePatch" jsonb,
+  "beforeData" jsonb,
+  "afterData" jsonb,
+  actor uuid,
+  role text,
+  source text,
+  "clientId" text,
+  "localId" integer,
+  "branchId" text,
+  "createdAt" timestamptz
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_role text := NULLIF(auth.role(), '');
+  v_relation regclass;
+  v_columns text[];
+BEGIN
+  IF p_limit IS NULL OR p_limit < 1 OR p_limit > 1000 THEN
+    RAISE EXCEPTION 'rxdb: history page size must be between 1 and 1000, got %', p_limit
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  SELECT pg_catalog.to_regclass(pg_catalog.format('%I.%I', registered.namespace, registered."tableName"))
+  INTO v_relation
+  FROM public.rxdb_sync_entity AS registered
+  WHERE registered.namespace = p_namespace AND registered.entity = p_entity;
+  IF v_role IS NULL OR v_relation IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT COALESCE(pg_catalog.array_agg(attribute.attname::text), '{}'::text[])
+  INTO v_columns
+  FROM pg_catalog.pg_attribute AS attribute
+  WHERE attribute.attrelid = v_relation
+    AND attribute.attnum > 0
+    AND NOT attribute.attisdropped
+    AND pg_catalog.has_column_privilege(v_role, v_relation, attribute.attnum, 'SELECT');
+
+  RETURN QUERY
+  SELECT
+    history.id,
+    history."changeId",
+    history.namespace::text,
+    history.entity::text,
+    history."entityId"::text,
+    history.bucket::text,
+    history.type::text,
+    public.rxdb_jsonb_pick(history.patch, v_columns),
+    CASE WHEN before_side.visible THEN public.rxdb_jsonb_pick(history."inversePatch", v_columns) END,
+    CASE WHEN before_side.visible THEN public.rxdb_jsonb_pick(history."beforeData", v_columns) END,
+    public.rxdb_jsonb_pick(history."afterData", v_columns),
+    history.actor,
+    history.role::text,
+    history.source::text,
+    history."clientId"::text,
+    history."localId",
+    history."branchId"::text,
+    history."createdAt"
+  FROM public.rxdb_change_history AS history
+  -- 前像另判：删除按前像开放，前像就是判定的那一行；修改只在调用者也能编辑改动前的行时交出前像与逆补丁
+  CROSS JOIN LATERAL (
+    SELECT history."afterData" IS NULL
+      OR public.rxdb_caller_can_edit(history.namespace, history.entity, history."beforeData") IS TRUE AS visible
+  ) AS before_side
+  WHERE history.namespace = p_namespace
+    AND history.entity = p_entity
+    AND history."entityId" = p_entity_id
+    AND history.id > COALESCE(p_after_id, 0)
+    AND public.rxdb_caller_can_edit(history.namespace, history.entity, COALESCE(history."afterData", history."beforeData"))
+  ORDER BY history.id
+  LIMIT p_limit;
+END;
+$$;
+
+-- 授权：推送与它的内部函数要求已登录（US-225）。rxdb_mutations 是 SECURITY INVOKER，以调用者身份调这些函数，
+-- 所以调用者要有它们的执行权。anon 的执行权由生产权限脚本收回（Supabase 的默认权限会在建函数时授给 anon）；
+-- 连接时的 RLS 自检 rxdb_check_rls 仍对 anon 开放
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_upsert(text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_execute_batch_update(text, text, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_update_rows(text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_check_rls(jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations_depends_on(text, text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_insert_changes(jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_depends_on(text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_insert_changes(jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_deferred_columns(jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_apply_groups(jsonb, jsonb, text[], boolean, boolean, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_fill_deferred(jsonb, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean, jsonb) TO authenticated;
+-- 变更历史（US-229）：读取 RPC 只对已登录身份开放；判定、脱敏与写入是内部函数，不授给客户端角色
+GRANT EXECUTE ON FUNCTION public.rxdb_entity_history(text, text, text, bigint, integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit_default(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_jsonb_pick(jsonb, text[]) FROM PUBLIC, anon, authenticated;
+-- 成员权限（US-234）：调用者读自己的授权，anon 得到空结果；RLS 以调用者身份求值，也要有执行权
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_grants() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_scopes(text) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_server_version()
 RETURNS text

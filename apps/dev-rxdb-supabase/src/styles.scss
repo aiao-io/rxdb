@@ -29,19 +29,47 @@ input::placeholder {
 }
 
 app-header {
-  @apply sticky top-0 z-50;
+  @apply relative z-50;
 }
 
 #layout-content {
-  @apply relative grow;
+  @apply relative;
 }
 
+#layout-main {
+  @apply relative;
+}
+
+// 窄屏侧栏抽屉的遮罩：只盖住 #layout-main 里的应用内容
+.sidebar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  background: oklch(from var(--color-base-content) l c h / 0.4);
+  animation: sidebar-overlay-in 0.3s ease-in-out;
+}
+
+@keyframes sidebar-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+// 本地首页的顶栏悬浮在页面上，空白处不挡点击
 .header-floating {
   #layout-container {
     @apply relative;
   }
 
   app-header {
-    @apply absolute top-0 right-0 left-0;
+    @apply pointer-events-none absolute top-0 right-0 left-0;
+  }
+
+  #layout-topbar {
+    @apply border-transparent bg-transparent;
+  }
+
+  app-header button {
+    @apply pointer-events-auto;
   }
 }

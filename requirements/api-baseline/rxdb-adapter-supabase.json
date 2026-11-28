@@ -30,8 +30,24 @@
         "kind": "type"
       },
       {
+        "name": "SupabaseEntityHistoryItem",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseEntityHistoryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseEntitySyncInfo",
+        "kind": "type"
+      },
+      {
         "name": "SupabaseNetworkError",
         "kind": "both"
+      },
+      {
+        "name": "SupabasePendingChangeProbe",
+        "kind": "type"
       },
       {
         "name": "SupabaseRepository",
@@ -43,6 +59,10 @@
       },
       {
         "name": "SupabaseRlsCheckTable",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseScopedSyncIdentity",
         "kind": "type"
       },
       {

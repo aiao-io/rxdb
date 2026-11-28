@@ -23,6 +23,10 @@ import { RxDBError } from '../RxDBError.js';
  */
 const get_entity_cache_key = (name: string, namespace?: string) => namespace + ':' + name;
 
+/** 中间表的两端按 `namespace:name` 排序：从哪一端发现这条关系都得到同样的顺序 */
+const sort_endpoints = (a: EntityMetadata, b: EntityMetadata): readonly [EntityMetadata, EntityMetadata] =>
+  get_entity_cache_key(a.name, a.namespace) <= get_entity_cache_key(b.name, b.namespace) ? [a, b] : [b, a];
+
 /** 反向关系的互补 kind：一对多的反面是多对一，一对一 / 多对多的反面是自身 */
 const REVERSE_RELATION_KIND: Record<RelationKind, RelationKind> = {
   [RelationKind.ONE_TO_MANY]: RelationKind.MANY_TO_ONE,
@@ -55,6 +59,8 @@ export class SchemaManager {
   #generated_source = new Map<string, string>();
   /** 本实例生成的多对多中间表类 */
   #junctions = new Set<EntityType>();
+  /** 中间表 key → 它的两端，按 `namespace:name` 排序（US-228） */
+  #junction_endpoints = new Map<string, readonly [EntityMetadata, EntityMetadata]>();
   /** 构造期就在实例上的 RxDB 字段（{@link SchemaManager} 在 RxDB 构造函数里创建，此时没有接入方代码跑过） */
   readonly #instance_fields: ReadonlySet<PropertyKey>;
 
@@ -91,7 +97,7 @@ export class SchemaManager {
    * 逐张判定同时保住了原来那个哨兵真正在解决的问题：`entities` 是 `config` 上那个**可变
    * 数组本身**，`init()` 在 disconnect → reconnect 时会重跑，无条件 push 会让它无限增长。
    *
-   * 清单取自 {@link RxDB.systemEntities}（核心四张 + **本实例** `use()` 过的贡献），
+   * 清单取自 {@link RxDB.systemEntities}（核心五张 + **本实例** `use()` 过的贡献），
    * 不是模块级的 `SYSTEM_ENTITIES`。后者是判定用的活视图、只增不减：拿它来注入，进程里
    * 只要有任何一个库装了某个贡献方，没装的库也会被建出那些表、吃它们的迁移。
    */
@@ -194,6 +200,7 @@ export class SchemaManager {
           if (!junctionEntityType) {
             throw new RxDBError(`多对多中间表 '${key}' 注册后仍未取到实体类`);
           }
+          this.#junction_endpoints.set(key, sort_endpoints(metadata, mapped.metadata));
           // 两端都要赋值：反向端的 relation 是它自己 relationMap 里的克隆，
           // 只赋正向端时，从反向属性发起的查询依旧拿不到中间表
           relationManyToMany.junctionEntityType = junctionEntityType;
@@ -302,6 +309,49 @@ export class SchemaManager {
       isForeignKey: isForeignKey!,
       relations
     } satisfies GetFieldRelationsResult;
+  }
+
+  /**
+   * 是不是本实例为多对多关系生成的中间表（US-228）
+   *
+   * @param target - 实体类或实体元数据，按 `namespace` + `name` 认
+   * @returns 生成的中间表为 `true`；接入方声明的实体（哪怕形状像中间表）为 `false`
+   */
+  isJunctionEntity(target: EntityType | EntityMetadata): boolean {
+    return this.junctionEndpointsOf(target) !== undefined;
+  }
+
+  /**
+   * 中间表的两端（US-228）
+   *
+   * @param target - 实体类或实体元数据，按 `namespace` + `name` 认
+   * @returns 两端实体的元数据，按 `namespace:name` 排序；不是本实例生成的中间表时为 `undefined`
+   *
+   * @remarks
+   * 同步解析靠它让中间表跟随两端：任一端只在本地时，中间表也只在本地（见 `createEntitySyncResolver`）。
+   */
+  junctionEndpointsOf(target: EntityType | EntityMetadata): readonly [EntityMetadata, EntityMetadata] | undefined {
+    const { name, namespace } = typeof target === 'function' ? getEntityMetadata(target) : target;
+    return this.#junction_endpoints.get(get_entity_cache_key(name, namespace));
+  }
+
+  /**
+   * 有没有实体用外键引用它（US-318）
+   *
+   * @param target - 实体类或实体元数据，按 `namespace` + `name` 认
+   * @returns 有实体（包括生成的多对多中间表、指向自己的树）的多对一或一对一关系指向它时为 `true`
+   *
+   * @remarks
+   * 删除被引用的实体时，本地外键会级联删除或置空引用它的行。删除入口据此把删除放进带事务号的事务里，
+   * 源删除与级联写入记成同一个事务，撤销一次就能整组恢复。
+   */
+  isReferenced(target: EntityType | EntityMetadata): boolean {
+    const { name, namespace } = typeof target === 'function' ? getEntityMetadata(target) : target;
+    return [...this.#metadata_map.values()].some(metadata =>
+      metadata.foreignKeyRelations.some(
+        relation => relation.mappedEntity === name && (relation.mappedNamespace ?? metadata.namespace) === namespace
+      )
+    );
   }
 
   /**

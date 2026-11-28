@@ -1,4 +1,5 @@
 import type { EntityType } from '../entity/entity.interface.js';
+import { RxDBGrantState } from '../grants/grant-state.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import { RxDBBranch } from './branch.js';
 import { RxDBChange } from './change.js';
@@ -10,13 +11,19 @@ import { RxDBSync } from './sync.js';
  *
  * @remarks
  * **这是一份快照，不随插件增长**——正因如此它才是**注入**那一侧的起点：每个库的系统表
- * = 这四张 + 它自己 `use()` 过的插件所贡献的那些（见 `RxDB.systemEntities`）。拿会增长的
+ * = 这五张 + 它自己 `use()` 过的插件所贡献的那些（见 `RxDB.systemEntities`）。拿会增长的
  * {@link SYSTEM_ENTITIES} 去注入，进程里只要有任何一个库装了贡献方，没装的库也会被建出
  * 那些表、吃它们的迁移。
  *
- * 顺序即建表顺序：`RxDBChange` 引用 `RxDBBranch`。
+ * 顺序即建表顺序：`RxDBChange` 引用 `RxDBBranch`。`RxDBGrantState`（授权快照，US-029）不引用别的表，排在最后。
  */
-export const CORE_SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
+export const CORE_SYSTEM_ENTITIES: readonly EntityType[] = [
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBSync,
+  RxDBGrantState
+];
 
 /**
  * 系统表登记簿的背衬数组；{@link SYSTEM_ENTITIES} 是它的只读视图。
@@ -35,7 +42,7 @@ const SYSTEM_ENTITY_REGISTRY: EntityType[] = [...CORE_SYSTEM_ENTITIES];
  * 这是一份**判定**用的清单，不是注入用的：它回答「这个类是不是某个系统表」，
  * 不回答「哪个库该建哪些表」。后者按实例算，见 {@link CORE_SYSTEM_ENTITIES}。
  *
- * **核心只自带四张。** epic-006「本地工作树与提交历史」的十张表随
+ * **核心只自带五张。** epic-006「本地工作树与提交历史」的十张表随
  * `@aiao/rxdb-plugin-working-tree` 走，装了那个包才经 {@link registerSystemEntities} 追加进来。
  *
  * 判定清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍类名，

@@ -59,7 +59,7 @@ BOM、Admin 与任务看板的 owner 解锁继续生效，不能因缺少新客�
 
 ## 能力边界与复验
 
-- 权限现状是实体操作入口约束，角色、owner 与读取隔离分别看 [US-027](../stories/core/US-027-entity-permission-model.md) / [US-029](../stories/core/US-029-rbac-owner-role-permission.md)。
+- 权限现状是实体操作入口约束（[US-027](../stories/core/US-027-entity-permission-model.md)）；按作用域的成员写权限见 [US-029](../stories/core/US-029-rbac-owner-role-permission.md)，读取按分区隔离（[epic-015](../epics/epic-015-identity-scoped-sync.md)）。
 - 实体生成器不等于可运行应用生成器；当前实现见 [RxDBClientGenerator](../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts)。
 - working-tree 提供本地实体版本历史；身份、可信审计与远程提交协议另做，边界见[包文档](../../packages/rxdb-plugin-working-tree/README.md)。
 - 三框架 API 对称不代替宿主验证。DOM、VTable、小程序逻辑层和小游戏分别验收；搜索按[后端放行表](../../packages/rxdb-plugin-search/src/backend/backend-registry.ts)核对。

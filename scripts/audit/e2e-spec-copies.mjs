@@ -33,6 +33,7 @@ export const COPY_GROUPS = [
   'board.spec.ts',
   'board-parity.spec.ts',
   'board-restore.spec.ts',
+  'entity-access.spec.ts',
   'entity-model-parity.spec.ts',
   'headless-entity.spec.ts'
 ];

@@ -1,13 +1,16 @@
 import { RxDB } from '@aiao/rxdb';
+import { Todo } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { AsyncPipe } from '@angular/common';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { LucideDynamicIcon } from '@lucide/angular';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DemoSession } from '../demo-session';
+import { PageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
+import { Toasts } from '../toasts';
 import TodoPage from './todo.page';
 import todoPageTemplate from './todo.page.html?raw';
 
@@ -28,46 +31,31 @@ function createResource<T>(value: T) {
   };
 }
 
-function createDeferred() {
-  let resolvePromise: (() => void) | undefined;
-  let rejectPromise: ((reason: unknown) => void) | undefined;
-  const promise = new Promise<void>((resolve, reject) => {
-    resolvePromise = resolve;
-    rejectPromise = reject;
-  });
-  return {
-    promise,
-    reject: (reason: unknown) => rejectPromise!(reason),
-    resolve: () => resolvePromise!()
-  };
-}
-
-function getButton(fixture: ComponentFixture<TodoPage>, label: string): HTMLButtonElement {
-  const button = fixture.nativeElement.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null;
-  if (!button) throw new Error(`Missing ${label} button`);
-  return button;
-}
-
 function renderTodoPage(
   options: {
     connected?: boolean;
+    /** 当前身份能不能同步 Todo：访客不能（日志同步只对登录身份开放） */
+    canSyncTodo?: boolean;
     pull?: () => Promise<unknown>;
     push?: () => Promise<unknown>;
+    removeMany?: () => Promise<unknown>;
   } = {}
 ) {
   const history = {
     histories$: of([]),
-    redo: vi.fn(),
+    redo: vi.fn(() => Promise.resolve()),
     redoCount$: of(0),
-    type: 'entity' as const,
-    undo: vi.fn(),
-    undoCount$: of(0)
+    type: 'repository' as const,
+    undo: vi.fn(() => Promise.resolve()),
+    undoCount$: of(1),
+    undoBarrier$: of(null),
+    redoBarrier$: of(null)
   };
   const pull = vi.fn(options.pull ?? (() => Promise.resolve()));
   const push = vi.fn(options.push ?? (() => Promise.resolve()));
   const rxdb = {
     entityManager: {
-      removeMany: vi.fn(() => Promise.resolve()),
+      removeMany: vi.fn(options.removeMany ?? (() => Promise.resolve())),
       saveMany: vi.fn(() => Promise.resolve())
     },
     // 自 US-025 阶段 D 起推拉入口归 `@aiao/rxdb-plugin-sync`（`rxdb.syncManager`），
@@ -88,75 +76,121 @@ function renderTodoPage(
   angularMocks.useFindAll.mockReturnValue(createResource([]));
   TestBed.overrideComponent(TodoPage, {
     set: {
-      imports: [AsyncPipe, FormsModule, LucideDynamicIcon, ScrollingModule],
+      imports: [FormsModule, LucideDynamicIcon, ScrollingModule],
       schemas: [NO_ERRORS_SCHEMA],
       styleUrls: [],
       styles: [],
       template: todoPageTemplate
     }
   });
+  const session = { canSyncTodo: options.canSyncTodo ?? true, $switching: signal(false), switchTo: vi.fn() };
   TestBed.configureTestingModule({
     providers: [
       { provide: RxDB, useValue: rxdb },
-      { provide: RemoteSyncState, useValue: remoteSync }
+      { provide: RemoteSyncState, useValue: remoteSync },
+      { provide: DemoSession, useValue: session }
     ]
   });
   const fixture = TestBed.createComponent(TodoPage);
   fixture.detectChanges();
-  return { fixture, pull, push };
+  return { fixture, history, pull, push, rxdb, session };
 }
 
-describe('TodoPage remote sync controls', () => {
+describe('TodoPage：顶栏登记（epic-016）', () => {
   beforeEach(() => angularMocks.useFindAll.mockReset());
 
-  it('keeps Pull and Push disabled in the zero-config local demo', () => {
-    const { fixture, pull, push } = renderTodoPage();
+  it('写入失败弹一条错误消息，不在列表上方插一行', async () => {
+    const { fixture } = renderTodoPage({ removeMany: () => Promise.reject(new Error('磁盘满了')) });
 
-    const pullButton = getButton(fixture, 'Pull');
-    const pushButton = getButton(fixture, 'Push');
+    await fixture.componentInstance.clear_completed();
+    fixture.detectChanges();
 
-    expect(pullButton.disabled).toBe(true);
-    expect(pushButton.disabled).toBe(true);
-    expect(pullButton.title).toContain('纯本地模式');
-    pullButton.click();
-    pushButton.click();
-    expect(pull).not.toHaveBeenCalled();
-    expect(push).not.toHaveBeenCalled();
+    expect(TestBed.inject(Toasts).list()).toEqual([
+      expect.objectContaining({ kind: 'error', message: '清理已完成任务失败：磁盘满了' })
+    ]);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.alert-error')).toBeNull();
   });
 
-  it('disables both sync controls until a successful Push settles', async () => {
-    const operation = createDeferred();
-    const { fixture, push } = renderTodoPage({ connected: true, push: () => operation.promise });
+  // 无参 history() 是整库作用域：撤销会撤到页面外的实体（商品、订单）
+  it('登记标题与 Todo 作用域；撤销、重做走 history(Todo)', async () => {
+    const { history, rxdb } = renderTodoPage();
+    const page = TestBed.inject(PageWorkbench).current();
 
-    const pending = fixture.componentInstance.push();
-    fixture.detectChanges();
-
-    expect(push).toHaveBeenCalledOnce();
-    expect(getButton(fixture, 'Pull').disabled).toBe(true);
-    expect(getButton(fixture, 'Push').disabled).toBe(true);
-
-    operation.resolve();
-    await pending;
-    fixture.detectChanges();
-
-    expect(getButton(fixture, 'Pull').disabled).toBe(false);
-    expect(getButton(fixture, 'Push').disabled).toBe(false);
-    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(page).toMatchObject({ title: 'Todo', scopeLabel: '本页：Todo' });
+    expect(rxdb.versionManager.history.mock.calls).toEqual([[Todo]]);
+    expect(page?.history).toBe(history);
+    await page?.undo?.run();
+    await page?.redo?.run();
+    expect(history.undo).toHaveBeenCalledOnce();
+    expect(history.redo).toHaveBeenCalledOnce();
   });
 
-  it('renders a rejected Pull and restores the controls', async () => {
-    const { fixture, pull } = renderTodoPage({
-      connected: true,
-      pull: () => Promise.reject(new Error('remote unavailable'))
-    });
+  it('本地模式不登记推拉；连着远端时登记整机的推拉', async () => {
+    const local = renderTodoPage();
+    expect(TestBed.inject(PageWorkbench).current()).toMatchObject({ push: null, pull: null });
+    local.fixture.destroy();
+    TestBed.resetTestingModule();
 
-    await fixture.componentInstance.pull();
+    const { pull } = renderTodoPage({ connected: true });
+    await TestBed.inject(PageWorkbench).current()?.pull?.run();
+    expect(pull).toHaveBeenCalledWith({ fetchAll: true });
+  });
+
+  it('离开页面时注销', () => {
+    const { fixture } = renderTodoPage();
+
+    fixture.destroy();
+
+    expect(TestBed.inject(PageWorkbench).current()).toBeNull();
+  });
+
+  it('页面里不再有自己的推拉、撤销按钮、历史侧栏与被拒清单：它们都在顶栏和右侧面板', () => {
+    const { fixture } = renderTodoPage({ connected: true });
+    const element = fixture.nativeElement as HTMLElement;
+
+    for (const label of ['Pull', 'Push', 'Undo', 'Redo', '历史记录']) {
+      expect(element.querySelector(`button[aria-label="${label}"]`)).toBeNull();
+    }
+    expect(element.querySelector('ao-history-sidebar')).toBeNull();
+    expect(element.querySelector('app-sync-rejections-panel')).toBeNull();
+  });
+
+  it('访客：远端连着时提示 Todo 只存本机，可以一键匿名登录', () => {
+    const { fixture, session } = renderTodoPage({ connected: true, canSyncTodo: false });
+
+    const notice = fixture.nativeElement.querySelector('[data-testid="todo-visitor-notice"]') as HTMLElement | null;
+    expect(notice?.textContent).toContain('只存在本机');
+    (notice?.querySelector('button') as HTMLButtonElement).click();
+    expect(session.switchTo).toHaveBeenCalledWith('anonymous');
+  });
+});
+
+describe('TodoPage 交互', () => {
+  beforeEach(() => angularMocks.useFindAll.mockReset());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('批量添加：点选一项之后收起菜单，避免停在打开状态挡住列表', () => {
+    const { fixture } = renderTodoPage();
+    const addMany = vi
+      .spyOn(fixture.componentInstance, 'add_many_todo')
+      .mockReturnValue(new Promise<void>(() => undefined));
+    const dropdown = fixture.nativeElement.querySelector('[data-testid="todo-batch-dropdown"]') as HTMLDetailsElement;
+    dropdown.open = true;
+
+    (fixture.nativeElement.querySelector('[data-testid="todo-batch-option-10"]') as HTMLButtonElement).click();
+
+    expect(dropdown.open).toBe(false);
+    expect(addMany).toHaveBeenCalledWith(10);
+    expect(fixture.componentInstance.add_many.isPending()).toBe(true);
+  });
+
+  it('标签页标出当前选中的那个（aria-selected）', () => {
+    const { fixture } = renderTodoPage();
+
+    fixture.componentInstance.set_current_tab('active');
     fixture.detectChanges();
 
-    const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement | null;
-    expect(pull).toHaveBeenCalledOnce();
-    expect(alert?.textContent).toContain('同步失败：remote unavailable');
-    expect(getButton(fixture, 'Pull').disabled).toBe(false);
-    expect(getButton(fixture, 'Push').disabled).toBe(false);
+    const selected = fixture.nativeElement.querySelectorAll('[role="tab"][aria-selected="true"]');
+    expect(Array.from(selected, (tab: Element) => tab.textContent?.trim())).toEqual(['进行中']);
   });
 });

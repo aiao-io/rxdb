@@ -131,3 +131,5 @@ Entities that declare an ordering domain are sorted by "grouping field combinati
 ## UI capability derivation (US-027)
 
 `deriveEntityCapabilities(metadata)` projects an entity's write permissions (create / update / delete, each `both` or `system`) to UI capabilities `{ canCreate, canEdit, canDelete }`: `EntityList` uses them to hide the "+ New" button, degrade rows to read-only (details open in view mode), or hide the delete entry in the action column. Permission declarations and runtime semantics are in [Entity operation permissions](/model-definition/permissions.md).
+
+Operations declared with a rule (`{ requires }`, US-029) also look at the grant snapshot: pass `grants: rxdb.grants.snapshot` in the context, use `deriveRowCapabilities(metadata, record, context)` per row and `deriveWriteBlockedReason(metadata, context)` for why every write entry point is closed; `buildEditableColumns` takes `grants` too, and the columns are rebuilt when the snapshot changes. See [Per-row UI derivation](/model-definition/permissions.md#per-row-ui-derivation).

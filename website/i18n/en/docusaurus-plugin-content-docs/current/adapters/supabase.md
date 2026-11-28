@@ -140,7 +140,8 @@ The SQL install scripts in the repository already include `rxdb_check_rls(jsonb)
 Through Supabase Realtime the adapter subscribes to `INSERT` events on the `RxDBChange` table, providing cross-client realtime sync:
 
 - When the subscription state becomes `CHANNEL_ERROR`, `TIMED_OUT`, or `CLOSED`, the adapter reconnects automatically with exponential backoff.
-- After a successful resubscription, the backoff counter resets.
+- After a successful resubscription, the backoff counter resets and the pullable count is recomputed from each repository's watermark.
+- The channels created together (the shared channel plus one per bucket) request that recount once, after every one of them has reported its subscription outcome, not once per channel. A channel that later rejoins on its own requests its own recount. Each recount checks the remote identity once and calls `rxdb_entity_sync_infos` and `rxdb_pending_change_counts` once; see [Sync status RPCs](#sync-status-rpcs).
 
 ```
 Client A modifies data
@@ -233,6 +234,17 @@ Source logs come before implicit DELETEs. When the same batch inserts or modifie
 Child rows explicitly deleted in the same batch keep the client log and id mapping; the trigger only captures `OLD` to avoid duplicate logs. Explicit deletes pair with actual deletes by equality on the id column type (the same criterion as DELETE: uuid case, `numeric` `1` vs `1.00` count as the same row), and merge by partition root table, so deleting via the partition root table or a leaf partition still logs exactly once. If a row is first rejected by a row-level policy and then cascaded by an allowed parent delete, the final receipt follows the actual delete and is recorded as `applied`; the last explicit DELETE's snapshot always takes the actual delete's `OLD` — the client DELETE's `inversePatch` has no `id` and cannot substitute. Retrying a successful batch skips the entity side effects, and implicit logs are not produced twice.
 
 Foreign key actions can delete child rows the caller cannot see under the business tables' RLS. The added logs reuse the existing trigger pattern's full snapshot and readable scope and may contain all columns of the child row. Business-table RLS does not automatically give the logs per-row authorization isolation; the logs' read policy must be designed separately around the application's data boundaries.
+
+### Sync status RPCs
+
+The sync plugin's status queries (`syncManager.getAllRepositorySyncStatus()` and the pullable-count recount after a Realtime resubscription) ask the remote once per round, however many repositories there are. `pull()` likewise asks for the registrations once at the start (US-236):
+
+| function                     | parameters                            | purpose                                                                                                                                                   |
+| ---------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rxdb_entity_sync_infos`     | `p_entities jsonb`                    | registrations of several entities in one call, in request order; each item is what `rxdb_entity_sync_info` returns                                        |
+| `rxdb_pending_change_counts` | `p_probes jsonb, p_branch_ids text[]` | for several repositories (bucketed entities per bucket), the log rows after the cursor on the given branches that this client did not push (`excludeIds`) |
+
+Both are `SECURITY INVOKER` and granted to `anon` and `authenticated`: the count runs under the change log's RLS, so anon only counts readable buckets and never the unbucketed log, and a bucket revoked mid-way counts 0. Custom remote adapters may skip the matching `getEntitySyncInfos` / `countPendingChanges`; the sync plugin then asks one repository at a time and gets the same numbers.
 
 ### Tree query RPCs
 
@@ -371,6 +383,10 @@ A new client connecting to a database without `rxdb_backend_id()` gets `Could no
 When resetting the remote on purpose, tearing it down and rebuilding, or `TRUNCATE public.rxdb_change`, both rotate the identity automatically; existing clients stop and wait for the app to rebind.
 Only `DELETE`ing logs without resetting the sequence keeps the cursor valid and the identity unchanged; a manual `ALTER SEQUENCE ... RESTART` is not detectable — rotate an identity at the same time.
 
+### Install the batched sync status RPCs
+
+Existing deployments run the new `docker/sql/02-rxdb-sync-functions.sql`, their own `rxdb_caller_buckets` override, and the production permission script in one transaction to install `rxdb_entity_sync_infos` and `rxdb_pending_change_counts` ([Sync status RPCs](#sync-status-rpcs)), then upgrade the client. 02 resets `rxdb_caller_buckets()` to the platform default, so the override goes before the permission script. Old clients do not call the two functions and keep syncing; a new client against old SQL gets `Could not find the function public.rxdb_entity_sync_infos` from status queries and pulls. Full steps in the [migration guide](../migration/supabase-sync-status-batch.md).
+
 ### Update the UPDATE and cascade-delete functions
 
 Databases with existing system tables and idempotency indexes: first run the new `docker/sql/02-rxdb-sync-functions.sql` and `docker/sql/04-rxdb-utils-functions.sql` in the same database transaction in 02 → 04 order and commit together, then upgrade the client. The former updates DELETE capture; the latter updates UPDATE row returns and unified delete-log writes; the two must go together and must not be committed separately under write traffic.
@@ -459,6 +475,8 @@ Make sure the required RPC functions (`rxdb_mutations`, `get_descendants`, etc.)
 A new client against old SQL reports on push `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`: update the new 02 and 04 in one transaction per the [migration guide](../migration/supabase-update-push.md), then retry.
 
 The sync entry reports `Could not find the function public.rxdb_backend_id`: the database has no remote identity yet; create the table and re-run 02 per the [remote identity migration guide](../migration/supabase-remote-backend.md).
+
+Status queries or pulls report `Could not find the function public.rxdb_entity_sync_infos` (or `rxdb_pending_change_counts`, code `PGRST202`): the server does not have the two batched status functions yet. Update 02 and the production permission script per the [migration guide](../migration/supabase-sync-status-batch.md); if it still fails after deploying, run `NOTIFY pgrst, 'reload schema';` to refresh PostgREST's schema cache.
 
 ### Sync reports RemoteBackendMismatchError
 

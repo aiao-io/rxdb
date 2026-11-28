@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "./out-tsc/vitest",
+    "emitDeclarationOnly": false,
     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
     "module": "preserve",
     "moduleResolution": "bundler"
@@ -11,6 +12,9 @@
   "references": [
     {
       "path": "../../packages/rxdb-test/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"

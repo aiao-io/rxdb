@@ -237,14 +237,27 @@ describe('query SQL runtime validation', () => {
     expect(where).toEqual(snapshot);
   });
 
-  it('rejects groupBy in count queries', () => {
+  it('counts groups of own columns and foreign keys with quoted identifiers', () => {
+    const adapter = createAdapter();
+
+    const { sql } = generate_count_sql(adapter, getEntityMetadata(PGliteQuerySafetyChild), {
+      where: { combinator: 'and', rules: [] },
+      groupBy: ['reserved', 'parentId']
+    });
+
+    expect(sql).toMatch(
+      /^SELECT COUNT\(\*\) as count FROM \(SELECT 1 FROM \S+ AS _ GROUP BY _\."select", _\."parentId"\) AS grouped$/
+    );
+  });
+
+  it.each(['parent.name', 'missing'])('rejects count groupBy field %s outside own columns', field => {
     const adapter = createAdapter();
 
     expect(() =>
       generate_count_sql(adapter, getEntityMetadata(PGliteQuerySafetyChild), {
         where: { combinator: 'and', rules: [] },
-        groupBy: ['name']
+        groupBy: [field]
       })
-    ).toThrow(/groupBy not supported/i);
+    ).toThrow(`Count groupBy field "${field}"`);
   });
 });

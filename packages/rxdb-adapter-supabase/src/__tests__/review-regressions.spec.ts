@@ -1,11 +1,13 @@
 import {
+  compactChanges,
+  createEntitySyncResolver,
   Entity,
   EntityBase,
-  PropertyType,
-  SyncStateHub,
-  compactChanges,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
+  PropertyType,
+  SyncStateHub,
+  SyncType,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityType,
@@ -20,7 +22,7 @@ import { Order, OrderItem, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseConfigError, SupabaseDataError } from '../errors.js';
-import { handleSupabaseChange } from '../handle_supabase_change.js';
+import { handleSupabaseChanges, RXDB_CHANGES_TOPIC } from '../handle_supabase_change.js';
 import { SUPABASE_PAGE_SIZE } from '../pagination.js';
 import { apply_rule_group } from '../rule_group_builder.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
@@ -28,6 +30,7 @@ import type { SupabaseAdapterOptions } from '../supabase.interface.js';
 import type { MergeChangesPayload, MergeChangesUpsertPayload } from '../supabase.merge-changes.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
 import { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
+import { SIGNED_IN_TOKEN, testJwt } from './realtime-test-tokens.js';
 
 class FakeTreeEntity {
   id = '';
@@ -79,6 +82,12 @@ function createRxdb(entities: EntityType[] = []): RxDB {
   return {
     context: { userId: 'test-user', clientId: 'local-client' },
     config: { entities },
+    // 与真实实例一样带库级同步解析器：RLS 自检只查经远端同步的实体（系统表与只存本地的实体不查）
+    entitySync: createEntitySyncResolver({
+      type: SyncType.Full,
+      local: { adapter: 'local' },
+      remote: { adapter: 'supabase' }
+    }),
     schemaManager: {
       getEntityType: vi.fn(
         (name: string, namespace: string) =>
@@ -99,15 +108,47 @@ function createRxdb(entities: EntityType[] = []): RxDB {
   } as unknown as RxDB;
 }
 
+const AUTHENTICATED_TOKEN = SIGNED_IN_TOKEN;
+
+const jwtFor = (claims: Record<string, unknown>): string =>
+  `header.${btoa(JSON.stringify(claims)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}.signature`;
+
+function createRealtimeAuth(
+  accessTokenValue: string | null = AUTHENTICATED_TOKEN,
+  accessTokenProvider?: () => Promise<string | null>
+) {
+  let currentAccessToken = accessTokenValue;
+  return {
+    setAuth: vi.fn(async () => {
+      if (accessTokenProvider) currentAccessToken = await accessTokenProvider();
+    }),
+    get accessTokenValue() {
+      return currentAccessToken;
+    },
+    set accessTokenValue(value: string | null) {
+      currentAccessToken = value;
+    }
+  };
+}
+
 function createAdapter(
   clientOverrides: Record<string, unknown> = {},
   options: Partial<SupabaseAdapterOptions> = {},
   entities: EntityType[] = []
 ) {
-  const client = clientOverrides;
+  // 订阅私有频道前适配器会先 realtime.setAuth() 并看令牌是否属于已登录用户（US-225），桩客户端默认已登录
+  const configuredAccessToken = clientOverrides.accessToken;
+  const accessTokenProvider =
+    typeof configuredAccessToken === 'function' ? (configuredAccessToken as () => Promise<string | null>) : undefined;
+  const realtime = clientOverrides.realtime ?? createRealtimeAuth(AUTHENTICATED_TOKEN, accessTokenProvider);
+  const client = { realtime, ...clientOverrides };
   const rxdb = createRxdb(entities);
 
-  return new RxDBAdapterSupabase(rxdb, { client: client as never, ...options });
+  return new RxDBAdapterSupabase(rxdb, {
+    client: client as never,
+    supabaseUrl: 'https://project-a.supabase.co',
+    ...options
+  });
 }
 
 function createRepositoryClientMocks() {
@@ -279,6 +320,31 @@ afterEach(() => {
 });
 
 describe('supabase review regressions', () => {
+  it('支持 accessToken 配置的客户端读取当前用户身份', async () => {
+    const adapter = createAdapter({
+      accessToken: async () => jwtFor({ role: 'authenticated', sub: 'user-from-token' })
+    });
+
+    await expect(adapter.callerIdentity()).resolves.toEqual({
+      scope: 'https://project-a.supabase.co',
+      subject: 'user-from-token'
+    });
+  });
+
+  it('accessToken 为空或没有 sub 时按 anon 处理', async () => {
+    const emptyTokenAdapter = createAdapter({ accessToken: async () => null });
+    const malformedTokenAdapter = createAdapter({ accessToken: async () => jwtFor({ role: 'anon' }) });
+
+    await expect(emptyTokenAdapter.callerIdentity()).resolves.toEqual({
+      scope: 'https://project-a.supabase.co',
+      subject: 'anon'
+    });
+    await expect(malformedTokenAdapter.callerIdentity()).resolves.toEqual({
+      scope: 'https://project-a.supabase.co',
+      subject: 'anon'
+    });
+  });
+
   it('requires a non-empty URL and key when no client is supplied', () => {
     const rxdb = createRxdb();
 
@@ -320,6 +386,8 @@ describe('supabase review regressions', () => {
     for (const calls of [pullQuery.calls, countQuery.calls]) {
       expect(calls).toContainEqual({ method: 'eq', args: ['namespace', 'shop'] });
       expect(calls).toContainEqual({ method: 'eq', args: ['entity', 'ScopedRecord'] });
+      // 与 rxdb_pull_changes 同口径：分区日志只经按区 RPC 拉取，旧式拉取与计数都只看未分区日志
+      expect(calls).toContainEqual({ method: 'is', args: ['bucket', null] });
     }
   });
 
@@ -458,6 +526,246 @@ describe('supabase review regressions', () => {
     });
     expect(query.calls).toContainEqual({ method: 'eq', args: ['branchId', 'feature'] });
     expect(result).toEqual({ count: 0, latestChangeId: 17 });
+  });
+
+  it('getChangeCount 不按 clientId 排除：它每次启动都换，自己推的由同步插件按本地记下的远端 id 减掉（US-233）', async () => {
+    const query = resolvedRecordingQuery({ data: [{ id: 9 }], count: 1, error: null });
+    const from = vi.fn(() => query.proxy);
+    const adapter = createAdapter({ from }, {}, [Todo]);
+
+    await expect(adapter.getChangeCount(5, ['Todo'])).resolves.toEqual({ count: 1, latestChangeId: 9 });
+
+    expect(query.calls.filter(call => JSON.stringify(call.args).includes('clientId'))).toEqual([]);
+  });
+
+  it('getBucketChangeCount 按实体、分区、游标与分支数，不按 clientId 排除（US-233）', async () => {
+    const query = resolvedRecordingQuery({ data: null, count: 1, error: null });
+    const from = vi.fn(() => query.proxy);
+    const adapter = createAdapter({ from }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'tenant:a', 68, ['main'])).resolves.toBe(1);
+
+    expect(from).toHaveBeenCalledWith('rxdb_change');
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['namespace', 'public'] });
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['entity', 'Todo'] });
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['bucket', 'tenant:a'] });
+    expect(query.calls).toContainEqual({ method: 'gt', args: ['id', 68] });
+    expect(query.calls).toContainEqual({ method: 'in', args: ['branchId', ['main']] });
+    expect(query.calls.filter(call => JSON.stringify(call.args).includes('clientId'))).toEqual([]);
+  });
+
+  it('getBucketChangeCount 给了 id 时只数这些 id（US-233：数本库推上去的有几条落在这个分区）', async () => {
+    const query = resolvedRecordingQuery({ data: null, count: 2, error: null });
+    const adapter = createAdapter({ from: vi.fn(() => query.proxy) }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'public', 68, ['main'], [70, 71, 72])).resolves.toBe(2);
+
+    expect(query.calls).toContainEqual({ method: 'in', args: ['id', [70, 71, 72]] });
+  });
+
+  it('getBucketChangeCount 应答里没有条数时报数据错误，不当成 0', async () => {
+    const query = resolvedRecordingQuery({ data: null, count: null, error: null });
+    const adapter = createAdapter({ from: vi.fn(() => query.proxy) }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'public', 0, ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to count bucket changes: invalid response data')
+    );
+  });
+
+  it('getBucketChangeCount reports query errors', async () => {
+    const query = resolvedRecordingQuery({ data: null, error: { message: 'bucket count denied' } });
+    const adapter = createAdapter({ from: vi.fn(() => query.proxy) }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'public', 0, ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to count bucket changes: bucket count denied')
+    );
+  });
+
+  it('getBucketSnapshotPoint 按实体、分区与分支问远端，水位原样交回', async () => {
+    const rpc = vi.fn(async () => ({ data: 7, error: null, status: 200 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'tenant:a', ['main', 'feature'])).resolves.toBe(7);
+
+    expect(rpc).toHaveBeenCalledWith('rxdb_bucket_snapshot_point', {
+      p_namespace: 'public',
+      p_entity: 'Todo',
+      p_bucket: 'tenant:a',
+      p_branch_ids: ['main', 'feature']
+    });
+  });
+
+  it('getBucketSnapshotPoint 分区还没有日志时水位是 0，不传分支则 p_branch_ids 为 null', async () => {
+    const rpc = vi.fn(async () => ({ data: 0, error: null, status: 200 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'public')).resolves.toBe(0);
+
+    expect(rpc).toHaveBeenCalledWith('rxdb_bucket_snapshot_point', {
+      p_namespace: 'public',
+      p_entity: 'Todo',
+      p_bucket: 'public',
+      p_branch_ids: null
+    });
+  });
+
+  // 参考 SQL 声明 `RETURNS integer`，PostgREST 一定交回 JSON 数字，只有非负安全整数才是水位。
+  // 其余形状都是服务端契约被破坏：`Number(null)` 与 `Number('')` 都是 0，当成水位会把「远端有变更」显示成「已同步」
+  it.each([
+    ['null', null],
+    ['空串', ''],
+    ['数字字符串', '7'],
+    ['undefined', undefined],
+    ['布尔值', false],
+    ['空数组', []],
+    ['NaN', Number.NaN],
+    ['负数', -1],
+    ['小数', 1.5],
+    ['超出安全整数范围的数', Number.MAX_SAFE_INTEGER + 1]
+  ])('getBucketSnapshotPoint 应答是 %s 时报数据错误，不当成水位', async (_label, data) => {
+    const rpc = vi.fn(async () => ({ data, error: null, status: 200 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'public', ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to read bucket snapshot point: invalid response data')
+    );
+  });
+
+  it('getBucketSnapshotPoint reports query errors', async () => {
+    const rpc = vi.fn(async () => ({ data: null, error: { message: 'bucket is not authorized' }, status: 403 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'tenant:a', ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to read bucket snapshot point: bucket is not authorized')
+    );
+  });
+
+  // US-236：同步状态统计此前逐个实体各问一次登记信息、各数一次日志，一个页面打开要几十次串行往返
+  describe('批量登记信息与批量待拉数（US-236）', () => {
+    const TODO = { namespace: 'public', entity: 'Todo' };
+    const CATALOG = { namespace: 'public', entity: 'CatalogItem' };
+    const info = (repository: { namespace: string; entity: string }, bucketed: boolean, tableName: string | null) => ({
+      ...repository,
+      tableName,
+      bucketed
+    });
+    const respond = (data: unknown) => vi.fn(async () => ({ data, error: null, status: 200 }));
+
+    it('getEntitySyncInfos 一次问齐，按请求的顺序交回', async () => {
+      const answer = [info(TODO, false, 'todos'), info(CATALOG, true, 'catalog_items')];
+      const rpc = respond(answer);
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(adapter.getEntitySyncInfos([TODO, CATALOG])).resolves.toEqual(answer);
+
+      expect(rpc).toHaveBeenCalledOnce();
+      expect(rpc).toHaveBeenCalledWith('rxdb_entity_sync_infos', { p_entities: [TODO, CATALOG] });
+    });
+
+    it('getEntitySyncInfos 没有要问的实体：一个请求都不发', async () => {
+      const rpc = vi.fn();
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(adapter.getEntitySyncInfos([])).resolves.toEqual([]);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    // 按下标对答案：少一项、顺序错了，就会把别的实体的分区标记安到这个实体头上，
+    // 分区实体被当成不分区，拉取只读未分区日志，静默拉空
+    it.each([
+      ['不是数组', info(TODO, false, 'todos')],
+      ['少一项', [info(TODO, false, 'todos')]],
+      ['顺序对不上', [info(CATALOG, true, 'catalog_items'), info(TODO, false, 'todos')]],
+      ['bucketed 不是布尔值', [info(TODO, false, 'todos'), { ...info(CATALOG, true, null), bucketed: 'true' }]],
+      ['tableName 不是字符串也不是 null', [info(TODO, false, 'todos'), { ...info(CATALOG, true, null), tableName: 1 }]]
+    ])('getEntitySyncInfos 应答%s时报数据错误', async (_label, data) => {
+      const adapter = createAdapter({ rpc: respond(data) }, {}, [Todo]);
+
+      await expect(adapter.getEntitySyncInfos([TODO, CATALOG])).rejects.toThrow(
+        new SupabaseDataError('Failed to resolve entity sync infos: invalid response data')
+      );
+    });
+
+    // 旧服务端没部署这个函数：与 rxdb_entity_sync_info 那次同一个约定，先升级 SQL 再升级客户端，这里响亮报错
+    it('getEntitySyncInfos reports query errors', async () => {
+      const rpc = vi.fn(async () => ({
+        data: null,
+        error: { message: 'Could not find the function public.rxdb_entity_sync_infos', code: 'PGRST202' },
+        status: 404
+      }));
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      // 错误码原样保留：调用方据 PGRST202 看得出是服务端还没升级
+      await expect(adapter.getEntitySyncInfos([TODO])).rejects.toThrow(
+        new SupabaseDataError(
+          'Failed to resolve entity sync infos: Could not find the function public.rxdb_entity_sync_infos',
+          { code: 'PGRST202' }
+        )
+      );
+    });
+
+    it('countPendingChanges 一次数清全部探针：游标、分区、本库推上去的远端 id 与分支随请求体发出', async () => {
+      const rpc = respond([3, 0]);
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(
+        adapter.countPendingChanges(
+          [
+            { ...TODO, bucket: null, afterId: 40, excludeIds: [41, 42] },
+            { ...CATALOG, bucket: 'tenant:a', afterId: 68, excludeIds: [] }
+          ],
+          ['feature', 'main']
+        )
+      ).resolves.toEqual([3, 0]);
+
+      expect(rpc).toHaveBeenCalledOnce();
+      expect(rpc).toHaveBeenCalledWith('rxdb_pending_change_counts', {
+        p_probes: [
+          { ...TODO, bucket: null, afterId: 40, excludeIds: [41, 42] },
+          { ...CATALOG, bucket: 'tenant:a', afterId: 68, excludeIds: [] }
+        ],
+        p_branch_ids: ['feature', 'main']
+      });
+    });
+
+    it('countPendingChanges 没有探针：一个请求都不发', async () => {
+      const rpc = vi.fn();
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(adapter.countPendingChanges([], ['main'])).resolves.toEqual([]);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    // 条数少了、多了或不是非负安全整数：按下标对会把数安到别的仓库头上，当成 0 会把「有更新」显示成「已同步」
+    it.each([
+      ['null', null],
+      ['少一项', [3]],
+      ['多一项', [3, 0, 1]],
+      ['有数字字符串', [3, '0']],
+      ['有负数', [3, -1]],
+      ['有小数', [3, 0.5]]
+    ])('countPendingChanges 应答是%s时报数据错误', async (_label, data) => {
+      const adapter = createAdapter({ rpc: respond(data) }, {}, [Todo]);
+
+      await expect(
+        adapter.countPendingChanges(
+          [
+            { ...TODO, bucket: null, afterId: 0, excludeIds: [] },
+            { ...CATALOG, bucket: 'public', afterId: 0, excludeIds: [] }
+          ],
+          ['main']
+        )
+      ).rejects.toThrow(new SupabaseDataError('Failed to count pending changes: invalid response data'));
+    });
+
+    it('countPendingChanges reports query errors', async () => {
+      const rpc = vi.fn(async () => ({ data: null, error: { message: 'count denied' }, status: 403 }));
+      const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+      await expect(
+        adapter.countPendingChanges([{ ...TODO, bucket: null, afterId: 0, excludeIds: [] }], ['main'])
+      ).rejects.toThrow(new SupabaseDataError('Failed to count pending changes: count denied'));
+    });
   });
 
   it('getChangeCount preserves the cursor when count data has no latest row', async () => {
@@ -704,6 +1012,7 @@ describe('supabase review regressions', () => {
       method: 'or',
       args: ['and(namespace.eq.shop,entity.eq.ScopedRecord,id.gt.7),and(namespace.eq.public,entity.eq.Todo,id.gt.11)']
     });
+    expect(query.calls).toContainEqual({ method: 'is', args: ['bucket', null] });
   });
 
   it('uses an explicit namespace for the single-request batch fast path', async () => {
@@ -832,20 +1141,19 @@ describe('supabase review regressions', () => {
     const adapterRxdb = (adapter as unknown as { rxdb: RxDB }).rxdb;
     const dispatchEvent = vi.mocked(adapterRxdb.dispatchEvent);
     const payload = {
-      table: 'rxdb_change',
-      eventType: 'INSERT',
-      new: {
-        namespace: 'tenant',
-        entity: 'ScopedRecord',
-        entityId: 'foreign-id',
-        type: 'INSERT',
-        branchId: 'main',
-        patch: { title: 'foreign' },
-        clientId: 'other-client'
-      }
+      changes: [
+        {
+          namespace: 'tenant',
+          entity: 'ScopedRecord',
+          entityId: 'foreign-id',
+          type: 'INSERT',
+          branchId: 'main',
+          clientId: 'other-client'
+        }
+      ]
     };
 
-    handleSupabaseChange(adapter, payload as never);
+    handleSupabaseChanges(adapter, payload);
 
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
@@ -1000,14 +1308,18 @@ describe('supabase review regressions', () => {
   it('getChangeCount uses a single query for count and latest id', async () => {
     const builder = {
       gt: vi.fn(),
+      is: vi.fn(),
       in: vi.fn(),
       eq: vi.fn(),
+      or: vi.fn(),
       order: vi.fn(),
       limit: vi.fn()
     };
     builder.gt.mockReturnValue(builder);
+    builder.is.mockReturnValue(builder);
     builder.in.mockReturnValue(builder);
     builder.eq.mockReturnValue(builder);
+    builder.or.mockReturnValue(builder);
     builder.order.mockReturnValue(builder);
     builder.limit.mockResolvedValue({ data: [{ id: 42 }], count: 3, error: null });
 
@@ -1020,6 +1332,7 @@ describe('supabase review regressions', () => {
     expect(result).toEqual({ count: 3, latestChangeId: 42 });
     expect(from).toHaveBeenCalledTimes(1);
     expect(select).toHaveBeenCalledTimes(1);
+    expect(builder.is).toHaveBeenCalledWith('bucket', null);
   });
 
   it('between rejects arrays that do not contain exactly two values', () => {
@@ -1057,7 +1370,40 @@ describe('supabase review regressions', () => {
       p_tables: [{ schema: 'public', table: 'todo' }]
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('RLS is disabled for tables: public.todo'));
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+    warn.mockRestore();
+  });
+
+  // 分支深度评审 #4：普通视图以属主权限执行，有 SELECT 权的人都能绕过底层表的 RLS；只有 security_invoker 视图沿用调用者的 RLS
+  it('connect warns about views without security_invoker, and accepts security_invoker views', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const rpc = vi.fn(async () => ({
+      data: [
+        { schema: 'public', table: 'owner_view', exists: true, rlsEnabled: false, relationKind: 'view' },
+        {
+          schema: 'public',
+          table: 'invoker_view',
+          exists: true,
+          rlsEnabled: false,
+          relationKind: 'view',
+          securityInvoker: true
+        }
+      ],
+      error: null
+    }));
+    const adapter = createAdapter(
+      { rpc, channel: vi.fn(() => ({ on: vi.fn(() => ({ subscribe: vi.fn() })) })) },
+      { rlsCheck: { tables: [{ table: 'owner_view' }, { table: 'invoker_view' }] } }
+    );
+
+    await adapter.connect();
+
+    const rlsWarnings = warn.mock.calls.map(([message]) => String(message)).filter(message => message.includes('RLS'));
+    expect(rlsWarnings).toHaveLength(1);
+    expect(rlsWarnings[0]).toContain('views without security_invoker');
+    expect(rlsWarnings[0]).toContain('public.owner_view');
+    expect(rlsWarnings[0]).not.toContain('public.invoker_view');
+    expect(rlsWarnings[0]).not.toContain('RLS is disabled for tables');
     warn.mockRestore();
   });
 
@@ -1103,7 +1449,7 @@ describe('supabase review regressions', () => {
     await adapter.disconnect();
     await adapter.connect();
 
-    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenCalledTimes(4);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch'));
   });
 
@@ -1112,8 +1458,12 @@ describe('supabase review regressions', () => {
     const subscribe = vi.fn(() => undefined);
     const on = vi.fn(() => ({ subscribe }));
     const channel = vi.fn(() => ({ on }));
-    const rpc = vi.fn(async () => ({
-      data: [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: false }],
+    // 订阅通知时还会问 caller buckets：桩按 RPC 名给出各自真实的形状
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          ['public']
+        : [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: false }],
       error: null
     }));
     const adapter = createAdapter({ rpc, channel }, { rlsCheck: { tables: [{ table: 'todo' }] } });
@@ -1121,7 +1471,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(warn).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1139,7 +1489,7 @@ describe('supabase review regressions', () => {
     );
 
     await expect(adapter.connect()).resolves.toBe(adapter);
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
   });
 
   it('connect accepts enabled RLS when the RPC also reports rlsForced', async () => {
@@ -1147,8 +1497,12 @@ describe('supabase review regressions', () => {
     const subscribe = vi.fn(() => undefined);
     const on = vi.fn(() => ({ subscribe }));
     const channel = vi.fn(() => ({ on }));
-    const rpc = vi.fn(async () => ({
-      data: [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: true }],
+    // 订阅通知时还会问 caller buckets：桩按 RPC 名给出各自真实的形状
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          ['public']
+        : [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: true }],
       error: null
     }));
     const adapter = createAdapter({ rpc, channel }, { rlsCheck: { tables: [{ table: 'todo' }] } });
@@ -1156,7 +1510,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(warn).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1225,8 +1579,576 @@ describe('supabase review regressions', () => {
 
     await adapter.connect();
 
-    expect(rpc).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(rpc).toHaveBeenCalledWith('rxdb_caller_buckets');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+  });
+
+  describe('change notifications need a signed-in session (US-225)', () => {
+    const subscribableChannel = () => {
+      const channel: Record<string, unknown> = {};
+      channel['on'] = vi.fn(() => channel);
+      channel['subscribe'] = vi.fn(() => channel);
+      return channel;
+    };
+
+    it.each([
+      ['the anon key', testJwt({ role: 'anon' })],
+      ['a new-style publishable key', 'sb_publishable_example'],
+      ['a token whose payload is not JSON', 'header.bm90LWpzb24.signature'],
+      ['no token at all', null]
+    ])('does not subscribe or retry when realtime would join with %s', async (_label, token) => {
+      vi.useFakeTimers();
+      // 访客（anon）是正式支持的身份，不是配置错误：只给一条 info 提示，不报 warning
+      const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(token);
+      const adapter = createAdapter({ channel, realtime }, { rlsCheck: false });
+
+      try {
+        await adapter.connect();
+        await vi.advanceTimersByTimeAsync(10_000);
+
+        expect(realtime.setAuth).toHaveBeenCalledOnce();
+        expect(channel).not.toHaveBeenCalled();
+        expect(info).toHaveBeenCalledOnce();
+        expect(info).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        await adapter.disconnect();
+        info.mockRestore();
+        warn.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    // supabase-js 订阅 auth 事件后会异步补发一次 INITIAL_SESSION（只是报告当前会话，不是变化）。
+    // 它赶在 connect() 建频道之前到达时，曾被当成「身份变了」再建一遍：访客每次加载都打两条提示
+    it('ignores the INITIAL_SESSION report that races the first connect', async () => {
+      const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+      const auth = {
+        onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+          queueMicrotask(() => callback('INITIAL_SESSION', null));
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        })
+      };
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const adapter = createAdapter({ auth, channel, realtime }, { rlsCheck: false });
+
+      try {
+        await adapter.connect();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(realtime.setAuth).toHaveBeenCalledOnce();
+        expect(info).toHaveBeenCalledOnce();
+        expect(channel).not.toHaveBeenCalled();
+      } finally {
+        await adapter.disconnect();
+        info.mockRestore();
+      }
+    });
+
+    it('subscribes on the next connect once the client is signed in', async () => {
+      const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const adapter = createAdapter(
+        { channel, realtime, removeChannel: vi.fn(async () => undefined) },
+        { rlsCheck: false }
+      );
+
+      try {
+        await adapter.connect();
+        expect(channel).not.toHaveBeenCalled();
+
+        realtime.accessTokenValue = AUTHENTICATED_TOKEN;
+        await adapter.connect();
+
+        expect(realtime.setAuth).toHaveBeenCalledTimes(2);
+        expect(channel).toHaveBeenCalledOnce();
+        expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+      } finally {
+        await adapter.disconnect();
+        info.mockRestore();
+      }
+    });
+
+    it('subscribes with a service-role token', async () => {
+      const channel = vi.fn(subscribableChannel);
+      const adapter = createAdapter(
+        {
+          channel,
+          realtime: createRealtimeAuth(testJwt({ role: 'service_role' })),
+          removeChannel: vi.fn(async () => undefined)
+        },
+        { rlsCheck: false }
+      );
+
+      try {
+        await adapter.connect();
+        expect(channel).toHaveBeenCalledOnce();
+      } finally {
+        await adapter.disconnect();
+      }
+    });
+  });
+
+  it('auth 身份切换时重建 bucket 频道并丢弃旧频道的迟到广播', async () => {
+    const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });
+    const tokenB = testJwt({ role: 'authenticated', sub: 'user-b' });
+    const authCallbacks: Array<(event: string, session: { access_token: string } | null) => void> = [];
+    const subscription = { unsubscribe: vi.fn() };
+    const auth = {
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authCallbacks.push(callback);
+        return { data: { subscription } };
+      })
+    };
+    const realtime = createRealtimeAuth(tokenA);
+    const handlers: Array<(message: { payload: unknown }) => void> = [];
+    const channels: Array<{ topic: string }> = [];
+    const channel = vi.fn((topic: string) => {
+      const entry = { topic };
+      const channelInstance = {
+        on: vi.fn((_type: string, _filter: unknown, handler: (message: { payload: unknown }) => void) => {
+          handlers.push(handler);
+          return channelInstance;
+        }),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      channels.push(entry);
+      return channelInstance;
+    });
+    const removeChannel = vi.fn(async () => undefined);
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          realtime.accessTokenValue === tokenA ?
+            ['public', 'user:user-a']
+          : ['public', 'user:user-b']
+        : null,
+      error: null,
+      status: 200
+    }));
+    const adapter = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+    const dispatchEvent = vi.mocked(adapter.rxdb.dispatchEvent);
+    const notice = {
+      changes: [
+        {
+          namespace: 'public',
+          entity: 'Todo',
+          entityId: 'stale-event',
+          type: 'INSERT',
+          branchId: 'main',
+          clientId: 'other-client',
+          createdAt: new Date().toISOString()
+        }
+      ]
+    };
+
+    await adapter.connect();
+    expect(channels.map(item => item.topic)).toEqual([
+      RXDB_CHANGES_TOPIC,
+      `${RXDB_CHANGES_TOPIC}:bucket:public`,
+      `${RXDB_CHANGES_TOPIC}:bucket:user:user-a`
+    ]);
+    const oldBroadcast = handlers[0];
+
+    realtime.accessTokenValue = tokenB;
+    authCallbacks[0]('TOKEN_REFRESHED', { access_token: tokenB });
+    await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(6));
+
+    expect(removeChannel).toHaveBeenCalledTimes(3);
+    expect(channels.slice(3).map(item => item.topic)).toEqual([
+      RXDB_CHANGES_TOPIC,
+      `${RXDB_CHANGES_TOPIC}:bucket:public`,
+      `${RXDB_CHANGES_TOPIC}:bucket:user:user-b`
+    ]);
+
+    dispatchEvent.mockClear();
+    oldBroadcast({ payload: notice });
+    expect(dispatchEvent).not.toHaveBeenCalled();
+    handlers[3]({ payload: notice });
+    expect(dispatchEvent).toHaveBeenCalledOnce();
+
+    await adapter.disconnect();
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('connect() 之前的 auth 事件不起订阅：订阅只由 connect() 发起（RLS 自检在那里）', async () => {
+    const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });
+    const authCallbacks: Array<(event: string, session: { access_token: string } | null) => void> = [];
+    const auth = {
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authCallbacks.push(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      })
+    };
+    const realtime = createRealtimeAuth(tokenA);
+    const channel = vi.fn(() => {
+      const channelInstance = {
+        on: vi.fn(() => channelInstance),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      return channelInstance;
+    });
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'rxdb_caller_buckets' ? ['public'] : null,
+      error: null,
+      status: 200
+    }));
+    const removeChannel = vi.fn(async () => undefined);
+    const idle = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+
+    // 监听在构造时就装上了：应用登录发生在 connect() 之前
+    authCallbacks[0]('SIGNED_IN', { access_token: tokenA });
+    // disconnect() 与轮换排在同一条串行队列里：它返回时，事件触发的轮换一定已经跑完
+    await idle.disconnect();
+    expect(channel).not.toHaveBeenCalled();
+
+    const connected = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+    try {
+      authCallbacks[1]('SIGNED_IN', { access_token: tokenA });
+      await connected.connect();
+      expect(channel).toHaveBeenCalledTimes(2);
+    } finally {
+      await connected.disconnect();
+    }
+  });
+
+  it('auth 事件带来读不出是谁的令牌：不在回调里抛错，退订旧身份的频道，下一次合法令牌照常重建', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });
+    const tokenB = testJwt({ role: 'authenticated', sub: 'user-b' });
+    // 声称已登录却没有 sub：手工注入的会话可能是这个形状
+    const unidentified = testJwt({ role: 'authenticated' });
+    const authCallbacks: Array<(event: string, session: { access_token: string } | null) => void> = [];
+    const auth = {
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authCallbacks.push(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      })
+    };
+    const realtime = createRealtimeAuth(tokenA);
+    const topics: string[] = [];
+    const channel = vi.fn((topic: string) => {
+      topics.push(topic);
+      const channelInstance = {
+        on: vi.fn(() => channelInstance),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      return channelInstance;
+    });
+    const removeChannel = vi.fn(async () => undefined);
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          ['public', realtime.accessTokenValue === tokenA ? 'user:user-a' : 'user:user-b']
+        : null,
+      error: null,
+      status: 200
+    }));
+    const adapter = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+
+    try {
+      await adapter.connect();
+      expect(channel).toHaveBeenCalledTimes(3);
+
+      realtime.accessTokenValue = unidentified;
+      expect(() => authCallbacks[0]('TOKEN_REFRESHED', { access_token: unidentified })).not.toThrow();
+      await vi.waitFor(() => expect(removeChannel).toHaveBeenCalledTimes(3));
+      await vi.waitFor(() =>
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Cannot tell who the session token belongs to'))
+      );
+      expect(channel).toHaveBeenCalledTimes(3);
+
+      realtime.accessTokenValue = tokenB;
+      authCallbacks[0]('SIGNED_IN', { access_token: tokenB });
+      await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(6));
+      expect(topics.slice(3)).toEqual([
+        RXDB_CHANGES_TOPIC,
+        `${RXDB_CHANGES_TOPIC}:bucket:public`,
+        `${RXDB_CHANGES_TOPIC}:bucket:user:user-b`
+      ]);
+    } finally {
+      await adapter.disconnect();
+      warn.mockRestore();
+    }
+  });
+
+  it('accessToken 模式没有 auth 事件：读到换了主人的令牌时重建 bucket 频道', async () => {
+    const tokenFor = (user: string) => testJwt({ role: 'authenticated', sub: user });
+    const userOf = (token: string | null) => (token === tokenFor('user-a') ? 'user-a' : 'user-b');
+    // 不给 auth：配了 accessToken 的客户端访问 auth 就抛，适配器装不上 auth 监听
+    const realtime = createRealtimeAuth(tokenFor('user-a'));
+    const topics: string[] = [];
+    const channel = vi.fn((topic: string) => {
+      topics.push(topic);
+      const channelInstance = {
+        on: vi.fn(() => channelInstance),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      return channelInstance;
+    });
+    const removeChannel = vi.fn(async () => undefined);
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'rxdb_caller_buckets' ? ['public', `user:${userOf(realtime.accessTokenValue)}`] : null,
+      error: null,
+      status: 200
+    }));
+    const adapter = createAdapter({ realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+    const bucketTopics = (user: string) => [
+      RXDB_CHANGES_TOPIC,
+      `${RXDB_CHANGES_TOPIC}:bucket:public`,
+      `${RXDB_CHANGES_TOPIC}:bucket:user:${user}`
+    ];
+
+    await adapter.connect();
+    expect(topics).toEqual(bucketTopics('user-a'));
+
+    // 同步每次与远端交换数据前都问 callerIdentity：此刻的令牌换了主人，频道跟着换
+    realtime.accessTokenValue = tokenFor('user-b');
+    await expect(adapter.callerIdentity()).resolves.toMatchObject({ subject: 'user-b' });
+    await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(6));
+    expect(removeChannel).toHaveBeenCalledTimes(3);
+    expect(topics.slice(3)).toEqual(bucketTopics('user-b'));
+
+    // 同一个身份再问、再 connect：不重建
+    await adapter.callerIdentity();
+    await adapter.connect();
+    expect(channel).toHaveBeenCalledTimes(6);
+
+    // 应用切回原账号后再调 connect()：按新身份重建
+    realtime.accessTokenValue = tokenFor('user-a');
+    await adapter.connect();
+    await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(9));
+    expect(topics.slice(6)).toEqual(bucketTopics('user-a'));
+
+    await adapter.disconnect();
+  });
+
+  // 变更通知的频道按调用者的分区订阅，分区却会在会话中途变（管理员把成员加进或移出租户）。
+  // 同步每次分区拉取与待拉数统计都会问一遍 getCallerBuckets()，适配器在那里对账：
+  // 与订阅时的分区集合对不上就重建频道，新分区的提示不必等断线重连。
+  //
+  // 重建走实时队列，`disconnect()` 与它排在同一条队列里：用例用它当栅栏，返回时排在前面的重建（若有）已经跑完，
+  // 不靠轮询，也能断言「没有重建」。
+  describe('调用者的分区在会话中途变了：频道集跟着重建（US-033）', () => {
+    interface BucketsResponse {
+      data: unknown;
+      error: { message: string } | null;
+      status: number;
+    }
+
+    const granted = (...buckets: string[]): BucketsResponse => ({ data: buckets, error: null, status: 200 });
+    const unavailable: BucketsResponse = { data: null, error: { message: 'rpc unavailable' }, status: 503 };
+    const malformed: BucketsResponse = { data: ['public', 42], error: null, status: 200 };
+    const bucketTopics = (...buckets: string[]) => [
+      RXDB_CHANGES_TOPIC,
+      ...buckets.map(bucket => `${RXDB_CHANGES_TOPIC}:bucket:${bucket}`)
+    ];
+
+    /** 桩客户端：按建立顺序记下每个频道，caller buckets 的应答由用例随时改 */
+    function createBucketRealtime(initial: BucketsResponse, realtime = createRealtimeAuth()) {
+      let response = initial;
+      const created: Array<{ topic: string; instance: Record<string, unknown> }> = [];
+      const channel = vi.fn((topic: string) => {
+        const instance: Record<string, unknown> = { seq: created.length };
+        instance['on'] = vi.fn(() => instance);
+        instance['subscribe'] = vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return instance;
+        });
+        created.push({ topic, instance });
+        return instance;
+      });
+      const removeChannel = vi.fn<(channel: unknown) => Promise<void>>(async () => undefined);
+      const rpc = vi.fn(async (name: string) =>
+        name === 'rxdb_caller_buckets' ? response : { data: null, error: null, status: 200 }
+      );
+      return {
+        adapter: createAdapter({ channel, realtime, removeChannel, rpc }, { rlsCheck: false }, [Todo]),
+        /** 建过的频道，按建立顺序 */
+        created,
+        removeChannel,
+        respond: (next: BucketsResponse) => {
+          response = next;
+        },
+        /** 到目前为止问过几次 caller buckets */
+        bucketQueries: () => rpc.mock.calls.filter(([name]) => name === 'rxdb_caller_buckets').length,
+        /** 已拆掉的频道，按拆的顺序 */
+        removed: () => removeChannel.mock.calls.map(([removed]) => removed),
+        topicsFrom: (start: number) => created.slice(start).map(item => item.topic),
+        instances: () => created.map(item => item.instance)
+      };
+    }
+
+    it('新增了分区：getCallerBuckets 读到差异就重建频道，旧频道全部拆掉，也不会反复重建', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics('public', 'user:test-user'));
+
+      // 管理员把用户加进租户 t1
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      // 对账不改调用方拿到的东西
+      await expect(adapter.getCallerBuckets()).resolves.toEqual(['public', 'user:test-user', 'tenant:t1']);
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(3)).toEqual(bucketTopics('public', 'user:test-user', 'tenant:t1'));
+      // 先拆旧的三个（重建），再拆重建出的四个（disconnect）：建过的每个频道恰好拆一次
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+      // 连上、这次调用、重建里各问一次：重建里那次问分区不会再引发重建
+      expect(bucketed.bucketQueries()).toBe(3);
+    });
+
+    it('撤销了分区：getCallerBuckets 读到差异就重建频道，被撤销分区的频道不再订阅', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user', 'tenant:t1'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics('public', 'user:test-user', 'tenant:t1'));
+
+      bucketed.respond(granted('public', 'user:test-user'));
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(4)).toEqual(bucketTopics('public', 'user:test-user'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('分区集合没变（只是顺序不同、有重复）：getCallerBuckets 不重建频道', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      bucketed.respond(granted('user:test-user', 'public', 'public'));
+      await expect(adapter.getCallerBuckets()).resolves.toEqual(['user:test-user', 'public', 'public']);
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics('public', 'user:test-user'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('连上时分区查询失败、只订阅了旧日志频道：之后一次成功的 getCallerBuckets 补建分区频道', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const bucketed = createBucketRealtime(unavailable);
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics());
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to resolve caller buckets'));
+
+      bucketed.respond(granted('public', 'user:test-user'));
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(1)).toEqual(bucketTopics('public', 'user:test-user'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    // 同步对每个仓库各问一次，它们读到的是同一份新分区：排队的重建到点时发现已经对上了，就不再重复
+    it('同一次变化被并发的 getCallerBuckets 一起观察到：只重建一次', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      await Promise.all([adapter.getCallerBuckets(), adapter.getCallerBuckets(), adapter.getCallerBuckets()]);
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(7);
+      expect(bucketed.topicsFrom(3)).toEqual(bucketTopics('public', 'user:test-user', 'tenant:t1'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+      // 连上 1 次、三个并发调用各 1 次、重建里 1 次；排队的另两次重建没有再问
+      expect(bucketed.bucketQueries()).toBe(5);
+    });
+
+    // 订阅恢复后适配器会请求重算待拉数，执行者（同步插件）重数时又要问 getCallerBuckets()：
+    // 那时订阅集合已经是新的，必须对得上，否则重建引发重算、重算引发重建，没完没了
+    it('重建后订阅恢复触发的待拉数重算再问 getCallerBuckets：对得上，不再重建', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+      const recounts: Promise<string[]>[] = [];
+      adapter.rxdb.syncState.bindPullableRefresh(() => {
+        // 回归成「重建与重算互相触发」会在微任务里没完没了，把页面卡死：远超预期就不再重算，让断言报出来
+        if (recounts.length < 20) recounts.push(adapter.getCallerBuckets());
+      });
+
+      await adapter.connect();
+      // 三个频道各报一次 SUBSCRIBED，这一批只请求一次（US-236）
+      await vi.waitFor(() => expect(recounts).toHaveLength(1));
+
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      await adapter.getCallerBuckets();
+      // 重建出的四个频道是新的一批，同样只请求一次
+      await vi.waitFor(() => expect(recounts).toHaveLength(2));
+      await Promise.all(recounts);
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(7);
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('已断开：getCallerBuckets 不借机重新订阅', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      await adapter.disconnect();
+      expect(bucketed.created).toHaveLength(3);
+
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(3);
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('访客没有订阅：getCallerBuckets 不借机订阅，登录后仍要重新 connect()', async () => {
+      vi.spyOn(console, 'info').mockImplementation(() => undefined);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const bucketed = createBucketRealtime(granted('public'), realtime);
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      realtime.accessTokenValue = AUTHENTICATED_TOKEN;
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(0);
+    });
+
+    it.each([
+      ['查询失败', unavailable],
+      ['应答形状不对', malformed]
+    ])('%s：getCallerBuckets 照常抛错，频道保持原样', async (_label, failure) => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      bucketed.respond(failure);
+      await expect(adapter.getCallerBuckets()).rejects.toBeInstanceOf(SupabaseDataError);
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(3);
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
   });
 
   it('reconnects realtime subscription with exponential backoff', async () => {
@@ -1336,6 +2258,98 @@ describe('supabase review regressions', () => {
     await adapter.connect();
     handlers[0]('SUBSCRIBED');
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
+  // US-236：统一频道加每个分区一个频道，一次建出的这一批各报一次 SUBSCRIBED。此前每报一次就请求一次重算，
+  // 同步插件合成「正在数的一遍 + 收尾一遍」，打开页面就把所有仓库整整数两遍。等这一批都有了结局再请求一次：
+  // 数的时候这一批都已订阅上，不存在「数的途中才订阅上的频道」
+  describe('一批频道只请求一次待拉数重算（US-236）', () => {
+    type StatusHandler = (status: string, err?: { message?: string }) => void;
+
+    function createBatchRealtime() {
+      const handlers: StatusHandler[] = [];
+      const channel = vi.fn(() => {
+        const instance: Record<string, unknown> = {};
+        instance['on'] = vi.fn(() => instance);
+        instance['subscribe'] = vi.fn((handler: StatusHandler) => {
+          handlers.push(handler);
+          return instance;
+        });
+        return instance;
+      });
+      const rpc = vi.fn(async (name: string) =>
+        name === 'rxdb_caller_buckets' ?
+          { data: ['public', 'user:test-user'], error: null, status: 200 }
+        : { data: null, error: null, status: 200 }
+      );
+      const removeChannel = vi.fn(async () => undefined);
+      const adapter = createAdapter({ channel, rpc, removeChannel }, { rlsCheck: false }, [Todo]);
+      const refresh = vi.fn();
+      adapter.rxdb.syncState.bindPullableRefresh(refresh);
+      return { adapter, handlers, refresh };
+    }
+
+    /** 状态回调排在实时队列里处理：等队列走完再看请求了几次 */
+    const settleQueue = () => new Promise(resolve => setTimeout(resolve, 0));
+
+    it('三个频道都订阅上才请求，而且只请求一次', async () => {
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+      expect(handlers).toHaveLength(3);
+
+      handlers[0]('SUBSCRIBED');
+      handlers[1]('SUBSCRIBED');
+      await settleQueue();
+      expect(refresh).not.toHaveBeenCalled();
+
+      handlers[2]('SUBSCRIBED');
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+      await settleQueue();
+      expect(refresh).toHaveBeenCalledOnce();
+      await adapter.disconnect();
+    });
+
+    it('有频道订阅失败：这一批都有了结局之后，为订阅上的那几个数一次', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+
+      handlers[0]('SUBSCRIBED');
+      handlers[1]('TIMED_OUT');
+      await settleQueue();
+      expect(refresh).not.toHaveBeenCalled();
+
+      handlers[2]('SUBSCRIBED');
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+      await adapter.disconnect();
+    });
+
+    it('一个频道都没订阅上：不请求，等重连之后的那一批', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+
+      for (const handler of handlers) handler('CHANNEL_ERROR', { message: 'join refused' });
+      await settleQueue();
+
+      expect(refresh).not.toHaveBeenCalled();
+      await adapter.disconnect();
+    });
+
+    // 频道自己重新加入（Realtime 客户端的 rejoin）会再报一次 SUBSCRIBED：断开的那一段没听见，照旧请求重数
+    it('这一批都有了结局之后，某个频道再报 SUBSCRIBED：单独请求一次', async () => {
+      const { adapter, handlers, refresh } = createBatchRealtime();
+      await adapter.connect();
+      for (const handler of handlers) handler('SUBSCRIBED');
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+
+      handlers[1]('SUBSCRIBED');
+
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      await adapter.disconnect();
+    });
   });
 
   // 跳板是即发即忘的：执行者慢（这里干脆永不 settle）也不能把 `disconnect()` 拖住。

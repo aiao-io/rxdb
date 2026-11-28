@@ -11,7 +11,7 @@ tags: [adapter, supabase, sync, security, rls]
 
 <!--
 INVEST 检查清单:
-- [x] Independent: 不依赖 US-029 的 access 声明或角色；阶段 A 无前置，阶段 B 以 US-220（UPDATE 落库语义）为前置；「行是否存在」的判定原语与 US-220 共用，两者 plan 全部完成后才开工
+- [x] Independent: 不依赖 US-029 的作用域声明；阶段 A 无前置，阶段 B 以 US-220（UPDATE 落库语义）为前置；「行是否存在」的判定原语与 US-220 共用，两者 plan 全部完成后才开工
 - [x] Negotiable: 「行是否存在」的判定机制、日志改由触发器推导还是函数内校验、回执形状，均已冻结，结论见技术笔记
 - [x] Valuable: 修复前已有可复现症状（幽灵 DELETE），开了 RLS 的部署会踩到
 - [x] Estimable: 阶段 A 只动参考 SQL 与回归用例；B / C 的波及面已列在实现文件
@@ -102,7 +102,7 @@ INVEST 检查清单:
 ### Out of Scope
 
 - UPDATE 推送按 INSERT 语义落库导致的 23502 / 误报 42501（[US-220](./US-220-supabase-update-push-semantics.md) 的范围）
-- 角色、`access.owner` 等声明与客户端谓词（[US-029](../core/US-029-rbac-owner-role-permission.md) 的范围）
+- 作用域声明与本地判定（[US-029](../core/US-029-rbac-owner-role-permission.md) 的范围）
 - 拉取侧过滤与按租户水位：包括「用户能拉到自己按 SELECT 策略读不到的行」本身，本故事只保证对这种行的写入被正确拒绝
 - Supabase 之外的远端适配器实现 RLS 等价物；阶段 B 只改它们共享的契约，并让它们按新契约返回结果
 - rejected 变更与撤销 / 重做的交互：阶段 B 只要求 rejected 变更不再被重推、被拒实体回到远端状态；撤销语义另议
@@ -231,7 +231,7 @@ INVEST 检查清单:
 ## References
 
 - RV-022 US-029 立项准入评审：`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`
-- [US-029 多用户 RBAC：角色与所有权写权限](../core/US-029-rbac-owner-role-permission.md)
+- [US-029 按作用域的成员写权限](../core/US-029-rbac-owner-role-permission.md)
 - [US-220 Supabase 推送 UPDATE 的落库语义](./US-220-supabase-update-push-semantics.md)
 - PostgreSQL 文档：[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
 - PostgreSQL 文档：[INSERT … ON CONFLICT](https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT)

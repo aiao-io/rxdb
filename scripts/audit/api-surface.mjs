@@ -562,7 +562,60 @@ const NAMING = {
     'CloneEntityClassesOptions',
     // US-313 的只读实例（`RxDBOptions.readOnly`）在公开写入口抛它。只读是实例层的属性，与同族的
     // `RxDBMissingPluginError` 等实例错误并列；叫 `WorkingTree*` 等于宣称只读实例是工作树能力的一部分。
-    'RxDBReadOnlyError'
+    'RxDBReadOnlyError',
+    // US-035 本地库与身份的绑定（`RxDBOptions.identity`）。身份是实例层的属性，与同族的
+    // `RxDBReadOnlyError` 等并列；叫 `Commit*` / `WorkingTree*` 等于宣称本地库绑定身份是提交能力的一部分。
+    // 只登记应用必须用到的四个：声明身份的类型、未登录的身份值、按身份算库名、身份对不上时抛的错。
+    // 键的算法、水位行名与两处核对是核心与同步插件之间的内部约定，不进公开面。
+    'RxDBIdentity',
+    'RXDB_ANONYMOUS_SUBJECT',
+    'getRxDBIdentityDatabaseName',
+    'RxDBIdentityMismatchError',
+    // US-226 待推数的计数口径：同一事务的变更算一条记录，不在事务里的各算一条。数的是核心的变更日志
+    // （`transactionId` 是 `RxDBChange` 的核心列），分组计数走适配器契约的 `count({ groupBy })`。
+    // 历史插件的 `pushableCount$` 与同步插件的仓库状态共用它，各数一套就会对不上。它是同步契约，
+    // 与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称待推计数是提交能力的一部分。
+    // `RxDBChangeCounter` / `RxDBChangeWhere` 是它的入参形状，理由与 `EntityMutationsOptions` 同族：
+    // 包外要给它们起名，不导出就只能写 `Parameters<typeof countRxDBChangeRecords>[0]` 或照抄一份结构。
+    'countRxDBChangeRecords',
+    'RxDBChangeCounter',
+    'RxDBChangeWhere',
+    // US-228 多对多关联行的确定性 id。`junctionEntityId` 是关系缓存新建关联行、本地适配器与测试核对行 id、
+    // 服务端写关联行时共用的同一个公式；`JUNCTION_ID_NAMESPACE` 是它的协议常量，`JunctionName` /
+    // `JunctionEndpointKey` 是入参形状。`JunctionEndpointsLookup` 是 `createEntitySyncResolver` 第三个参数的形状
+    // （中间表的同步跟随两端），与上面 US-026 的解析器同族。它们是实体关系与同步配置的契约，与工作树、
+    // 提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称多对多关联是提交能力的一部分。
+    'junctionEntityId',
+    'JUNCTION_ID_NAMESPACE',
+    'JunctionName',
+    'JunctionEndpointKey',
+    'JunctionEndpointsLookup',
+    // US-038 外键成环的推送。`RemoteMergeOptions` 是远端 `mergeChanges` 第四个参数的形状，`RemoteDeferredForeignKey`
+    // 是其中「先写空、再补写」的外键；与同族的 `RemoteMergeResult` / `RemoteChangeResult` 一样是远端适配器契约，
+    // 第三方远端适配器实现它时必须能命名。它们与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    'RemoteMergeOptions',
+    'RemoteDeferredForeignKey',
+    // US-029 按作用域的成员写权限。`EntityMetadataOptions.access` 的声明类型与规则形式 `{ requires }` 是调用方写声明时
+    // 必须能命名的；读取作用域与规则的三个函数给界面派生与开发者工具用；规则违规的形状与判别函数让调用方按
+    // 违规清单分支（与 US-027 的 `PermissionViolation` 同族）。`rxdb.grants` 的类型、快照的值与它的两个字面量联合、
+    // 授权行的形状是应用设入与订阅时必须能命名的；`RxDBGrantState` 与核心另外四张系统表一样公开。
+    // 它们是实体声明与写入口的契约，与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称成员权限是提交能力的一部分。
+    'EntityAccessOptions',
+    'EntityAccessScope',
+    'EntityAccessScopeOptions',
+    'EntityOperationRule',
+    'getEntityAccessScope',
+    'getEntityPermissionRule',
+    'isEntityOperationRule',
+    'isPermissionRuleViolation',
+    'PermissionRuleViolation',
+    'PermissionRuleViolationReason',
+    'RxDBGrant',
+    'RxDBGrants',
+    'RxDBGrantSnapshot',
+    'RxDBGrantSource',
+    'RxDBGrantState',
+    'RxDBGrantStatus'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

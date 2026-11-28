@@ -33,4 +33,4 @@ actionsColumn(title: string, deleteLabel: string, canDelete: RecordDeletePredica
 - `update: 'system'`：行降级为只读，「查看」以 view 模式打开详情，仍可删除（若 `delete` 允许）；
 - `delete: 'system'`：操作列不出「删除」，行仍可编辑。
 
-跨版本维护 `actionsColumn` 调用或自定义操作列的消费方，请按 `deriveEntityCapabilities(metadata)` 派生 `canDelete`，与 `EntityList` 内部的判定保持一致。
+跨版本维护 `actionsColumn` 调用或自定义操作列的消费方，请按 `deriveEntityCapabilities(metadata)` 派生 `canDelete`，与 `EntityList` 内部的判定保持一致；`delete` 声明为规则形式（US-029）的实体按行用 `deriveRowCapabilities(metadata, record, { grants: rxdb.grants.snapshot })`。

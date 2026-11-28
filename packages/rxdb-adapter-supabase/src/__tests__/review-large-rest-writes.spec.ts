@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chunk_values } from '../pagination.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { getSupabaseServiceRoleClient, signTestAccessToken } from './test-utils.js';
 
 interface RequestMeasurement {
   method: string;
@@ -14,8 +14,9 @@ interface RequestMeasurement {
 }
 
 const requests: RequestMeasurement[] = [];
+// 推送入口只对已登录身份开放（US-225）：以测试用户的令牌访问，fetch 照旧逐个记下请求
 const client = createClient(import.meta.env['VITE_SUPABASE_URL'], import.meta.env['VITE_SUPABASE_KEY'], {
-  auth: { persistSession: false, autoRefreshToken: false },
+  accessToken: () => signTestAccessToken(),
   global: {
     fetch: async (input, init) => {
       try {

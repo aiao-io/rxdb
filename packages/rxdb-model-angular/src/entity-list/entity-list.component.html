@@ -133,6 +133,13 @@
   </div>
 </div>
 
+<!-- 写入口全关的原因（US-029 AC#20）：只读实例，或授权快照还没取到 -->
+@if (writeBlockedMessage(); as message) {
+  <div class="alert alert-info rounded-none px-4 py-2 text-sm" data-testid="entity-write-blocked" role="status">
+    {{ message }}
+  </div>
+}
+
 @if (reorderError(); as error) {
   <div class="alert alert-error alert-soft mx-4 mt-2 py-2 text-sm" role="alert">
     {{ t('text.10bbe3c44d', { p0: error }) }}

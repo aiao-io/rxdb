@@ -154,13 +154,16 @@ export interface SyncResult {
  */
 export interface PullOptions {
   /**
-   * 单次拉取的最大数量
+   * 单次拉取的最大数量；必须是正整数，否则拉取入口直接抛 `RxDBError`，一个请求都不发
    * @default 1000
    */
   limit?: number;
 
   /**
    * 是否自动处理分页，拉取所有数据
+   *
+   * @remarks
+   * 不开时只拉一页、以 `hasMore` 告知还有剩余；分区实体每个分区各拉一页，按区快照同样一页一停，进度逐页落库，下一次接着拉。
    * @default false
    */
   fetchAll?: boolean;
@@ -214,14 +217,20 @@ export interface PushOptions {
 /**
  * 历史记录作用域类型
  */
-export type HistoryScopeType = 'database' | 'repository' | 'entity';
+export type HistoryScopeType = 'database' | 'repository' | 'repositories' | 'entity';
 
 /**
  * 历史记录作用域配置
+ *
+ * @remarks
+ * `repositories` 是几个仓库合起来的作用域（US-316）：一个页面同时编辑几张有外键关系的表时，
+ * 跨这几张表的事务能整条撤销，作用域外的数据不受影响。由 `history([A, B])` 生成时，
+ * 两端都在其中的多对多中间表一并列入。
  */
 export type HistoryScope =
   | { type: 'database' }
   | { type: 'repository'; namespace: string; entity: string }
+  | { type: 'repositories'; repositories: readonly RepositoryIdentifier[] }
   | { type: 'entity'; namespace: string; entity: string; entityId: RxDBEntityId };
 
 /**
@@ -391,13 +400,16 @@ export interface RepositoryIdentifier {
  */
 export interface PullRepositoryOptions {
   /**
-   * 单次请求拉取的最大变更数
+   * 单次请求拉取的最大变更数；必须是正整数，否则 `pullRepository` 直接抛 `RxDBError`，一个请求都不发
    * @default 1000
    */
   limit?: number;
 
   /**
    * 是否多次请求拉取所有变更
+   *
+   * @remarks
+   * 不开时只拉一页、以 `hasMore` 告知还有剩余；分区实体每个分区各拉一页，按区快照同样一页一停，进度逐页落库，下一次接着拉。
    * @default false
    */
   fetchAll?: boolean;
@@ -457,9 +469,9 @@ export interface PushRepositoryOptions {
    * 是否包含关联实体（级联同步）
    *
    * 为 true 时：
-   * - 自动推送所有子实体（引用当前实体的实体）
-   * - 按反向拓扑顺序：子 -> 父
-   * - 示例：推送 User 时会自动推送 Post
+   * - 连同目标所在的连通分量一起推：它引用的父实体、引用它的子实体，以及沿外键能连到的其余实体
+   * - 跨仓顺序只由外键决定：删除子先父后，新建与修改父先子后
+   * - 示例：推送 Post 时会先推它引用的 User，推送 User 时会一并推引用它的 Post
    *
    * 为 false 时：
    * - 仅同步指定的仓库

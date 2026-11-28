@@ -17,10 +17,7 @@ import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 
 /** 服务端 `max-rows`，与 docker compose 的默认值一致 */
 const SERVER_MAX_ROWS = 1000;
@@ -51,10 +48,7 @@ describe('SUPA-004 / SUPA-005 — 超过 PostgREST max-rows 的结果集', () =>
     // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
     rxdb.use(rxDBPluginTree);
 
-    rxdb.adapter(
-      'supabase',
-      async db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.init();
 
     adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
@@ -131,10 +125,12 @@ describe('SUPA-004 / SUPA-005 — 超过 PostgREST max-rows 的结果集', () =>
     'SUPA-005：分支数超过 max-rows 时 pullBranches 不得静默截断',
     async () => {
       const branchIds = Array.from({ length: BRANCH_COUNT }, (_v, index) => `${titlePrefix}-branch-${index}`);
+      // 客户端不能直写 rxdb_branch（US-225），造数据与清场走 service_role；被测的 pullBranches 仍以测试用户身份读
+      const serviceRole = getSupabaseServiceRoleClient();
       try {
         for (let offset = 0; offset < branchIds.length; offset += INSERT_CHUNK) {
           const batch = branchIds.slice(offset, offset + INSERT_CHUNK).map(id => ({ id }));
-          const { error } = await adapter.client.from('rxdb_branch').insert(batch);
+          const { error } = await serviceRole.from('rxdb_branch').insert(batch);
           if (error) throw new Error(`创建分支失败: ${error.message}`);
         }
 
@@ -147,7 +143,7 @@ describe('SUPA-004 / SUPA-005 — 超过 PostgREST max-rows 的结果集', () =>
         }
       } finally {
         for (let offset = 0; offset < branchIds.length; offset += INSERT_CHUNK) {
-          await adapter.client
+          await serviceRole
             .from('rxdb_branch')
             .delete()
             .in('id', branchIds.slice(offset, offset + INSERT_CHUNK));

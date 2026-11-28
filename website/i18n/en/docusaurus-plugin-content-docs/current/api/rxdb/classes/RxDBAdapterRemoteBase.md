@@ -80,6 +80,16 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:380](https://github.com/aiao-io/r
 
 [`RxDBAdapterBase`](RxDBAdapterBase.md).[`rxdb`](RxDBAdapterBase.md#rxdb)
 
+---
+
+### supportsDeferredForeignKeys \{#supportsdeferredforeignkeys\}
+
+```ts
+readonly supportsDeferredForeignKeys: boolean = false;
+```
+
+Indicates whether the adapter can write null foreign keys and then fill them in within the same request. Set this to `true` when the adapter implements [deferred foreign keys](/api/rxdb/interfaces/RemoteMergeOptions.md#deferredforeignkeys). The sync plugin reports `remote-unsupported` for foreign-key cycles within a batch when this capability is disabled.
+
 ## Methods
 
 ### backendId() \{#backendid\}
@@ -312,7 +322,8 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:382](https://github.com/aiao-io/r
 abstract mergeChanges(
    actions,
    branchId?,
-   changes?
+   changes?,
+   options?
 ): Promise<RemoteMergeResult>;
 ```
 
@@ -329,11 +340,12 @@ Implementation strategy (Supabase):
 
 #### Parameters
 
-| Parameter   | Type                                                            | Description                                                                              |
-| ----------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `actions`   | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md) | The compacted change operation set (pushed from the local side)                          |
-| `branchId?` | `string`                                                        | Branch ID (used to set branchId in remote change records)                                |
-| `changes?`  | [`IRxDBChange`](../interfaces/IRxDBChange.md)[]                 | The complete raw change records (optional, used to preserve the complete change history) |
+| Parameter   | Type                                                               | Description                                                                                                                                        |
+| ----------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `actions`   | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md)    | The compacted change operation set (pushed from the local side)                                                                                    |
+| `branchId?` | `string`                                                           | Branch ID (used to set branchId in remote change records)                                                                                          |
+| `changes?`  | [`IRxDBChange`](../interfaces/IRxDBChange.md)[]                    | The complete raw change records (optional, used to preserve the complete change history)                                                           |
+| `options?`  | [`RemoteMergeOptions`](/api/rxdb/interfaces/RemoteMergeOptions.md) | Foreign keys to fill in after writing null values within the same request. Requires [`supportsDeferredForeignKeys`](#supportsdeferredforeignkeys). |
 
 #### Returns
 

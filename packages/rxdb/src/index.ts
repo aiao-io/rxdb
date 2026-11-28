@@ -30,7 +30,14 @@ export {
   assertEntityOperationAllowed,
   assertMutationsAllowed,
   assertSystemEntityPermissions,
+  getEntityAccessScope,
   getEntityPermission,
+  getEntityPermissionRule,
+  isEntityOperationRule,
+  isPermissionRuleViolation,
+  type EntityAccessScope,
+  type PermissionRuleViolation,
+  type PermissionRuleViolationReason,
   type PermissionViolation
 } from './entity/entity-permissions.js';
 // 只转类型不转类：`RxDB.entityManager` 是公开成员，用户接得到就得能具名；
@@ -44,6 +51,12 @@ export type { EntityStatus } from './entity/entity-status.js';
 export * from './entity/entity-value.utils.js';
 export * from './entity/entity.decorator.js';
 export * from './entity/entity.interface.js';
+export {
+  JUNCTION_ID_NAMESPACE,
+  junctionEntityId,
+  type JunctionEndpointKey,
+  type JunctionName
+} from './entity/many-to-many-entity.js';
 export { assertMutationsTableSet } from './entity/worktree-table-set-guard.js';
 // 具名收口（原为 `export *`，连带把九个内部装配手法一起放在了公开面上）。
 // 留在面上的五个各有理由：`normalizeCreateEntity` / `normalizeUpdateEntity` 是适配器写
@@ -214,6 +227,15 @@ export type { EventListener, RxDBConfig } from './rxdb.types.js';
 export * from './RxDBError.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
 export * from './sync-state.js';
+// 授权快照（US-029）：规则形式写权限的判定依据
+export {
+  RxDBGrantSnapshot,
+  type RxDBGrant,
+  type RxDBGrantSource,
+  type RxDBGrantStatus
+} from './grants/grant-snapshot.js';
+export { RxDBGrantState } from './grants/grant-state.js';
+export { RxDBGrants } from './grants/grants.js';
 // active 分支基数守卫（FR-048）。**归核心而不是随提交能力走**：「恰好一个 active 分支」是
 // 分支拓扑不变量，核心的 `resolve-current-branch` / `sync-branches` / `create-branch` 本就在写它，
 // 与提交能力无关。`ACTIVE_BRANCH_KEY` 与 `MAIN_BRANCH_ID` 必须出现在公开面上：两个后端的
@@ -223,6 +245,8 @@ export * from './sync-state.js';
 export * from './system/active-branch-guard.js';
 export * from './system/branch.js';
 export * from './system/capability-watermark.js';
+// 本地库与身份的绑定（US-035）。只导出应用要用的：声明身份的类型、未登录的身份值、按身份算库名、
+// 身份对不上时抛的错。键的算法、水位行名与两处核对是核心与同步插件之间的内部约定，不进公开面。
 export {
   RXDB_CHANGE_CODEC_VERSION,
   RXDB_CHANGE_ENTITY_ID_PREFIX,
@@ -242,6 +266,12 @@ export {
   type RxDBChangeEntityMetadataResolver
 } from './system/change-codec.js';
 export * from './system/change.js';
+export {
+  RXDB_ANONYMOUS_SUBJECT,
+  RxDBIdentityMismatchError,
+  getRxDBIdentityDatabaseName,
+  type RxDBIdentity
+} from './system/identity-binding.js';
 export * from './system/migration.js';
 // 内容寻址摘要。必须出现在公开面上：`@aiao/rxdb-plugin-working-tree` 在包外，它的变更单元
 // 指纹与提交幂等键都按它算，而这两个 hex 是**落库**的。插件自带一份实现不产生编译错误，
@@ -275,6 +305,12 @@ export {
   buildOfflineWriteRepositoryRules,
   buildPushableRepositoryRules
 } from './sync-contract/pushable-repository-rules.js';
+// 待推数的计数口径：一个事务一条记录。历史插件的 `pushableCount$` 与同步插件的仓库状态共用，各数一套就会对不上。
+export {
+  countRxDBChangeRecords,
+  type RxDBChangeCounter,
+  type RxDBChangeWhere
+} from './sync-contract/change-records.js';
 // metadata-only 分支首次物化的来源契约：同步插件实现、工作树插件消费，两者互不依赖，
 // 接口、登记槽与两端都要算出同一个值的分页指纹只能留在核心。
 export * from './sync-contract/branch-materialization-source.js';
@@ -296,7 +332,8 @@ export {
   isEntitySyncResolver,
   toEntitySyncResolver,
   type EntitySyncResolver,
-  type EntitySyncTarget
+  type EntitySyncTarget,
+  type JunctionEndpointsLookup
 } from './sync-contract/entity-sync-resolver.js';
 // 同步子系统的公开契约形状：推拉选项、结果与历史项。
 // 实现在 `@aiao/rxdb-plugin-history`，契约留在核心供适配器与 QueryCache 共用。

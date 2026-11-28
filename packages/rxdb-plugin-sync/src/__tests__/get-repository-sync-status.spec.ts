@@ -11,6 +11,7 @@ import {
 } from '@aiao/rxdb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
 interface QueryRule {
@@ -27,8 +28,14 @@ interface QueryOptions {
   limit?: number;
 }
 
+/** 待推数按记录数分两次数：外层是「那批待推变更 AND transactionId 条件」，分组计数带 `groupBy` */
+interface ChangeCountOptions {
+  where: { combinator: 'and'; rules: [{ combinator: 'and'; rules: QueryRule[] }, QueryRule] };
+  groupBy?: string[];
+}
+
 type SyncFind = (options: QueryOptions) => Promise<RxDBSync[]>;
-type ChangeFind = (options: QueryOptions) => Promise<RxDBChange[]>;
+type ChangeCount = (options: ChangeCountOptions) => Promise<number>;
 type GetChangeCount = (
   sinceId: number,
   repositoryFilter?: string[],
@@ -97,15 +104,21 @@ function createSyncRecord(entity: string, overrides: Partial<RxDBSync> = {}): Rx
   return record;
 }
 
-function createChanges(count: number): RxDBChange[] {
-  return Array.from({ length: count }, () => Object.create(RxDBChange.prototype) as RxDBChange);
+/** 本地待推变更：不在事务里的变更条数、事务个数 */
+interface PendingRecords {
+  standalone?: number;
+  transactions?: number;
 }
+
+/** 两次计数查询共用的那批待推变更的条件 */
+const pendingRulesOf = (changeCount: ReturnType<typeof vi.fn<ChangeCount>>): QueryRule[] =>
+  changeCount.mock.calls[0][0].where.rules[0].rules;
 
 interface StatusHarnessOptions {
   entities: EntityType[];
   branchId?: string;
   syncRecords?: RxDBSync[];
-  changes?: RxDBChange[];
+  records?: PendingRecords;
   remoteResult?: { count: number; latestChangeId: number };
   remoteConfigured?: boolean;
   globalSync?: SyncOptions;
@@ -114,9 +127,14 @@ interface StatusHarnessOptions {
 function createStatusHarness(options: StatusHarnessOptions) {
   const branchId = options.branchId ?? 'main';
   const syncFind = vi.fn<SyncFind>(async () => options.syncRecords ?? []);
-  const changeFind = vi.fn<ChangeFind>(async () => options.changes ?? []);
+  const changeCount = vi.fn<ChangeCount>(async ({ groupBy }) =>
+    groupBy ? (options.records?.transactions ?? 0) : (options.records?.standalone ?? 0)
+  );
   const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
-  const changeRepository = { find: changeFind } as unknown as IRepository<typeof RxDBChange>;
+  // `find` 答待拉数里「本库推上去的远端 id」（US-233）：这些用例没有推过
+  const changeRepository = { count: changeCount, find: vi.fn(async () => []) } as unknown as IRepository<
+    typeof RxDBChange
+  >;
   // 远端计数覆盖整条祖先链，`getAncestorBranchIds` 会沿 parentId 上溯；
   // 这里的分支都直接挂在 main 下
   const branchFind = vi.fn(async (): Promise<RxDBBranch[]> => [{ id: branchId, parentId: 'main' } as RxDBBranch]);
@@ -145,6 +163,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
       sync: options.globalSync ?? FULL_SYNC
     },
     syncManager: {
+      rxdb: noIdentityDeclared,
       getCurrentBranch,
       getLocalRepositories,
       getRemoteRepositories
@@ -154,7 +173,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
   return {
     rxdb,
     syncFind,
-    changeFind,
+    changeCount,
     getChangeCount,
     getCurrentBranch,
     getLocalRepositories,
@@ -193,7 +212,7 @@ describe('getRepositorySyncStatus', () => {
       entities: [FullEntity],
       branchId: 'feature',
       syncRecords: [syncRecord],
-      changes: createChanges(2),
+      records: { standalone: 2 },
       remoteResult: { count: 3, latestChangeId: 23 }
     });
 
@@ -219,28 +238,38 @@ describe('getRepositorySyncStatus', () => {
       limit: 1
     });
     expect(harness.syncFind).toHaveBeenNthCalledWith(3, { where: { combinator: 'and', rules: [] } });
-    expect(harness.changeFind).toHaveBeenCalledWith({
-      where: {
-        combinator: 'and',
-        rules: [
-          { field: 'namespace', operator: '=', value: 'public' },
-          { field: 'entity', operator: '=', value: 'StatusFull' },
-          { field: 'branchId', operator: '=', value: 'feature' },
-          { field: 'remoteId', operator: '=', value: null },
-          { field: 'rejectedAt', operator: '=', value: null },
-          { field: 'revertChangeId', operator: '=', value: null },
-          { field: 'id', operator: '>', value: 10 }
-        ]
-      }
-    });
+    expect(pendingRulesOf(harness.changeCount)).toEqual([
+      { field: 'namespace', operator: '=', value: 'public' },
+      { field: 'entity', operator: '=', value: 'StatusFull' },
+      { field: 'branchId', operator: '=', value: 'feature' },
+      { field: 'remoteId', operator: '=', value: null },
+      { field: 'rejectedAt', operator: '=', value: null },
+      { field: 'revertChangeId', operator: '=', value: null },
+      { field: 'id', operator: '>', value: 10 }
+    ]);
     expect(harness.getChangeCount).toHaveBeenCalledWith(20, ['public:StatusFull'], 'feature');
+  });
+
+  // 一次 saveMany 写下的变更同属一个事务：仓库待推数与操作历史一样，按记录数
+  it('counts pushable records: one transaction is one record, standalone changes count one each', async () => {
+    const harness = createStatusHarness({
+      entities: [FullEntity],
+      records: { standalone: 2, transactions: 1 },
+      remoteResult: { count: 0, latestChangeId: 0 }
+    });
+
+    const status = await getRepositorySyncStatus(harness.rxdb, 'public', 'StatusFull');
+
+    expect(status.pushableCount).toBe(3);
+    expect(harness.changeCount).toHaveBeenCalledTimes(2);
+    expect(harness.changeCount.mock.calls.find(([options]) => options.groupBy)?.[0].groupBy).toEqual(['transactionId']);
   });
 
   it('uses default state and an unbounded push query when no sync record exists', async () => {
     const harness = createStatusHarness({
       entities: [FullEntity],
       syncRecords: [],
-      changes: [],
+      records: {},
       remoteResult: { count: 0, latestChangeId: 0 }
     });
 
@@ -258,7 +287,7 @@ describe('getRepositorySyncStatus', () => {
       pushableCount: 0,
       pullableCount: 0
     });
-    expect(harness.changeFind.mock.calls[0][0].where?.rules).toEqual([
+    expect(pendingRulesOf(harness.changeCount)).toEqual([
       { field: 'namespace', operator: '=', value: 'public' },
       { field: 'entity', operator: '=', value: 'StatusFull' },
       { field: 'branchId', operator: '=', value: 'main' },
@@ -276,13 +305,13 @@ describe('getRepositorySyncStatus', () => {
     const harness = createStatusHarness({
       entities: [FullEntity],
       syncRecords: [],
-      changes: [],
+      records: {},
       remoteResult: { count: 0, latestChangeId: 0 }
     });
 
     await getRepositorySyncStatus(harness.rxdb, 'public', 'StatusFull');
 
-    expect(harness.changeFind.mock.calls[0][0].where?.rules).toContainEqual({
+    expect(pendingRulesOf(harness.changeCount)).toContainEqual({
       field: 'rejectedAt',
       operator: '=',
       value: null
@@ -292,7 +321,7 @@ describe('getRepositorySyncStatus', () => {
   it('pulls but never scans local changes for a remote-only entity', async () => {
     const harness = createStatusHarness({
       entities: [RemoteEntity],
-      changes: createChanges(5),
+      records: { standalone: 5 },
       remoteResult: { count: 4, latestChangeId: 9 }
     });
 
@@ -301,7 +330,7 @@ describe('getRepositorySyncStatus', () => {
     expect(status.syncType).toBe('remote');
     expect(status.pushableCount).toBe(0);
     expect(status.pullableCount).toBe(4);
-    expect(harness.changeFind).not.toHaveBeenCalled();
+    expect(harness.changeCount).not.toHaveBeenCalled();
     expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:StatusRemote'], 'main');
   });
 
@@ -311,7 +340,7 @@ describe('getRepositorySyncStatus', () => {
   it('reports nothing pushable and never opens a remote adapter for a local-only entity', async () => {
     const harness = createStatusHarness({
       entities: [LocalEntity],
-      changes: createChanges(3),
+      records: { standalone: 3 },
       remoteResult: { count: 99, latestChangeId: 99 }
     });
 
@@ -323,7 +352,7 @@ describe('getRepositorySyncStatus', () => {
     expect(status.enabled).toBe(false);
     expect(status.pushableCount).toBe(0);
     expect(status.pullableCount).toBe(0);
-    expect(harness.changeFind).not.toHaveBeenCalled();
+    expect(harness.changeCount).not.toHaveBeenCalled();
     expect(harness.getRemoteRepositories).not.toHaveBeenCalled();
     expect(harness.getChangeCount).not.toHaveBeenCalled();
   });
@@ -333,7 +362,7 @@ describe('getRepositorySyncStatus', () => {
     const harness = createStatusHarness({
       entities: [NoneEntity],
       syncRecords: [syncRecord],
-      changes: createChanges(3),
+      records: { standalone: 3 },
       remoteResult: { count: 4, latestChangeId: 4 }
     });
 
@@ -343,7 +372,7 @@ describe('getRepositorySyncStatus', () => {
     expect(status.enabled).toBe(false);
     expect(status.pushableCount).toBe(0);
     expect(status.pullableCount).toBe(0);
-    expect(harness.changeFind).not.toHaveBeenCalled();
+    expect(harness.changeCount).not.toHaveBeenCalled();
     expect(harness.getRemoteRepositories).not.toHaveBeenCalled();
   });
 

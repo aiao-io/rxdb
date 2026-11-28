@@ -3,7 +3,7 @@
  *
  * 1. AC#3 按操作就近继承：整键覆盖会让「子类只收紧 delete」悄悄放开父类收紧的 update；
  * 2. AC#2 非法值与未知键在 `RxDB.init()` 汇总报错，消息点名实体、键与非法值；
- * 3. AC#4 核心 4 张系统表三操作都是 `'system'`（working-tree 的 10 张由插件包自测）；
+ * 3. AC#4 核心 5 张系统表三操作都是 `'system'`（working-tree 的 10 张由插件包自测）；
  * 4. AC#5 插件贡献的系统表漏声明时 `init()` 抛错，而不是裸奔。
  */
 
@@ -178,7 +178,7 @@ describe('US-027 AC#5 插件贡献的系统表必须声明完整', () => {
     expect(() => assertSystemEntityPermissions([HalfDeclaredProbe])).not.toThrow(/create|update/);
   });
 
-  it('核心 4 张表通过', () => {
+  it('核心 5 张表通过', () => {
     expect(() => assertSystemEntityPermissions(CORE_SYSTEM_ENTITIES)).not.toThrow();
   });
 

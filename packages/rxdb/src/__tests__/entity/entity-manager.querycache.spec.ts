@@ -8,13 +8,18 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
-import { ENTITY_STATIC_TYPES, UUID } from '../../entity/entity.interface.js';
-import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
+import { ENTITY_STATIC_TYPES, type EntityType, UUID } from '../../entity/entity.interface.js';
+import { PropertyType, RelationKind, SyncType } from '../../entity/metadata-options.interface.js';
 import { RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
 import type { SyncOptions } from '../../entity/sync-options.interface.js';
+import type {
+  QueryCacheEngineFactory,
+  QueryCachePrimary,
+  QueryCacheSession
+} from '../../repository/query-cache-engine.interface.js';
 import { Repository } from '../../repository/Repository.js';
 import type { IRxDBAdapter, RepositoryConstructor } from '../../rxdb-adapter.js';
-import { uuid } from '../../rxdb-utils.js';
+import { getEntityMetadata, uuid } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
 import { RxDBMixedVersionedCacheTransactionError } from '../../RxDBError.js';
 import { registerRxDBTeardown } from '../fixtures/rxdb-lifecycle.js';
@@ -254,6 +259,78 @@ describe('US-020 阶段 A：批量入口的 QueryCache 去向', () => {
   // AC#8：一条违规则一条都不绑定，不提供半套「受限仓储 + 缓存」
   it('AC#8 违规时同批其他实体也不绑定', () => {
     expect(() => createDatabase('RestrictedQueryCacheMixed', [CachedProduct, CachedMenu])).toThrow(/QueryCache/);
+  });
+});
+
+@Entity({
+  name: 'CachedLabel',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  relations: [
+    { name: 'items', kind: RelationKind.MANY_TO_MANY, mappedEntity: 'CachedLabeledItem', mappedProperty: 'labels' }
+  ]
+})
+class CachedLabel extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: UUID };
+}
+
+@Entity({
+  name: 'CachedLabeledItem',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  relations: [{ name: 'labels', kind: RelationKind.MANY_TO_MANY, mappedEntity: 'CachedLabel', mappedProperty: 'items' }]
+})
+class CachedLabeledItem extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: UUID };
+}
+
+/**
+ * QueryCache 引擎替身：主仓库只记下交给它的实体。
+ *
+ * @remarks
+ * 真引擎在 `@aiao/rxdb-plugin-querycache`，核心包不能 devDepend 它；这里只要证明写落到了主仓库、且只落一次。
+ */
+const createRecordingEngine = (created: unknown[]): QueryCacheEngineFactory => ({
+  createSession: <T extends EntityType>(): QueryCacheSession<T> => ({
+    createPrimary: () =>
+      ({
+        create: (entity: InstanceType<T>) => {
+          created.push(entity);
+          return Promise.resolve(entity);
+        },
+        invalidateInflight: () => undefined
+      }) as unknown as QueryCachePrimary<T>,
+    clear: () => undefined
+  })
+});
+
+// 分支深度评审 minor：库级 QueryCache 时中间表也是 QueryCache。中间表的 create() 转进批量写，QueryCache 批次
+// 又逐条回调 create()，无限递归到栈溢出；QueryCache 批次改为逐条直接走仓库（主仓库由引擎提供）
+describe('多对多中间表走 QueryCache', () => {
+  it('中间表的 create() 逐条走 QueryCache 的主仓库，不再绕回 create() 递归到栈溢出', async () => {
+    const local = createLocalAdapter();
+    const remote = createRemoteAdapter();
+    const rxdb = trackRxDB(
+      new RxDB({
+        dbName: 'QueryCacheJunction',
+        entities: [CachedLabel, CachedLabeledItem],
+        sync: { type: SyncType.QueryCache, local: { adapter: 'sqlite' }, remote: { adapter: 'supabase' } }
+      })
+    );
+    rxdb.adapter('sqlite', () => local as unknown as IRxDBAdapter);
+    rxdb.adapter('supabase', () => remote as unknown as IRxDBAdapter);
+    const created: unknown[] = [];
+    rxdb.queryCacheEngine(createRecordingEngine(created));
+    rxdb.queryCacheOutbox({ pendingWriteIds: () => Promise.resolve(new Set<string>()) });
+    rxdb.init();
+    const relation = getEntityMetadata(CachedLabel).relationMap.get('items');
+    if (relation?.kind !== RelationKind.MANY_TO_MANY) throw new Error('CachedLabel.items 不是多对多');
+    const Junction = relation.junctionEntityType as unknown as new (data: object) => EntityBase;
+    const junction = new Junction({ id: uuid(), itemsId: uuid(), labelsId: uuid() });
+
+    await expect(rxdb.entityManager.create(junction)).resolves.toBe(junction);
+
+    expect(created).toEqual([junction]);
+    expect(local.mutations).not.toHaveBeenCalled();
+    expect(remote.mutations).not.toHaveBeenCalled();
   });
 });
 

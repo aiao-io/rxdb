@@ -6,7 +6,7 @@
 import { isEqual, once } from '@aiao/utils';
 import { EntityStaticType, EntityType, RxDBEntityId } from '../entity/entity.interface.js';
 import { EntityMetadata } from '../entity/metadata.interface.js';
-import { FindOptions, OrderBy } from '../repository/query-options.interface.js';
+import { CountOptions, FindOptions, OrderBy } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
@@ -72,6 +72,22 @@ const readPropertiesOf = (
   };
   for (const rule of whereRules(where)) add(rule.field);
   for (const order of orderBy ?? []) add(order.field);
+  return properties;
+};
+
+/**
+ * 分组计数的分组属性：行一直匹配 where、只是换了组，组数照样可能变。非分组计数为空集。
+ */
+const groupPropertiesOf = <T extends EntityType>(
+  task: QueryTask<T>,
+  metadata: EntityMetadata | undefined
+): Set<string> => {
+  const properties = new Set<string>();
+  if (task.type !== 'count') return properties;
+  for (const field of (task.options as CountOptions<T>).groupBy ?? []) {
+    const property = fieldProperty(field, metadata);
+    if (property !== undefined) properties.add(property);
+  }
   return properties;
 };
 
@@ -157,7 +173,11 @@ export const query_need_refresh_update = <T extends EntityType>(
   }
   const resolvedCurrentEntities = Array.from(resolvedById.values());
 
-  const readProperties = readPropertiesOf(where, options?.orderBy, query_entity_metadata, readFields);
+  const groupProperties = groupPropertiesOf(task, query_entity_metadata);
+  const readProperties = readPropertiesOf(where, options?.orderBy, query_entity_metadata, [
+    ...readFields,
+    ...groupProperties
+  ]);
   const resultFields = once(() =>
     query_entity_metadata ? [...query_entity_metadata.propertyMap.keys(), ...query_entity_metadata.foreignKeyNames] : []
   );
@@ -218,10 +238,13 @@ export const query_need_refresh_update = <T extends EntityType>(
   // current_entities——复合 where 下真实的增量 patch 可能只含被改字段，必须先合并进
   // 缓存实体补全字段（RXD-017），否则缺失字段在 isEntityMatchWhere 里恒判 false；
   // 补不齐的情形上面已经回 SQL。
+  // 分组计数另有一种变化：行一直匹配，只是分组属性换了值——换组同样可能改变组数。
   const count_boundary_crossed =
     where ?
       resolvedCurrentEntities.some(
-        e => isEntityMatchWhere(e.patch, where) !== isEntityMatchWhere(e.inversePatch, where)
+        e =>
+          isEntityMatchWhere(e.patch, where) !== isEntityMatchWhere(e.inversePatch, where) ||
+          (touchesProperties(e.event, groupProperties) && isEntityMatchWhere(e.patch, where))
       )
     : false;
 

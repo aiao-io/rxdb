@@ -106,6 +106,43 @@ await sync.syncRepository('public', 'Todo', { direction: 'push' });
 同步方法过去挂在 `rxdb.versionManager` 上，现在全部搬到 `rxdb.syncManager`。`versionManager` 仍然存在，但只保留历史与分支 API。对照表见[历史与同步拆包](../migration/history-sync-plugins.md)。
 :::
 
+### 推送顺序
+
+推送的跨仓顺序只由外键决定，与 `config.entities` 的书写顺序无关：删除子先父后，新建与修改父先子后。父行和引用它的子行同批新建时，父行一定先到远端，子行不会撞上外键被拒。
+
+- `push()`（以及 `bulkSync({ operation: 'push' })`）把所有要推的仓库合成一次推完，每个仓库只计一次，级联顺带推上去的仓库同样计入 `pushed` / `failed`，它们的失败也进 `failures`。系统表不在推送目标里。
+- `pushRepository(namespace, entity)` 默认（`includeRelated: true`）推目标所在的整个连通分量：它引用的父仓、引用它的子仓，以及沿外键能连到的其余仓库。只推子仓时，父仓的新行会先推上去。
+- `push({ repositoryFilter })` 与 `bulkSync` 点名仓库时同样连同连通分量一起推；带进来的关联仓在 `bulkSync` 的 `results` 里各占一条，排在点名的仓库之后。
+- 外键取实体合并后的元数据：父类上声明的关系、实体级复合外键 `foreignKeys` 都算。
+- 远端确实没有父行（例如已被别的客户端删掉）时，子行照旧以 `dependency` 被拒，本地对齐成远端的样子。
+- 已知限制：删掉被引用的行、引用它的一侧随之置空（`onDelete: SET_NULL`）时，删除与置空的修改分两次请求推送，先删除、后修改。远端的外键动作在第一次请求里就把那一列置空了，可这次置空要等第二次请求才写进日志。两次请求之间，本地还没有那一行、又把它的新建与删除在同一轮里拉下来的客户端（例如从头拉取的新客户端）会撞上本地外键：这一轮拉取失败、什么都不落库，下一次拉取就恢复。
+
+### 外键成环
+
+两个实体互相持有外键时，依赖图里出现环，例如 shop 的 `User.idCard` ↔ `IdCard.owner`（见[双向一对一](../model-definition/relations.md#双向一对一)）。同步层找出环，在环上的可空外键处断开（US-038）：
+
+- **断环**：环上的可空外键按（仓库，属性）排序，逐条加回，加回之后会成环的那条就是断环边。shop 夹具断在 `User.idCardId`。
+- **推送**：环上的仓库在同一个相位里一起推。互相引用的行放进同一次 `mergeChanges`，不会拆到两次请求里；断环边上的外键先写空，再在同一个请求里补写。`batchSize` 装不下时按组切批，一组互相引用的行不拆开。
+- **拉取**：一轮拉取里环上的行在一个本地事务里落库。一页在环中间截断时（例如 `limit` 很小），从被引用的仓库续拉，直到引用的行都拉到为止。`pullRepository` 拉环上的任一仓库时，整个环一起拉。续拉最多 16 页：被引用的行远端一直拉不到（例如被行级安全挡住、在别的分支上）时到此为止，这一轮如实以外键失败，不会把被引用仓库此后的整段历史拉进内存。
+- **认出引用的是哪一行**：按关系外键，或引用了被引用实体 `id` 的复合外键（`foreignKeys` 的 `mappedProperties` 含 `id`），只由这样的复合外键成的环同样支持。复合外键引用的是别的唯一列时认不出被引用的行，推送并组与拉取补齐都看不到这条外键。
+- **只影响环和下游**：环推不上、拉不下时，只有环上的仓库和依赖它们的下游失败，其他仓库照常推拉。
+
+失败时报 `RxDBForeignKeyCycleError`（从 `@aiao/rxdb-plugin-sync` 导出），`reason` 说明原因：
+
+| `reason`                  | 什么时候                                                                                                              | 怎么办                                                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `unbreakable`             | 环上没有可空外键，排不出写入顺序                                                                                      | 把一侧的外键改为可空。消息里给出环路                                                                                                                               |
+| `remote-unsupported`      | 本批要先写空、再补写，远端适配器不支持（`supportsDeferredForeignKeys` 为 `false`）                                    | 升级远端。这一环不发请求、不动本地，待推的变更原样保留                                                                                                             |
+| `pull-unsupported-member` | 环上有按条件同步（`SyncType.Filter`）或按授权分区同步的成员，或只存本地、同步关着（`RxDBSync.enabled = false`）的成员 | 前两种仓库逐仓、逐区拉取，凑不进一个本地事务；后两种的行不写进本地，续拉补进来也会撞外键。环上的成员改用整仓同步（`Full`）并开着同步。消息里写明是哪个成员、为什么 |
+
+只有本批确实有指向同批行的非空外键时，推送才要求先写空、再补写；外键为空或指向远端已有的行时照常写，远端不支持也能推。远端适配器要显式声明 `supportsDeferredForeignKeys = true`，再从 `mergeChanges` 的第四个参数 `options.deferredForeignKeys` 里取出要先写空的外键。Supabase 适配器已经支持，服务端要先升级参考 SQL，见 [Supabase 外键成环的推送](../migration/supabase-fk-cycle-push.md)。
+
+### 多对多的连接表
+
+多对多的连接实体由 RxDB 生成，不在 `entities` 里，也不能被 `syncOverrides` 直接覆盖（按 `unregistered` 拒绝）。它的同步配置跟随两端（US-228）：两端里有一端只在本地或不同步（解析为 `local` / `none`），连接表就用那一端的配置；两端都同步时，连接表照旧按库级默认。访客把两端设成只存本地，连接表也只存本地，不会还按库级默认去推拉。两端是 `Filter` / `QueryCache` 的多对多不在支持范围内。
+
+连接表依赖两端：推送时两端的新行先到远端，删除时连接行先删；拉取连接表时两端一并拉。关联行 id 由两端派生，两个客户端关联同一对只落成远端的一行，见[关联行的 id](../model-definition/relations.md#关联行的-id)。
+
 ### 冲突解决
 
 当 pull 或 sync 过程中检测到本地未推送变更与远程变更命中同一实体时，系统会先进入冲突检测，再默认使用 **Last Write Wins (LWW)** 策略：
@@ -479,6 +516,62 @@ PGlite 侧**不作此要求**——它按列集把批分组，每组一条 INSER
 不同的 `createdAt`，而这个差异要到跨设备对比时才暴露。缺列是后端或协议实现的问题，
 在这里补齐等于把它伪装成成功。
 :::
+
+## 每个身份一个本地库
+
+同一个本地库换了登录身份，上一个身份同步下来的行仍留在库里：新账号离线打开就读得到，上一个账号留下的待推变更也会被新账号的会话推出去。
+`RxDBOptions.identity` 让库记住它属于谁，身份对不上就拒绝打开、也不与远端交换数据。
+
+```ts
+import { getRxDBIdentityDatabaseName, RXDB_ANONYMOUS_SUBJECT, RxDB, SyncType } from '@aiao/rxdb';
+
+// 先有会话，再创建 RxDB：库名要在创建时就定下来
+const identity = {
+  scope: 'https://project-a.supabase.co', // 后端标识：同一个用户在不同后端是不同的库
+  subject: session?.user.id ?? RXDB_ANONYMOUS_SUBJECT // 登录用用户 id，未登录用 anon
+};
+
+const rxdb = new RxDB({
+  dbName: getRxDBIdentityDatabaseName('todo', identity), // 同一个身份恒得同一个名字
+  identity,
+  entities: [Todo],
+  sync: { type: SyncType.Full, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase' } }
+});
+```
+
+声明了身份之后，有两处核对：
+
+- **打开时**：库里记着它属于谁。新库在建库时记下身份；对不上就拒绝 `connect()` 并抛 `RxDBIdentityMismatchError`，库里一行数据都不动，查询拿不到任何行。离线同样生效。
+- **与远端交换数据之前**：同步（`pull` / `push` / `sync`、各个按仓库的入口、分支同步、检查更新、QueryCache 离线写重放）与 QueryCache 的读写，每次碰远端之前都问远端适配器当前调用者是谁
+  （`callerIdentity()`），对不上就停下、一个请求都不发，抛同一个错误并写进 `rxdb.syncState` 的 `lastError`；本地数据不动，待推变更留在原处，会话换回原来的身份之后照常推送。
+  同一个用户刷新令牌不算变化。
+
+身份不匹配只有一种处置：换到该身份自己的库（用 `getRxDBIdentityDatabaseName` 重新算库名，销毁旧实例再创建新实例）。
+**不提供自动改绑**：把库改绑给另一个身份，等于把上一个身份的数据交给他。
+
+```ts
+import { RxDBIdentityMismatchError } from '@aiao/rxdb';
+
+try {
+  await rxdb.connect('wa-sqlite');
+} catch (error) {
+  if (!(error instanceof RxDBIdentityMismatchError)) throw error;
+  // 应用拿着旧身份的库打开了新会话：销毁它，按当前会话的身份重新创建
+}
+```
+
+要点：
+
+- **只防误混，不是保密边界**：本地库不加密时，能读浏览器存储的人仍然读得到每个身份的库。需要保密请用加密适配器。
+- **不带 `identity` 时行为不变**，包括打开一个已经绑定了某个身份的库：不核对、不改绑。
+- **本功能之前建的库没有绑定**：第一次带 `identity` 打开时就地绑给这个身份，之后别的身份打不开它。
+  应用改用按身份命名的库之后，原先那个固定名字的库不会自动搬过去，是否搬、怎么搬由应用决定。
+- **库名长度**：名字是 `<基础名>-<16 位十六进制>`，比基础名多 17 个字节。wa-sqlite 内置 VFS 的库名（含 `@0_1` 后缀）上限 49 字节，基础名要留在 28 字节以内。
+- **远端适配器要实现 `callerIdentity()`**：声明了身份却问到不支持的适配器会拒绝同步，不会当作通过。Supabase 适配器按当前会话令牌回答
+  （已登录是用户 id，未登录是 `anon`）；自己写适配器时继承 `RxDBAdapterRemoteBase` 并覆盖它。
+- **`scope` 与适配器报告的写法逐字一致**：核对是严格相等，不做归一化。Supabase 适配器报告的是项目 URL 的 origin（`new URL(url).origin`），
+  `https://project-a.supabase.co/` 这样带尾斜杠、路径或大写的写法会被判成另一个身份，每次同步都报身份不匹配。
+- **身份是会话的属性，不是授权**：它防的是本机数据误混。谁能读哪些行仍由服务端的 RLS 决定。
 
 ## 实例级覆盖（`syncOverrides`）
 

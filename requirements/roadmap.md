@@ -7,38 +7,60 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 96     |
+| ✅ Done        | 100    |
 | 🚧 In Progress | 13     |
-| 👀 In Review   | 3      |
+| 👀 In Review   | 20     |
 | 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **43** |
+| **未完成合计** | **60** |
 
-仓库还剩 **43 条**未关闭故事（13 In Progress + 3 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **60 条**未关闭故事（13 In Progress + 20 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
 
-| Story                                                                                                                                                                   | 状态           | 剩什么                                                                                                 | 排期位置 |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------ | -------- |
-| [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                        | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                        | 批次 3   |
-| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                         | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                    | 批次 3   |
-| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                       | 批次 3   |
-| [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                         | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                           | 批次 3   |
-| [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                             | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                 | 批次 4   |
-| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                               | 📝 Backlog     | 由 React Admin 模板承接公开包消费与成本验证；仓外闭环和实际业务增量均待验，本轮仅仓内孵化              | 批次 5   |
-| [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                 | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                                                       | 批次 6   |
-| [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                       | 批次 6   |
-| [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                      | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                       | 立项池   |
-| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                             | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                            | 立项池   |
-| [US-910](stories/future/US-910-data-i18n.md)                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                         | 立项池   |
-| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7   |
-| [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B | 批次 7   |
-| [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                    | 👀 In Review   | 管理接口、信令踢下线与管理页已在真栈上验收 AC#1～#10；AC#11 待首次 CI 运行确认                         | 批次 7   |
-| [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                             | 立项池   |
-| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                         | 本轮执行 |
+| Story                                                                                                                                                                                                                                                                                                                                                                   | 状态           | 剩什么                                                                                                                       | 排期位置 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                                                                                                                                                        | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                                              | 批次 3   |
+| [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                                                                                                                                                         | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                                          | 批次 3   |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                                                                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                                             | 批次 3   |
+| [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                                                                                                                                                         | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                                                 | 批次 3   |
+| [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                                                                                                                                                             | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                                       | 批次 4   |
+| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                                                                                                                                                               | 📝 Backlog     | 由 React Admin 模板承接公开包消费与成本验证；仓外闭环和实际业务增量均待验，本轮仅仓内孵化                                    | 批次 5   |
+| [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                                                                                                                                                                                                                 | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                                                                             | 批次 6   |
+| [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                                                                                                                                                                                                                | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                                             | 批次 6   |
+| [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                                                                                                                                                                                                                      | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                                             | 立项池   |
+| [US-226](stories/adapter/US-226-supabase-pull-count-records.md)                                                                                                                                                                                                                                                                                                         | 📝 Backlog     | 远端日志补记 `transactionId`、广播带上它、按记录重算；先定旧服务端的处理方式                                                 | 立项池   |
+| [US-037](stories/core/US-037-push-order-by-foreign-key.md)                                                                                                                                                                                                                                                                                                              | 👀 In Review   | AC 全部通过（单测、PGlite、Supabase 真栈），待 owner 评审后合入                                                              | 批次 9   |
+| [US-038](stories/core/US-038-bidirectional-one-to-one-sync.md)                                                                                                                                                                                                                                                                                                          | 👀 In Review   | AC 全部通过（依赖图与推送拉取单测、PGlite、SQL 回归、真栈两客户端），待 owner 评审                                           | 批次 9   |
+| [US-228](stories/adapter/US-228-supabase-many-to-many-sync.md)                                                                                                                                                                                                                                                                                                          | 👀 In Review   | AC 全部通过（核心单测、SQLite 与 PGlite 套件、真栈两客户端、SQL 回归），待 owner 评审                                        | 批次 9   |
+| [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                                                                                                                                                                                                                       | 👀 In Review   | AC 全部通过（订单页三个阶段、两身份远端 e2e、表权限真栈用例），待 owner 评审                                                 | 批次 9   |
+| [US-034](stories/core/US-034-bucketed-entity-local-writes.md)                                                                                                                                                                                                                                                                                                           | 👀 In Review   | AC 全部通过（PGlite、Supabase 真栈、demo 组件单测与成员、访客两条远端 e2e），待 owner 评审                                   | 批次 8   |
+| [US-229](stories/adapter/US-229-supabase-change-history.md)                                                                                                                                                                                                                                                                                                             | 👀 In Review   | AC 全部通过（SQL 回归 `change-history`、真栈读取、demo 单测与成员 e2e），待 owner 评审                                       | 批次 8   |
+| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                                                                                                                                                             | 👀 In Review   | 阶段 A～D 完成（声明与校验、授权快照与本地判定、Supabase 授权来源与真栈用例、三端按行派生与同一份 e2e），AC 全部通过，待评审 | 批次 11  |
+| [US-234](stories/adapter/US-234-supabase-tenant-member-permissions.md)                                                                                                                                                                                                                                                                                                  | 👀 In Review   | 阶段 A、B 完成（SQL 回归、真栈、演示单测与远端 e2e；演示接入引擎声明），AC 全部通过，待评审                                  | 批次 11  |
+| [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                                                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                                               | 立项池   |
+| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md)                                                                                                                                                                                                 | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                                              | 批次 7   |
+| [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                                                                                                                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B                       | 批次 7   |
+| [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                                                                                                                                                                                                                    | 👀 In Review   | 管理接口、信令踢下线与管理页已在真栈上验收 AC#1～#10；AC#11 待首次 CI 运行确认                                               | 批次 7   |
+| [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                                                                                                                                                                                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                                                   | 立项池   |
+| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 核心四条：[US-318](stories/collaboration/US-318-cascade-delete-one-transaction.md) / [US-316](stories/collaboration/US-316-multi-repository-history-scope.md) / [US-317](stories/collaboration/US-317-pushable-histories.md) / [US-233](stories/adapter/US-233-supabase-pullable-count-accuracy.md) | 👀 In Review   | AC 全部通过（单测、PGlite、SQLite 各适配器、Supabase 真栈），待 owner 评审后合入                                             | 批次 10  |
+| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 应用层：[US-232](stories/adapter/US-232-supabase-catalog-server-drawer.md) / [US-230](stories/adapter/US-230-supabase-header-sync.md) / [US-231](stories/adapter/US-231-supabase-unified-undo-history.md) / [US-235](stories/adapter/US-235-supabase-orders-testability.md)                         | 👀 In Review   | AC 全部通过（单测、PGlite、SQLite 各适配器、Supabase 真栈），待 owner 评审后合入                                             | 批次 10  |
+| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 同步状态：[US-236](stories/adapter/US-236-supabase-sync-status-batching.md)                                                                                                                                                                                                                         | 👀 In Review   | AC 全部通过（SQL 回归、同步插件与适配器单测、Supabase 真栈），待 owner 评审后合入                                            | 批次 10  |
+| [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                                                                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                                               | 本轮执行 |
 
 ## 即办清单
+
+当前分支 `supabase-log-access-baseline` 上的计划，按先后：
+
+1. 批次 8、9 的 6 条故事（US-034、US-229、US-037、US-038、US-228、US-227）AC 全部通过，待 owner 评审合入。
+2. 批次 10（epic-016 本机修改工作台）的 9 条故事（US-318、US-316、US-317、US-233、US-230、US-231、US-232、US-235、US-236）AC 全部通过，待 owner 评审合入。
+3. 批次 11（租户内成员权限）：US-234 阶段 A 完成（参考 SQL、真栈用例、文档、商品页演示与远端 e2e），
+   US-029 阶段 A、B 完成（作用域声明与校验、授权快照 `rxdb.grants`、公开写入口按行判定，PGlite 与六个 SQLite 系后端一致），
+   阶段 C 完成（Supabase 适配器读 `rxdb_caller_grants()`，连接时与同步每一轮刷新，缺函数时连接报错；真栈普通身份用例与文档），
+   阶段 D 完成（rxdb-model 实体级 / 按行能力与写入口全关的原因，三端 `EntityList` 随授权快照即时重算，三端 demo 的 TenantNote 演示面板与同一份 e2e），
+   US-029 AC 全部通过；US-234 阶段 B 完成（`CatalogItem` 声明作用域与所需权限，商品页改读引擎的授权快照与按行能力，
+   员工本机写当场被拒，断网重开沿用快照；真栈用例与远端 e2e），US-234 AC 全部通过。批次 11 两条故事待 owner 评审合入。
 
 US-603 的共享 preflight 仍待受控 registry 替身验收。
 
@@ -98,6 +120,69 @@ owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付
 | US-707          | 阶段 A 浏览器双 context、Electron 双进程与服务器回退进 CI；阶段 B Tauri 双进程、离线局域网与大文件自动化                                         |
 | US-713          | Worker 管理接口、信令踢下线与管理后台页面；AC 在真实 Supabase 栈与本地 Worker 上验收，处置结果以数据库与 R2 的实际状态为准；AC#11 待首次 CI 运行 |
 
+### 批次 8：按授权分区同步（epic-015 已立项）
+
+owner 明确了目标：不同用户同步到自己有权限的数据，没登录的用户能看到全部公开数据。本批的 US-033、US-035、US-036 已全部完成，
+`dev-rxdb-supabase` 的 `/catalog` 在同一个后端上完整演示（见 [epic-015](epics/epic-015-identity-scoped-sync.md#演示)）；写入与实时刷新随后。
+
+2026-11-25 owner 授权写入与变更历史两条后续（不分先后，可并行开 PR）：
+
+| 范围   | 关闭条件                                                                                       |
+| ------ | ---------------------------------------------------------------------------------------------- |
+| US-034 | 商品在本地增删改可撤销/重做，推送后锁定；被拒按 US-218 对齐；Supabase 真栈与 demo 组件测试通过 |
+| US-229 | 三个写入点都记历史、读取 RPC 只对能编辑的成员开放并按列脱敏；SQL 回归与生产升级通过            |
+
+同步日志不带正文的规则不变，完整前后快照只进 US-229 的历史表。实时刷新仍在后续。
+
+### 批次 9：关系数据同步
+
+2026-11-25 owner 授权，按顺序推进，每个 PR 先写红测试：
+
+| 顺序 | 范围                   | 关闭条件                                                                                        |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| 1    | US-037                 | 子实体先声明时 `push()` 不再被拒、不再删本地行；汇总与失败计全；PGlite 与 Supabase 真栈用例通过 |
+| 2    | US-227 阶段 A          | demo 自有表与订单页；一对多、多对一、级联删除、外键被拒的两身份远端 e2e 通过                    |
+| 3    | US-228 + US-227 阶段 B | 关联行 id 确定性派生、中间表同步类型跟随两端、DDL 契约；并发关联同一对只落一行                  |
+| 4    | US-038 + US-227 阶段 C | 依赖图按可空外键断环、`rxdb_mutations` 延迟列、拉取补齐；shop 夹具全量注册后推拉正常            |
+
+US-038 改 `rxdb_mutations` 的签名，随 PR 附迁移文档与 `production/rxdb-change-grants.sql` 的签名清单；US-229 若先合入，US-038 的重构要保留它加的历史写入。
+
+### 批次 10：本机修改工作台（epic-016）
+
+2026-11-26 owner 授权实现全部 7 条故事，在 `supabase-log-access-baseline` 上推进：先修核心缺口，再统一 `dev-rxdb-supabase` 三页的界面。
+故事间的依赖见 [epic-016 交付顺序](epics/epic-016-local-change-workbench.md#交付顺序)，执行顺序如下：
+
+| 顺序 | 范围                                                                 | 现状         | 关闭条件                                                                                                                            |
+| ---- | -------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | US-318 级联删除记进同一个事务                                        | 完成，待评审 | 删带证件的客户后一次撤销整组恢复，互相引用的也撤得回来                                                                              |
+| 2    | US-316 多仓库撤销作用域                                              | 完成，待评审 | 几个实体合起来撤，跨它们的事务整条撤，不撤到别的页面                                                                                |
+| 3    | US-317 待推送清单                                                    | 完成，待评审 | 清单与待推数同一口径                                                                                                                |
+| 4    | US-233 待拉数准确                                                    | 完成，待评审 | 推完一刷新不再虚高；分区按真实条数计                                                                                                |
+| 5    | 应用地基                                                             | 完成，待评审 | 三者单测通过，顶栏与面板能按页面登记渲染                                                                                            |
+| 6    | 顶栏、同步中心、操作历史面板（US-230 阶段 A → B → C、US-231 阶段 A） | 完成，待评审 | 顶栏编辑组与同步组、面板开关与快捷键；待拉数接 US-233；同步中心列出待推送清单与字段级改前改后，接 US-317                            |
+| 7    | 三页接入（US-232、US-231 阶段 B）                                    | 完成，待评审 | Todo、商品、订单登记按钮，移除页面内的推拉与撤销；商品「模拟服务端变更」收进右侧抽屉；订单页整条撤销跨实体的事务，接 US-316、US-318 |
+| 8    | 收尾                                                                 | 完成，待评审 | 远端 e2e 改锚点并补新用例、本地 e2e；README、各故事 AC 与状态；`pnpm audit:requirements` 与 lint / typecheck / test / build         |
+| 9    | 订单页一个窗口就能测（US-235）                                       | 完成，待评审 | 页面上的「怎么测」、远端数据面板与模拟别人改远端、未推送标记、生成示例数据、嵌套布局；远端 e2e 单窗口用例                           |
+| 10   | 同步状态一轮问完（US-236）                                           | 完成，待评审 | 打开页面状态统计只问几次远端、不随仓库数增加；频道订阅上只重算一次；系统表不进拉取；待拉数与逐仓同口径                              |
+
+e2e 锚点与界面改动在同一步迁移，场景一条不删。
+
+2026-11-27 owner 追加 US-235：订单页交互太差、看不出怎么测，要优化交互。只动订单页与它的测试，不新增 SQL。
+
+### 批次 11：租户内成员权限（epic-015 续）
+
+2026-11-26 owner 授权：按 epic-015 的成员权限区分管理员与员工，不做全局角色；服务端、本地判定与三端界面都做，`dev-rxdb-supabase` 完整演示。
+员工看不到远端变更历史，能看成本价（列权限按数据库角色授予，分不出人）。
+
+| 顺序 | 范围                   | 现状         | 前置                                                                          | 关闭条件                                                                                                                                                                                             |
+| ---- | ---------------------- | ------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | US-234 阶段 A          | 完成，待评审 | 服务端部分无新前置；演示部分要批次 10 的 US-230 阶段 A、US-231 阶段 A、US-232 | 参考 SQL：成员权限、`rxdb_caller_grants()`、写策略与历史可见性同口径、防自我提权、最后一个管理员；真栈普通身份用例；商品页的身份与权限、员工只读、成员与权限面板、降权后推送被拒；远端 e2e 与 README |
+| 2    | US-029 阶段 A → B      | 完成，待评审 | US-027（Done）、US-035（Done）                                                | 作用域声明与校验；授权快照与本地判定，本地后端结果一致                                                                                                                                               |
+| 3    | US-029 阶段 C ∥ 阶段 D | 完成，待评审 | 阶段 B；C 还要 US-234 阶段 A                                                  | C：Supabase 授权来源与真栈用例；D：rxdb-model 行级能力，Angular / React / Vue 同一组 e2e                                                                                                             |
+| 4    | US-234 阶段 B          | 完成，待评审 | US-029 阶段 C                                                                 | `CatalogItem` 声明作用域，商品页改读引擎能力，员工本机写当场被拒，离线沿用授权快照                                                                                                                   |
+
+本地判定只是快速失败，安全边界只在 RLS；每个阶段一个 PR，先写红测试。
+
 ### 线 A：桥接版本发布（owner 门控）
 
 当前下一次迁移的桥接锚点是 v0.0.28。此处仅保留引用入口，不重跑 v0.0.26 的历史操作；执行以 [发布计划](release-plan.md)为准。
@@ -106,9 +191,9 @@ owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付
 
 | 故事                              | 准入条件                                                                                            |
 | --------------------------------- | --------------------------------------------------------------------------------------------------- |
-| US-029                            | 具名多用户使用方与当前可复现写授权症状；解锁时重定库级身份、owner 外键和按行能力                    |
 | US-910                            | 先完成故事中的能力/持久化合同验证；locale/fallback 复用 US-911 的同一份定义，不预先承诺无需同步改动 |
 | US-541                            | 具名团队离线协作症状出现后，先冻结身份、成员权限、RLS 与冲突合同                                    |
+| US-226                            | owner 排期；实现前先定新客户端连旧服务端（没跑升级脚本）时计数怎么处理                              |
 | US-709 / US-710 / US-711 / US-712 | 以 US-708 为前置；各故事「解锁条件」出现后由 owner 解锁，排序上 US-709 整库克隆在先                 |
 
 ### epic-006 评审顺延的架构项
@@ -148,7 +233,7 @@ US-603 已有独立故事，不在这里另建一份待办。
 1. US-012 DTO 不得重新定义 bigint/binary 的 wire codec。
 2. 桌面宿主必须保证真实单连接事务；无法保证时 fail-fast，不降级为伪事务。
 3. Electron PGlite 使用 IPC 事务 ID 协议；Tauri 使用 Rust command 持有 rusqlite Connection，不用跨调用连接池伪装事务。
-4. 权限链：US-027 是 US-029 的声明/写入口/UI 前置，US-218 是其日志与逐实体回执前置。排序 API 在开事务前显式判 update 权限；rxdb-model UI 一律 Angular/React/Vue 对称。
+4. 权限链：US-027 是 US-029 的声明/写入口/UI 前置，US-218 是其日志与逐实体回执前置，US-234 阶段 A 是其 Supabase 授权来源前置。排序 API 在开事务前显式判 update 权限；rxdb-model UI 一律 Angular/React/Vue 对称；本地判定只做快速失败，安全边界只在 RLS。
 5. 提交竞争只使用 headRevision CAS，不引入 writer lease/迁移 epoch。当前已发布 schema 7、源码 8；下一次迁移以 v0.0.28 为锚点。
 6. 搜索复用现有 API 与 parity fixture，不借另一后端专属 fallback。
 7. 小程序能力上限仍为实验性、单连接，不扩大 WAL/多页面并发/崩溃恢复保证；支持平台与设备证据按 US-211 的可行性矩阵核对，未关闭验收不扩大公开声明。

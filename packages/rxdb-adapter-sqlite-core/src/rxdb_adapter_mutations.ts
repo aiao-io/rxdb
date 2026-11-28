@@ -131,6 +131,9 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
       remember_entity_instance(EntityType, entity);
     }
     const meta = getEntityMetadata(EntityType);
+    // 多对多中间表的行 id 由两端派生（US-228）：库里已有同一对（关联过、只是没加载进内存）时保留那一行，
+    // 下面按 id 读回来交给这个实例
+    const ignoreExisting = adapter.rxdb.schemaManager.isJunctionEntity(meta);
 
     for (const entitiesChunk of chunkBySqliteBindLimit(entities, get_insert_column_count(meta))) {
       for (const entity of entitiesChunk) remember_submission(entity, { ...entity });
@@ -139,7 +142,8 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         adapter.tableSet,
         entitiesChunk,
         adapter.rxdb.context,
-        adapter.encryptionContext
+        adapter.encryptionContext,
+        { ignoreExisting }
       );
       try {
         await adapter.query(insert_result.sql, insert_result.params);

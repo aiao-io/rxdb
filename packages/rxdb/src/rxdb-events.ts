@@ -22,19 +22,23 @@ export const ENTITY_LOCAL_UPDATE_EVENT = 'ENTITY_LOCAL_UPDATE' as const;
 export const ENTITY_LOCAL_REMOVE_EVENT = 'ENTITY_LOCAL_REMOVE' as const;
 
 /**
- * 远端拉取到的实体创建
+ * 远端有一行新建了
  *
  * @remarks
  * 三个 `ENTITY_REMOTE_*` 与对应的 `ENTITY_LOCAL_*` 是**两套**，因为载荷形状不同：
- * 远端事件带的是整行 `data`，没有 `patch` / `inversePatch`——远端变更不参与本地 undo/redo，
+ * 远端事件只带 `data`，没有 `patch` / `inversePatch`——远端变更不参与本地 undo/redo，
  * 逆向补丁在这里没有意义。
+ *
+ * `data` 里有哪些字段由远端适配器决定，不保证是整行，靠载荷的 `id` 认出是哪一行。
+ * `@aiao/rxdb-adapter-supabase` 的变更通知不带行内容（US-225），`data` 只有 `{ id }`：
+ * 要内容就按 `id` 拉取，内容以订阅者自己的身份读，读不读得到由远端的权限裁决。
  */
 export const ENTITY_REMOTE_CREATE_EVENT = 'ENTITY_REMOTE_CREATE' as const;
 
-/** 远端拉取到的实体更新；载荷是更新后的整行 `data`，见 {@link ENTITY_REMOTE_CREATE_EVENT} */
+/** 远端有一行改了；`data` 不保证带改后的字段，见 {@link ENTITY_REMOTE_CREATE_EVENT} */
 export const ENTITY_REMOTE_UPDATE_EVENT = 'ENTITY_REMOTE_UPDATE' as const;
 
-/** 远端拉取到的实体删除；载荷是删除前的整行 `data`，见 {@link ENTITY_REMOTE_CREATE_EVENT} */
+/** 远端有一行删了；`data` 不保证带删除前的字段，见 {@link ENTITY_REMOTE_CREATE_EVENT} */
 export const ENTITY_REMOTE_REMOVE_EVENT = 'ENTITY_REMOTE_REMOVE' as const;
 
 /**
@@ -285,32 +289,33 @@ export type RxDBEntityLocalEventData<T extends EntityType = EntityType> =
  * {@link ENTITY_REMOTE_CREATE_EVENT} 的载荷
  *
  * @remarks
- * 三个远端载荷都只带整行 `data`，不带补丁对——理由见 {@link ENTITY_REMOTE_CREATE_EVENT}。
+ * 三个远端载荷都只带 `data`，不带补丁对——理由见 {@link ENTITY_REMOTE_CREATE_EVENT}。
+ * `data` 是远端适配器给得出的那部分字段，类型因此是 `Partial`：Supabase 只给 `{ id }`，读别的字段要先按 `id` 拉取。
  * 三者形状目前完全相同，分成三个类型是为了让消费方能按事件类型收窄，
  * 也给日后各自演进留出位置。
  */
 export interface RxDBEntityRemoteCreatedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
-  data: Readonly<InstanceType<T>>;
+  data: Readonly<Partial<InstanceType<T>>>;
 }
 
 /**
- * {@link ENTITY_REMOTE_UPDATE_EVENT} 的载荷；`data` 是更新**之后**的整行
+ * {@link ENTITY_REMOTE_UPDATE_EVENT} 的载荷；`data` 是远端给得出的改后字段，可能只有 `id`
  */
 export interface RxDBEntityRemoteUpdatedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
-  data: Readonly<InstanceType<T>>;
+  data: Readonly<Partial<InstanceType<T>>>;
 }
 
 /**
- * {@link ENTITY_REMOTE_REMOVE_EVENT} 的载荷；`data` 是删除**之前**的整行
+ * {@link ENTITY_REMOTE_REMOVE_EVENT} 的载荷；`data` 是远端给得出的删除前字段，可能只有 `id`
  */
 export interface RxDBEntityRemoteRemovedEventData<
   T extends EntityType = EntityType
 > extends RxDBEntityLocalEventDataBase<T> {
-  data: Readonly<InstanceType<T>>;
+  data: Readonly<Partial<InstanceType<T>>>;
 }
 
 /** RxDB 实体远程事件数据联合类型 */

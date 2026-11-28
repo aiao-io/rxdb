@@ -362,28 +362,30 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 变成噪音源。符号取**实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法
 本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。
 
-文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在
+文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9、#12~#14 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在
 `@aiao/rxdb-plugin-working-tree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
 [trusted-write-intent.ts](../../packages/rxdb/src/trusted-write/trusted-write-intent.ts)——它是 `declareTrustedWrite()`
 的准入名单，而那道门禁在核心。下表按符号登记，与代码实际调用点一一对应：
 
-| #   | 文件（基名）            | 符号                        | 写原语                            | 行   | 意图          | 产生工作树单元 |
-| --- | ----------------------- | --------------------------- | --------------------------------- | ---- | ------------- | -------------- |
-| 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 331  | 分支物化      | **不产生**     |
-| 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 661  | redo 失效标记 | **不产生**     |
-| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 262  | 撤销 / 重做   | **必须产生**   |
-| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 239  | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 280  | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`         | `pullBatchOnce`             | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts`    | `pullSingleRepository`      | `executor.mergeChanges(…, true)`  | 627  | `remote_sync` | **必须产生**   |
-| 9   | `cleanup-expired.ts`    | `cleanupExpired`            | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
-| 10  | `materialize-branch.ts` | `switchWithMaterialization` | `adapter.switchBranch`            | 313  | 分支物化      | **不产生**     |
-| 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
-| 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
+| #   | 文件（基名）                | 符号                             | 写原语                            | 行   | 意图          | 产生工作树单元 |
+| --- | --------------------------- | -------------------------------- | --------------------------------- | ---- | ------------- | -------------- |
+| 1   | `VersionManager.ts`         | `switchBranch`                   | `adapter.switchBranch`            | 376  | 分支物化      | **不产生**     |
+| 2   | `restore-entity.ts`         | `restore_entity`                 | `executor.mergeChanges(…, false)` | 99   | 实体恢复      | **必须产生**   |
+| 3   | `HistoryManager.ts`         | `invalidateRedoStack`            | `adapter.switchBranch`            | 726  | redo 失效标记 | **不产生**     |
+| 4   | `undo-redo-apply.ts`        | `applyUndoRedoHistories`         | `adapter.switchBranch`            | 264  | 撤销 / 重做   | **必须产生**   |
+| 5   | `merge-branch.ts`           | `merge_branch`（逐条分支）       | `executor.mergeChanges(…, false)` | 239  | 逐条合并      | **必须产生**   |
+| 6   | `merge-branch.ts`           | `merge_branch`（压缩分支）       | `executor.mergeChanges(…, false)` | 280  | 压缩合并      | **必须产生**   |
+| 7   | `pull-batch.ts`             | `pullBatchOnce`                  | `executor.mergeChanges(…, true)`  | 407  | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts`        | `pullSingleRepository`           | `executor.mergeChanges(…, true)`  | 811  | `remote_sync` | **必须产生**   |
+| 9   | `cleanup-expired.ts`        | `cleanupExpired`                 | `executor.mergeChanges(…, true)`  | 217  | `remote_sync` | **必须产生**   |
+| 10  | `materialize-branch.ts`     | `switchWithMaterialization`      | `adapter.switchBranch`            | 322  | 分支物化      | **不产生**     |
+| 11  | `materialize-branch.ts`     | `applyMaterializedActions`       | `executor.mergeChanges(…, true)`  | 369  | 分支物化      | **不产生**     |
+| 12  | `push-repository.ts`        | `alignRejectedEntities`          | `executor.mergeChanges(…, true)`  | 1713 | `remote_sync` | **必须产生**   |
+| 13  | `bucketed-pull.ts`          | `applyScopedBatch`               | `executor.mergeChanges(…, true)`  | 614  | `remote_sync` | **必须产生**   |
+| 14  | `bucketed-scope-cleanup.ts` | `removeBucketScopeInTransaction` | `executor.mergeChanges(…, true)`  | 87   | `remote_sync` | **必须产生**   |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
-`pull-batch.ts` 与 `pull-repository.ts` 是两个不同文件里的两个独立调用点，不得合并成一行。
+`pull-batch.ts`、`pull-repository.ts`、`bucketed-pull.ts` 与 `bucketed-scope-cleanup.ts` 是不同文件里的独立调用点，不得合并成一行。
 
 **restore 那一行的文件是 `restore-entity.ts` 而不是 `VersionManager.ts`，写原语是 `mergeChanges` 而不是
 `adapter.switchBranch`**：`VersionManager.restoreEntity()` 只是把调用委托给 `restore_entity()`，而后者
@@ -401,7 +403,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 `adapter.transaction` 仍是登记表认得的原语（没声明的 `transaction()` 是普通 CRUD，只在自报了意图时才进本表），
 但登记表里没有一行用它。
 
-**`mergeChanges` 那 7 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；
+**`mergeChanges` 那 9 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；
 而工作树的 `interceptMergeChanges()` 是排队拿到事务之后才取声明的。绑适配器实例时两个并发的 `mergeChanges` 会互相覆盖——
 先执行的取到后声明者的意图，后执行的取不到声明被当作未知入口拒绝。只有一次写的 #2 / #6 因此也先开事务、再按执行器声明；
 并发用例在 [trusted-write-concurrency.spec.ts](../../packages/rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts)。
@@ -814,7 +816,7 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
     HEAD + WorkingTreeEntry 重放。意图标记登记表与代码实际调用点一致——存在未登记的
     `adapter.switchBranch` / **本地重载 `mergeChanges` 的任意调用点**（`adapter.` 与 `executor.` 两种接收者，
     `disableTriggers` 真假**都算**）/ `upsertMany` / `deleteByIds` 调用点即门禁失败。
-    `disableTriggers` 在登记表里是**分类依据**，不是扫描的筛选条件：12 行登记里有 3 行是 trigger 开启的
+    `disableTriggers` 在登记表里是**分类依据**，不是扫描的筛选条件：14 行登记里有 3 行是 trigger 开启的
     `mergeChanges(…, false)`（`merge_branch` 的两个策略分支与 `restore_entity`），按 `disableTriggers` 过滤
     会让门禁漏验这 3 行。后两个方法的登记项以**目标实体的 `sync.type`** 为准：
     QueryCache 实体登记为放行，版本化实体登记为拒绝；漂移扫描 MUST 能报出「调用 `upsertMany`

@@ -4,13 +4,25 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
+import { readLocalStack } from './dev/local-stack.mjs';
 
 const mode = process.argv[2];
 const forwardedArgs = process.argv.slice(3);
 const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
-if (mode !== 'local' && mode !== 'remote') {
-  throw new Error('Usage: node apps/dev-rxdb-supabase/scripts/serve.mjs <local|remote> [...serve options]');
+if (!['local', 'remote', 'stack'].includes(mode)) {
+  throw new Error('Usage: node apps/dev-rxdb-supabase/scripts/serve.mjs <local|remote|stack> [...serve options]');
+}
+
+async function assertReachable(url, hint) {
+  try {
+    await fetch(url, { signal: AbortSignal.timeout(3_000) });
+  } catch (error) {
+    // P2-6：原先是 `catch {}` + 一个不带 cause 的新 Error —— 原始异常被整个丢掉。
+    // "连不上"有很多种：DNS 解析失败、证书错误、3 秒超时、连接被拒，
+    // 排查时需要的恰恰是这条被丢掉的信息。
+    throw new Error(`Supabase is not reachable at ${url}. ${hint}`, { cause: error });
+  }
 }
 
 async function remoteEnv() {
@@ -27,19 +39,18 @@ async function remoteEnv() {
     throw new Error('Remote mode requires VITE_SUPABASE_URL and VITE_SUPABASE_KEY.');
   }
 
-  try {
-    await fetch(url, { signal: AbortSignal.timeout(3_000) });
-  } catch (error) {
-    // P2-6：原先是 `catch {}` + 一个不带 cause 的新 Error —— 原始异常被整个丢掉。
-    // "连不上"有很多种：DNS 解析失败、证书错误、3 秒超时、连接被拒，
-    // 排查时需要的恰恰是这条被丢掉的信息。
-    throw new Error(
-      `Supabase is not reachable at ${url}. Start it with: docker compose -f docker/docker-compose.ci.yml up -d`,
-      { cause: error }
-    );
-  }
-
+  await assertReachable(url, 'Start it with: docker compose -f docker/docker-compose.ci.yml up -d');
   return { VITE_SUPABASE_KEY: key, VITE_SUPABASE_URL: url };
+}
+
+/**
+ * 本 checkout 的隔离 Supabase 栈（`rxdb-adapter-supabase:test-env` 起的那套）：
+ * 地址与 anon key 按运行中的栈现取，Kong 端口是 docker 动态分配的，不能写死。
+ */
+async function stackEnv() {
+  const { url, anonKey } = await readLocalStack();
+  await assertReachable(url, 'Start it with: pnpm nx run rxdb-adapter-supabase:test-env');
+  return { VITE_SUPABASE_KEY: anonKey, VITE_SUPABASE_URL: url };
 }
 
 /**
@@ -61,7 +72,8 @@ function localEnv() {
   return env;
 }
 
-const childEnv = mode === 'local' ? localEnv() : { ...process.env, ...(await remoteEnv()) };
+const remoteModes = { remote: remoteEnv, stack: stackEnv };
+const childEnv = mode === 'local' ? localEnv() : { ...process.env, ...(await remoteModes[mode]()) };
 const child = spawn('pnpm', ['nx', 'run', 'dev-rxdb-supabase:serve', ...forwardedArgs], {
   cwd: workspaceRoot,
   env: childEnv,

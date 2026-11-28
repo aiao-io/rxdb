@@ -214,10 +214,21 @@ CREATE TABLE IF NOT EXISTS shop.order_item (
       FOREIGN KEY ("skuId") REFERENCES shop.sku(id) ON DELETE SET NULL
 );
 
+-- 多对多中间表按实体形状建表（US-228 的 DDL 契约）：`id uuid` 唯一并带时间戳列（中间表实体继承 EntityBase，
+-- 推送按 id 定位行），两端外键 NOT NULL + ON DELETE CASCADE 并作主键，登记同步（第 7 节）。主键必须是两端外键：
+-- PostgREST 只把「外键在主键里」的表认作多对多中间表，主键换成 id 之后跨中间表的嵌入查询就找不到关系。
+-- 客户端的关联行 id 由两端 id 确定性派生（uuid v5，见 website/docs/adapters/supabase.md「多对多中间表」），
+-- 两个客户端关联同一对只落成一行；服务端不带 id 直写时取 gen_random_uuid()
 CREATE TABLE IF NOT EXISTS shop."Category_OrderItem" (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
     "categoriesId" uuid NOT NULL,
     "orderItemsId" uuid NOT NULL,
+    "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar,
     PRIMARY KEY ("categoriesId", "orderItemsId"),
+    CONSTRAINT "Category_OrderItem_id_key" UNIQUE (id),
     CONSTRAINT Category_OrderItem_categoriesId_fkey
       FOREIGN KEY ("categoriesId") REFERENCES shop.category(id) ON DELETE CASCADE,
     CONSTRAINT Category_OrderItem_orderItemsId_fkey
@@ -225,14 +236,73 @@ CREATE TABLE IF NOT EXISTS shop."Category_OrderItem" (
 );
 
 CREATE TABLE IF NOT EXISTS shop."Category_Product" (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
     "categoriesId" uuid NOT NULL,
     "productsId" uuid NOT NULL,
+    "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar,
     PRIMARY KEY ("categoriesId", "productsId"),
+    CONSTRAINT "Category_Product_id_key" UNIQUE (id),
     CONSTRAINT Category_Product_categoriesId_fkey
       FOREIGN KEY ("categoriesId") REFERENCES shop.category(id) ON DELETE CASCADE,
     CONSTRAINT Category_Product_productsId_fkey
       FOREIGN KEY ("productsId") REFERENCES shop.product(id) ON DELETE CASCADE
 );
+
+-- 已有库里的旧形状（没有 id 与时间戳列）迁到契约形状，可重复执行：补列、id 唯一、主键是两端外键。
+-- 已有的关联行拿到随机 id，与客户端派生的 id 不同：客户端再关联同一对时撞主键（23505），处理办法见迁移文档
+DO $$
+DECLARE
+  v_junction record;
+  v_relation regclass;
+  v_primary_key text;
+  v_primary_columns text[];
+BEGIN
+  FOR v_junction IN
+    SELECT *
+    FROM (VALUES ('Category_OrderItem', 'categoriesId', 'orderItemsId'), ('Category_Product', 'categoriesId', 'productsId'))
+      AS junction(name, first_key, second_key)
+  LOOP
+    v_relation := pg_catalog.format('shop.%I', v_junction.name)::regclass;
+    EXECUTE pg_catalog.format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS id uuid NOT NULL DEFAULT gen_random_uuid()', v_relation);
+    EXECUTE pg_catalog.format(
+      'ALTER TABLE %s ADD COLUMN IF NOT EXISTS "createdAt" timestamptz(3) NOT NULL DEFAULT now()', v_relation
+    );
+    EXECUTE pg_catalog.format(
+      'ALTER TABLE %s ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz(3) NOT NULL DEFAULT now()', v_relation
+    );
+    EXECUTE pg_catalog.format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS "createdBy" varchar', v_relation);
+    EXECUTE pg_catalog.format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS "updatedBy" varchar', v_relation);
+
+    -- 推送按 id 定位行（rxdb_batch_upsert 的 ON CONFLICT (id)），id 要有唯一约束
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_constraint
+      WHERE conrelid = v_relation AND conname = v_junction.name || '_id_key'
+    ) THEN
+      EXECUTE pg_catalog.format('ALTER TABLE %s ADD CONSTRAINT %I UNIQUE (id)', v_relation, v_junction.name || '_id_key');
+    END IF;
+
+    SELECT constraint_row.conname, pg_catalog.array_agg(attribute.attname::text ORDER BY attribute.attname)
+    INTO v_primary_key, v_primary_columns
+    FROM pg_catalog.pg_constraint AS constraint_row
+    JOIN pg_catalog.pg_attribute AS attribute
+      ON attribute.attrelid = constraint_row.conrelid AND attribute.attnum = ANY(constraint_row.conkey)
+    WHERE constraint_row.conrelid = v_relation AND constraint_row.contype = 'p'
+    GROUP BY constraint_row.conname;
+    IF v_primary_columns IS DISTINCT FROM ARRAY[v_junction.first_key, v_junction.second_key] THEN
+      IF v_primary_key IS NOT NULL THEN
+        EXECUTE pg_catalog.format('ALTER TABLE %s DROP CONSTRAINT %I', v_relation, v_primary_key);
+      END IF;
+      EXECUTE pg_catalog.format(
+        'ALTER TABLE %s ADD PRIMARY KEY (%I, %I)', v_relation, v_junction.first_key, v_junction.second_key
+      );
+    END IF;
+    -- 两端已是主键，早先迁到 id 主键时加的成对唯一约束多余
+    EXECUTE pg_catalog.format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', v_relation, v_junction.name || '_pair_key');
+  END LOOP;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_id_card_owner_id ON shop.id_card("ownerId");
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_id_card_id ON shop."user"("idCardId") WHERE "idCardId" IS NOT NULL;
@@ -514,6 +584,9 @@ BEGIN
     PERFORM public.rxdb_enable_sync_for_table('attribute', 'shop', 'Attribute');
     PERFORM public.rxdb_enable_sync_for_table('attribute_value', 'shop', 'AttributeValue');
     PERFORM public.rxdb_enable_sync_for_table('sku_attributes', 'shop', 'SKUAttributes');
+    -- 多对多中间表（US-228）：实体名就是中间表名
+    PERFORM public.rxdb_enable_sync_for_table('Category_OrderItem', 'shop', 'Category_OrderItem');
+    PERFORM public.rxdb_enable_sync_for_table('Category_Product', 'shop', 'Category_Product');
   END IF;
 END $$;
 
@@ -747,3 +820,54 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA shop TO authenticated;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- ============================================
+-- 13. US-036 规则之外的公开数据：商品目录夹具（catalog_items）与公开视图（catalog_items_public）
+-- ============================================
+-- 分区实体（US-033）：公开商品在 public 区，租户内部商品在 tenant:<tenantId> 区，区由生成列 rxdb_bucket 算，
+-- 能读哪些区由 RLS 按 rxdb_caller_buckets() 裁决。默认的 caller buckets 不含租户区，租户内部商品只有
+-- service_role 读得到；dev-rxdb-supabase 的演示 SQL 在此之上补租户、成员与成员的写权限。
+-- 公开视图（US-036）只含公开行、不含成本价，给只读浏览实体走 QueryCache。用 security_invoker：沿用业务表的
+-- RLS 与列权限；定义者权限的视图绕过这两层，Supabase Advisor 报 security_definer_view（ERROR）。
+-- 放在文件末尾：上面的整库 GRANT 每次初始化都会把表级权限放宽，anon 的列权限要在它之后收。
+CREATE TABLE IF NOT EXISTS public.catalog_items (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name varchar NOT NULL,
+    category varchar NOT NULL,
+    price numeric(12, 2) NOT NULL DEFAULT 0,
+    cost numeric(12, 2),
+    visibility varchar NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'tenant')),
+    "tenantId" varchar NOT NULL,
+    "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar,
+    rxdb_bucket text GENERATED ALWAYS AS (
+        CASE WHEN visibility = 'public' THEN 'public' ELSE 'tenant:' || "tenantId" END
+    ) STORED
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_items_bucket_id ON public.catalog_items (rxdb_bucket, id);
+CREATE INDEX IF NOT EXISTS idx_catalog_items_category_name ON public.catalog_items (category, name);
+
+ALTER TABLE public.catalog_items ENABLE ROW LEVEL SECURITY;
+
+-- 读：按区放行（与文档「配置 caller buckets」的业务表策略同一写法）。客户端没有写策略，写入只经 service_role
+DROP POLICY IF EXISTS catalog_items_select_by_bucket ON public.catalog_items;
+CREATE POLICY catalog_items_select_by_bucket ON public.catalog_items
+  FOR SELECT USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())::text[]));
+
+SELECT public.rxdb_enable_sync_for_table('catalog_items', 'public', 'CatalogItem');
+
+CREATE OR REPLACE VIEW public.catalog_items_public WITH (security_invoker = true) AS
+  SELECT id, name, category, price, "tenantId", "createdAt", "updatedAt", "createdBy", "updatedBy"
+  FROM public.catalog_items
+  WHERE visibility = 'public';
+
+-- anon 读不到成本价：收回表级权限，按列授予。同步与浏览都只取有列权限的列
+REVOKE ALL ON public.catalog_items FROM anon;
+GRANT SELECT (
+  id, name, category, price, visibility, "tenantId", "createdAt", "updatedAt", "createdBy", "updatedBy", rxdb_bucket
+) ON public.catalog_items TO anon;
+REVOKE ALL ON public.catalog_items_public FROM anon, authenticated;
+GRANT SELECT ON public.catalog_items_public TO anon, authenticated;

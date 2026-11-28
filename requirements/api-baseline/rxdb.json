@@ -306,6 +306,10 @@
         "kind": "type"
       },
       {
+        "name": "countRxDBChangeRecords",
+        "kind": "value"
+      },
+      {
         "name": "createEntitySyncResolver",
         "kind": "value"
       },
@@ -442,6 +446,18 @@
         "kind": "value"
       },
       {
+        "name": "EntityAccessOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityAccessScope",
+        "kind": "type"
+      },
+      {
+        "name": "EntityAccessScopeOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityBase",
         "kind": "both"
       },
@@ -575,6 +591,10 @@
       },
       {
         "name": "EntityOperationPermission",
+        "kind": "type"
+      },
+      {
+        "name": "EntityOperationRule",
         "kind": "type"
       },
       {
@@ -846,6 +866,10 @@
         "kind": "value"
       },
       {
+        "name": "getEntityAccessScope",
+        "kind": "value"
+      },
+      {
         "name": "getEntityColumnName",
         "kind": "value"
       },
@@ -863,6 +887,10 @@
       },
       {
         "name": "getEntityPermission",
+        "kind": "value"
+      },
+      {
+        "name": "getEntityPermissionRule",
         "kind": "value"
       },
       {
@@ -923,6 +951,10 @@
       },
       {
         "name": "getRxDBEntityIdentityKey",
+        "kind": "value"
+      },
+      {
+        "name": "getRxDBIdentityDatabaseName",
         "kind": "value"
       },
       {
@@ -1078,6 +1110,10 @@
         "kind": "value"
       },
       {
+        "name": "isEntityOperationRule",
+        "kind": "value"
+      },
+      {
         "name": "isEntitySyncResolver",
         "kind": "value"
       },
@@ -1100,6 +1136,10 @@
       {
         "name": "ISortableEntity",
         "kind": "type"
+      },
+      {
+        "name": "isPermissionRuleViolation",
+        "kind": "value"
       },
       {
         "name": "isRemoteNewer",
@@ -1147,6 +1187,26 @@
       },
       {
         "name": "JsonValue",
+        "kind": "type"
+      },
+      {
+        "name": "JUNCTION_ID_NAMESPACE",
+        "kind": "value"
+      },
+      {
+        "name": "JunctionEndpointKey",
+        "kind": "type"
+      },
+      {
+        "name": "JunctionEndpointsLookup",
+        "kind": "type"
+      },
+      {
+        "name": "junctionEntityId",
+        "kind": "value"
+      },
+      {
+        "name": "JunctionName",
         "kind": "type"
       },
       {
@@ -1388,6 +1448,14 @@
       {
         "name": "PermissionDeniedError",
         "kind": "both"
+      },
+      {
+        "name": "PermissionRuleViolation",
+        "kind": "type"
+      },
+      {
+        "name": "PermissionRuleViolationReason",
+        "kind": "type"
       },
       {
         "name": "PermissionViolation",
@@ -1658,11 +1726,19 @@
         "kind": "type"
       },
       {
+        "name": "RemoteDeferredForeignKey",
+        "kind": "type"
+      },
+      {
         "name": "RemoteEntityInvalidatedEvent",
         "kind": "both"
       },
       {
         "name": "RemoteEntityRef",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteMergeOptions",
         "kind": "type"
       },
       {
@@ -1816,6 +1892,10 @@
       {
         "name": "RxDB",
         "kind": "both"
+      },
+      {
+        "name": "RXDB_ANONYMOUS_SUBJECT",
+        "kind": "value"
       },
       {
         "name": "RXDB_BACKUP_CHUNK_SIZE",
@@ -2014,6 +2094,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBChangeCounter",
+        "kind": "type"
+      },
+      {
         "name": "RxDBChangeEntityMetadataResolver",
         "kind": "type"
       },
@@ -2031,6 +2115,10 @@
       },
       {
         "name": "RxDBChangeStaticTypes",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBChangeWhere",
         "kind": "type"
       },
       {
@@ -2115,6 +2203,38 @@
       },
       {
         "name": "RxDBExclusionViolationError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrant",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBGrants",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrantSnapshot",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrantSource",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBGrantState",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrantStatus",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBIdentityMismatchError",
         "kind": "both"
       },
       {

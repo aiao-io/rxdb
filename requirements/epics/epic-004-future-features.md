@@ -32,11 +32,14 @@ owner: jimmy
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
 - [x] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 - [x] 三端 demo 的树菜单与文件管理器改用可排序树实体，排序键一律由 core 给出，同一操作三端结果一致
+- [ ] 关系模型的推拉同步：跨仓推送按外键依赖排序，多对多关联与双向一对一能同步，dev-rxdb-supabase 有关系数据的端到端演示
 
 ## 当前交付
 
 2026-10-28 owner 授权完成 US-223 / US-224，纳入 [roadmap 批次 3](../roadmap.md#批次-3能力补齐可并行开-pr)。
 两条故事待评审，AC 全部通过；2026-10-29 分支评审的修复已复验适配器全量用例与 SQL 安全回归，验证范围与数字见各 story 的验证记录。尚未合并，不标 Done。
+
+2026-11-25 owner 授权关系数据同步，按 US-037 → US-227 阶段 A → US-228 → US-227 阶段 B → US-038 → US-227 阶段 C 的顺序推进，纳入 [roadmap 批次 9](../roadmap.md#批次-9关系数据同步)。US-038 在同步层支持外键成环（`rxdb_mutations` 的延迟列），US-227 用 demo 自有的表。
 
 ## 故事
 
@@ -65,13 +68,13 @@ owner: jimmy
 - [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
 - [US-027 实体操作权限模型](../stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`：公开写入口快速失败（不是防御边界，适配器 / 执行器层不判定）+ 全部系统表显式声明 + rxdb-model 三框架 UI 能力派生；四阶段交付（0 只读行查看 / A 声明与系统表 / B 公开写入口判定 / C UI 能力派生）
 - [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；排序域 = 分组字段组合（整表为空组合、NULL 值算一组），A～E 五阶段（D 分组排序域与跨组移动，E 三端 Todo 按 `completed` 分组手动排序）；依赖方向 tree → sortable，可排序字段强制非空；与 US-025 阶段 E 无先后约束
-- [US-029 多用户 RBAC：角色与所有权写权限](../stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（不加基础字段）+ `RxDBContext.roles` 与一实例一身份 + US-027 操作权限扩展为角色 / 所有权谓词 + 测试 RLS fixture + 三框架操作级能力派生；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C，阶段 C 依赖 US-218；**价值待证**，解锁条件为出现具名多用户使用方（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
 - [US-218 Supabase 远端启用 RLS 时的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：业务表开 RLS 后，被策略过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 已复现，连 SELECT 都看不到的行同样中招）；三阶段（不写幽灵日志 + 日志与业务写配对 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置，不含租户与角色
 - [US-220 Supabase 推送 UPDATE 的落库语义](../stories/adapter/US-220-supabase-update-push-semantics.md) — 推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库：只改部分列在 NOT NULL 列上报 23502，owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501；改走普通 UPDATE，单个 PR，US-218 阶段 B 的前置
 - [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](../stories/adapter/US-221-opfs-reload-access-handle-race.md) — 三端 demo 走的 sqlite-wasm（OPFS）路径：刷新时上一个页面的 Worker 还占着库文件的同步访问句柄，`createSyncAccessHandle()` 抛 `NoModificationAllowedError`，VFS 不重试，应用起不来也不报错；有界重试（wa-sqlite 的 `OPFSCoopSyncVFS` 同一个 VFS，一并覆盖）+ 连接失败提示 + 确定性浏览器用例
 - [US-223 Supabase 直写路径的 UPDATE 落库语义](../stories/adapter/US-223-supabase-mutations-update-semantics.md) — `mutations()` 修改经 `p_updates` 执行普通 UPDATE，修复 owner 型与共享编辑型 RLS 的 INSERT 误拒；仅直写返回服务器最终行，推送与原计数入口保留既有权限语义
 - [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — 服务端触发器捕获实际 DELETE 的完整 `OLD`，RPC 在源日志后统一写入隐式日志；同批显式删除去重并保留客户端映射，最终回执按实际删除收口，混合批次不复活子行
+- [US-225 Supabase 日志同步只对已登录身份开放，非 main 分支按所有者写入](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) — anon 退出日志协议（拉取、推送、分支登记、存在性探针），非 main 分支由首个写入者认领，实时通知只带元数据；已登录用户之间的隔离归 [epic-015](epic-015-identity-scoped-sync.md)
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-104 rxdb-model 表单校验反馈与保存失败的展示](../stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
 - [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 先验证同步启停公开入口与删除证据/合并扩展点，再做 Full/Filter 试点；HTTP QueryCache demo 不承担同步验收
@@ -80,7 +83,12 @@ owner: jimmy
 - [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — 四阶段（CHECK → 条件唯一 → 区间排他双后端等价 → 生成列、表达式索引与索引方法）；阶段 A～C（`checks` / 索引 `where` / `exclusions`）代码完成、待评审（[#114](https://github.com/aiao-io/rxdb/pull/114)），阶段 D 仍**价值待证**；当前消费方全在 epic-009
 - [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧的四个树实体不改），新建、批量添加、删除提升子节点与拖放改走 US-028 排序模块；症状可复现（三处撞键），三端行为已分叉；A 新实体与创建类写入 → B 拖放与显示顺序；前置 US-028 阶段 A + D
+- [US-226 Supabase 待拉数按记录计：一个事务一条](../stories/adapter/US-226-supabase-pull-count-records.md) — 本地待推数已按记录计；远端日志补记 `transactionId`、广播带上它、按记录重算，对端批量 10 条显示 1 条待拉
 - [US-032 跨 Tab 增量 UPDATE 的活查询刷新](../stories/core/US-032-cross-tab-update-live-query.md) — where 字段不完整时回 SQL，避免冷缓存或残缺缓存下的 count 与 find 系查询静默过期；保留既有事件协议
+- [US-037 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行](../stories/core/US-037-push-order-by-foreign-key.md) — `push()` 按 `config.entities` 的声明顺序逐仓推，级联只带子仓；子实体声明在前时子行先到远端撞外键，被当终态拒绝并删掉本地行（真栈已复现）；改为一次级联覆盖全部仓库，单仓推连通分量；依赖图补上继承关系与复合外键；汇总计全关联仓的计数与失败
+- [US-038 双向一对一的实体能开同步：同步层按可空外键断环](../stories/core/US-038-bidirectional-one-to-one-sync.md) — 两侧都持有外键的一对一在依赖图里成环，`Circular dependency` 让全库推拉失败（shop 夹具真栈已复现）；三阶段（依赖图强连通分量与客户端合批 → `rxdb_mutations` 延迟列 → 拉取补齐与端到端）；前置 US-037
+- [US-228 多对多关联在 Supabase 上可同步：中间表按实体形状建表，关联行 id 由两端确定](../stories/adapter/US-228-supabase-many-to-many-sync.md) — 生成的中间表实体带 `id`，远端中间表是复合主键没有 `id`，关联推不上去；三阶段（确定性关联行 id → 中间表同步类型跟随两端 → DDL 契约与真栈）；前置 US-037
+- [US-227 dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收](../stories/adapter/US-227-supabase-relational-sync-demo.md) — demo 自有表，订单页演示一对多、多对一、多对多、双向一对一、级联删除与外键被拒，两身份远端 e2e；三阶段分别以 US-037、US-228、US-038 为前置
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 / US-218 / US-220 保留在本 Epic 的历史范围内；Epic 归属按用户目标和当前范围维护，新增承诺需要同步目标与关闭条件。US-021 / US-022 / US-215 是

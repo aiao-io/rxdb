@@ -15,7 +15,7 @@ const REASON_LABELS: Readonly<Record<SyncRejection['reason'], string>> = {
 };
 
 /**
- * 最近一轮推送里被远端拒绝的变更（US-218 AC#16）。
+ * 最近一轮推送里被远端拒绝的变更（US-218 AC#16），显示在同步中心里（US-230）。
  *
  * @remarks
  * 只有「空态 / 有数据」两态：数据是同步快照，无加载态；提交失败不上报，无错误态。
@@ -24,11 +24,7 @@ const REASON_LABELS: Readonly<Record<SyncRejection['reason'], string>> = {
 @Component({
   selector: 'app-sync-rejections-panel',
   template: `
-    <section
-      class="mx-auto mb-3 max-w-4xl px-4"
-      aria-labelledby="sync-rejections-title"
-      data-testid="sync-rejections-panel"
-    >
+    <section class="flex flex-col gap-1" aria-labelledby="sync-rejections-title" data-testid="sync-rejections-panel">
       <h2 class="text-sm font-semibold" id="sync-rejections-title">被拒的推送</h2>
       @if (sync.lastRejections().length === 0) {
         <p class="text-base-content/70 text-sm">最近没有被远端拒绝的推送</p>

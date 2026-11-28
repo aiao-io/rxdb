@@ -18,7 +18,21 @@
  *
  * 不自动改绑：远端地址配错到另一个项目时，自动改绑会把别人的数据拉进来、把本地待推变更推过去。
  */
-import { type IRepository, type RxDBAdapterRemoteBase, RxDBError, RxDBSync } from '@aiao/rxdb';
+import {
+  RxDBError,
+  RxDBIdentityMismatchError,
+  RxDBSync,
+  type IRepository,
+  type RxDBAdapterRemoteBase
+} from '@aiao/rxdb';
+import { removeBucketScopeInTransaction, type BucketScope } from './bucketed-scope-cleanup.js';
+import { RxDBSyncBucketProgress, RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
+import {
+  IdentityMismatchError,
+  identityFingerprint,
+  scopedIdentityKind,
+  type ScopedSyncIdentity
+} from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -65,9 +79,105 @@ interface RemoteBackendCheck {
 
 const ALL_RECORDS = { where: { combinator: 'and' as const, rules: [] } };
 
+type ScopedIdentityRemoteAdapter = RxDBAdapterRemoteBase & {
+  syncIdentity(): Promise<ScopedSyncIdentity>;
+};
+
+const isScopedIdentityRemoteAdapter = (adapter: RxDBAdapterRemoteBase): adapter is ScopedIdentityRemoteAdapter =>
+  typeof (adapter as unknown as { syncIdentity?: unknown }).syncIdentity === 'function';
+
+const IDENTITY_BINDING_ID = 'singleton';
+const IDENTITY_BINDING = {
+  where: { combinator: 'and' as const, rules: [{ field: 'id', operator: '=', value: IDENTITY_BINDING_ID }] }
+};
+
+/**
+ * 身份不匹配先写进 `SyncState.lastError` 再抛
+ *
+ * @remarks
+ * 只有身份不匹配才写进面板：适配器不报告身份、写库失败这类是配置或环境问题，原样抛给调用方。
+ */
+const reportingIdentityMismatch = async (sm: SyncManager, step: () => Promise<void>): Promise<void> => {
+  try {
+    await step();
+  } catch (error) {
+    if (error instanceof RxDBIdentityMismatchError) sm.rxdb.syncState.reportError(error);
+    throw error;
+  }
+};
+
+/**
+ * 与远端交换数据之前先核对调用者身份：对不上先写进 `SyncState.lastError` 再抛
+ *
+ * @remarks
+ * 没声明身份时核心的 `assertCallerIdentity` 什么都不做，也不问远端。
+ */
+const assertRemoteIdentity = (sm: SyncManager, remote: RxDBAdapterRemoteBase): Promise<void> =>
+  reportingIdentityMismatch(sm, () => sm.rxdb.assertCallerIdentity(remote));
+
+/** 本地库已经绑定了身份：与当前会话对不上时先写进 `SyncState.lastError` 再抛 */
+const assertBoundIdentity = (
+  sm: SyncManager,
+  binding: RxDBSyncIdentityBinding,
+  identity: ScopedSyncIdentity,
+  fingerprint: string
+): void => {
+  if (binding.identityFingerprint === fingerprint) return;
+  const error = new IdentityMismatchError(
+    binding.identityKind,
+    scopedIdentityKind(identity),
+    binding.identityFingerprint,
+    fingerprint
+  );
+  sm.rxdb.syncState.reportError(error);
+  throw error;
+};
+
+/**
+ * 在读取远端 backend id 之前绑定并核对本地数据库身份
+ *
+ * @remarks
+ * 声明了 `RxDBOptions.identity` 时先核对会话就是声明的身份，通过之后才写绑定：登错号的会话不能先把
+ * 自己的指纹写进本地库——没有改绑，写错一次，换回正确的会话也再同步不了。
+ *
+ * 第一次绑定时先在同一个事务里写下核心的身份水位（`RxDB.bindIdentity`），再写本插件的绑定行。
+ * 没声明身份时只写本插件这一行的话，应用之后改为声明身份打开同一个库，核心的打开守卫看不到绑定，
+ * 会把装着这个会话数据的库就地绑给打开它的那个身份（RV-01a2118227d9715ab33e8ef2556bb4b6）。
+ * 库已绑定别的身份（曾以别的身份声明打开）时核心抛身份不匹配，两行都不写。已有本插件绑定时只核对、不回填核心水位。
+ */
+export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  if (!isScopedIdentityRemoteAdapter(remoteAdapter)) return;
+  await assertRemoteIdentity(sm, remoteAdapter);
+
+  const identity = await remoteAdapter.syncIdentity();
+  const fingerprint = identityFingerprint(identity);
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
+  const repository = localAdapter.getRepository(RxDBSyncIdentityBinding);
+  const existing = (await repository.find(IDENTITY_BINDING))[0];
+  if (existing) return assertBoundIdentity(sm, existing, identity, fingerprint);
+
+  await localAdapter.transaction(async executor => {
+    const txRepository = executor.getRepository(RxDBSyncIdentityBinding);
+    const current = (await txRepository.find(IDENTITY_BINDING))[0];
+    if (current) return assertBoundIdentity(sm, current, identity, fingerprint);
+
+    await reportingIdentityMismatch(sm, () => sm.rxdb.bindIdentity(executor, identity));
+    const binding = Object.assign(sm.rxdb.entityManager.instantiate(RxDBSyncIdentityBinding), {
+      id: IDENTITY_BINDING_ID,
+      identityKind: scopedIdentityKind(identity),
+      identityFingerprint: fingerprint,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    await txRepository.create(binding);
+  });
+}
+
 /** 读远端身份与本地全部同步记录 */
 const readRemoteBackend = async (sm: SyncManager): Promise<RemoteBackendCheck> => {
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  await assertRemoteIdentity(sm, remoteAdapter);
   const backendId = await remoteAdapter.backendId();
   const { adapter: localAdapter } = await sm.getLocalRepositories();
   const repository = localAdapter.getRepository(RxDBSync);
@@ -125,6 +235,7 @@ export async function assertRemoteBackendIs(
   remote: RxDBAdapterRemoteBase,
   expected: string
 ): Promise<void> {
+  await assertRemoteIdentity(sm, remote);
   const backendId = await remote.backendId();
   if (backendId !== expected) stopOnMismatch(sm, backendId, [expected]);
 }
@@ -153,22 +264,65 @@ export async function bindRemoteBackend(sm: SyncManager): Promise<string> {
  * @returns 改绑结果
  *
  * @remarks
- * 一个事务里改完：改到一半失败时整体回滚，重调即可。只动拉取游标；推送水位不动，
- * 已推到旧远端的本地变更不会重推。
+ * 一个事务里改完：改到一半失败时整体回滚，重调即可。推送水位不动，已推到旧远端的本地变更不会重推。
  *
  * @internal
  */
 export async function rebindRemoteBackend(sm: SyncManager): Promise<RebindRemoteBackendResult> {
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  await assertRemoteIdentity(sm, remoteAdapter);
   const backendId = await remoteAdapter.backendId();
   const { adapter: localAdapter } = await sm.getLocalRepositories();
   const result = await localAdapter.transaction(async executor => {
     const repository = executor.getRepository(RxDBSync);
-    const records = (await repository.find(ALL_RECORDS)).filter(record => record.remoteBackendId !== backendId);
-    const previousBackendIds = foreignBackendIds(records, backendId);
+    const allRecords = await repository.find(ALL_RECORDS);
+    const records = allRecords.filter(record => record.remoteBackendId !== backendId);
+    const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
+    const progresses = (await progressRepository.find(ALL_RECORDS)).filter(
+      progress =>
+        typeof progress.namespace === 'string' &&
+        typeof progress.entity === 'string' &&
+        typeof progress.branchId === 'string' &&
+        typeof progress.bucket === 'string' &&
+        typeof progress.filterFingerprint === 'string' &&
+        progress.remoteBackendId !== backendId
+    );
+    const previousBackendIds = [
+      ...new Set([
+        ...foreignBackendIds(records, backendId),
+        ...progresses.flatMap(progress =>
+          progress.remoteBackendId && progress.remoteBackendId !== backendId ? [progress.remoteBackendId] : []
+        )
+      ])
+    ];
     const updatedAt = new Date();
     for (const record of records) {
       await repository.update(record, { remoteBackendId: backendId, lastPullRemoteChangeId: null, updatedAt });
+    }
+    for (const progress of progresses) {
+      const EntityType = sm.rxdb.schemaManager.getEntityType(progress.entity, progress.namespace);
+      const repoSync =
+        allRecords.find(
+          record =>
+            record.namespace === progress.namespace &&
+            record.entity === progress.entity &&
+            record.branchId === progress.branchId
+        ) ??
+        Object.assign(sm.rxdb.entityManager.instantiate(RxDBSync), {
+          namespace: progress.namespace,
+          entity: progress.entity,
+          branchId: progress.branchId,
+          lastPushedChangeId: null
+        });
+      const scope: BucketScope = {
+        namespace: progress.namespace,
+        entity: progress.entity,
+        branchId: progress.branchId,
+        bucket: progress.bucket,
+        filterFingerprint: progress.filterFingerprint
+      };
+      // 还被本地别的行引用的行留下，连同这个作用域的旧进度行：之后的拉取认出它属于旧远端，再清一次
+      await removeBucketScopeInTransaction(executor, sm.rxdb.config.entities, EntityType, repoSync, scope, progress);
     }
     return { backendId, previousBackendIds, rebound: records.length };
   });

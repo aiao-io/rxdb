@@ -334,6 +334,7 @@ type SuiteExportName =
   | 'createSqliteClientSuite'
   | 'crudIntegrationSuite'
   | 'customPrimaryKeySuite'
+  | 'entityAccessRulesSuite'
   | 'joinSqlSuite'
   | 'menuIntegrationSuite'
   | 'querySqlSuite'
@@ -442,6 +443,11 @@ export const bigintBinaryEntitySuite = getSharedSuite(
 export const cascadeMutationSuite = getSharedSuite(
   './__tests__/shared-cascade-mutation.suite.ts',
   'cascadeMutationSuite'
+);
+/** 规则形式写权限的判定（US-029 AC#13）：与 PGlite 的同名用例结果一致 */
+export const entityAccessRulesSuite = getSharedSuite(
+  './__tests__/shared-entity-access-rules.suite.ts',
+  'entityAccessRulesSuite'
 );
 export const createSqliteClientSuite = getSharedSuite(
   './__tests__/shared-create-sqlite-client.suite.ts',

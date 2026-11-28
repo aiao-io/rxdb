@@ -2,6 +2,13 @@ import { combineLatest, firstValueFrom, map, Observable, shareReplay, switchMap,
 import { assertEntityOperationAllowed } from '../entity/entity-permissions.js';
 import { EntityStaticType, EntityType } from '../entity/entity.interface.js';
 import { SyncOptions, SyncType } from '../entity/metadata-options.interface.js';
+import {
+  assertCreateRule,
+  assertDeleteRule,
+  assertReorderRule,
+  assertUpdateRule,
+  hasPermissionRule
+} from '../entity/permission-rules.js';
 import { selectPrimaryAdapterKind } from '../entity/primary-adapter.js';
 import { assertMountedTableSet } from '../entity/worktree-table-set-guard.js';
 import type { RawQueryResult } from '../rxdb-adapter.js';
@@ -25,6 +32,7 @@ import {
   snapshotSortOrders,
   updateKeepingEdits
 } from '../sortable/sortable.utils.js';
+import { createIdentityGuardedQueryCacheRemote, type CallerIdentityReporter } from '../system/identity-binding.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
 import {
@@ -33,6 +41,7 @@ import {
   type QueryCacheSession
 } from './query-cache-engine.interface.js';
 import { missingQueryCacheOutboxError } from './query-cache-outbox.interface.js';
+import type { QueryCacheRemoteAdapter } from './query-cache.interface.js';
 import {
   CountOptions,
   FindAllOptions,
@@ -114,6 +123,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 顺手把当前实例记下来 —— 那是唯一同步够得着它的位置。
    */
   #queryCachePrimary: QueryCachePrimary<T> | undefined;
+
+  /** {@link Repository.#guardQueryCacheRemote} 的替身缓存 */
+  #guardedRemote: { source: object; guarded: QueryCacheRemoteAdapter } | undefined;
 
   /** 本轮合流窗口内累积的失效实体类型（US-023 D14） */
   readonly #pendingInvalidations = new Set<EntityType>();
@@ -231,6 +243,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     this.#destroyed = true;
     if (this.#isQueryCache) {
       this.rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, this.#onRemoteEntityInvalidated);
+      this.#queryCachePrimary?.invalidateInflight();
       // 从未订阅过 `primary$` 的仓储没有会话，也就没有计时器要撤
       this.#queryCacheSession?.clear();
     }
@@ -437,7 +450,8 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 创建实体
    * @param entity 要创建的实体实例
    * @throws {@link RxDBReadOnlyError} 只读实例（以 rejected Promise 给出）
-   * @throws {@link PermissionDeniedError} 实体声明 `create: 'system'`（以 rejected Promise 给出）
+   * @throws {@link PermissionDeniedError} 实体声明 `create: 'system'`；或 create 是规则形式、新行的作用域上没有所需权限
+   *   （授权快照未取到时一律拒绝，US-029）（以 rejected Promise 给出）
    * @throws {@link WorktreeTableSetMismatchError} 实体不是在本实例此刻挂的那套表上建出的（以 rejected Promise 给出）
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
@@ -445,6 +459,8 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     this.#assertWritable('create');
     assertMountedTableSet(this.rxdb, [entity]);
     assertEntityOperationAllowed(this.EntityType, 'create');
+    // 新行的作用域就在实例上，不用读库：与简写同一处、同样在碰适配器之前（US-029）
+    assertCreateRule(this.EntityType, entity, this.rxdb.grants);
     const metadata = getEntityMetadata(this.EntityType);
     if (isManualOrderEntity(metadata)) {
       assertExplicitSortOrders(metadata.name, [entity]);
@@ -462,12 +478,14 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * @param entity 要更新的实体实例
    * @param patch 部分更新数据
    * @throws {@link RxDBReadOnlyError} 只读实例（以 rejected Promise 给出）
-   * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`（以 rejected Promise 给出）
+   * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`；或 update 是规则形式、持久化前像或写后的作用域上
+   *   没有所需权限（授权快照未取到时一律拒绝，US-029）（以 rejected Promise 给出）
    * @throws {@link SortOrderError} 手动排序键不合法；改分组字段落在 remote-only / QueryCache 主端
    * @throws {@link WorktreeTableSetMismatchError} 实体不是在本实例此刻挂的那套表上读出的（以 rejected Promise 给出）
    *
    * @remarks
    * 分组手动排序实体改了分组字段而没给 `sortOrder` 时，在主适配器事务内追加到新组末尾（US-028 AC#16）。
+   * update 是规则形式时，读前像、判定与写入同在本地主适配器的一个事务里（US-029）。
    */
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
     this.#assertWritable('update');
@@ -478,6 +496,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
       assertSortOrderKey(metadata.name, (patch as Record<string, unknown>)[SORT_ORDER_FIELD]);
     }
     if (isRegroupWithoutKey(metadata, entity, patch)) return this.#updateRegrouped(entity, patch);
+    if (hasPermissionRule(this.EntityType, 'update')) return this.#updateGuarded(entity, patch);
     const observer = this.primary$.pipe(
       switchMap(repo => repo.update(entity, patch)),
       tap(this._setLocal)
@@ -489,13 +508,15 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 删除实体
    * @param entity 要删除的实体实例
    * @throws {@link RxDBReadOnlyError} 只读实例（以 rejected Promise 给出）
-   * @throws {@link PermissionDeniedError} 实体声明 `delete: 'system'`（以 rejected Promise 给出）
+   * @throws {@link PermissionDeniedError} 实体声明 `delete: 'system'`；或 delete 是规则形式、持久化前像的作用域上没有
+   *   所需权限（授权快照未取到时一律拒绝，US-029）（以 rejected Promise 给出）
    * @throws {@link WorktreeTableSetMismatchError} 实体不是在本实例此刻挂的那套表上读出的（以 rejected Promise 给出）
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
     this.#assertWritable('delete');
     assertMountedTableSet(this.rxdb, [entity]);
     assertEntityOperationAllowed(this.EntityType, 'delete');
+    if (hasPermissionRule(this.EntityType, 'delete')) return this.#removeGuarded(entity);
     const observer = this.primary$.pipe(switchMap(repo => repo.remove(entity)));
     return firstValueFrom(observer);
   }
@@ -509,7 +530,8 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    *   两种目标的字段不能混写（`{ group, expectedGroup }` 以 `invalidTarget` 拒绝）
    * @returns 移动后的实体；已在目标位置时原样返回、零写
    * @throws {@link RxDBReadOnlyError} 只读实例，在开事务前抛出
-   * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`，在开事务前抛出
+   * @throws {@link PermissionDeniedError} 实体声明 `update: 'system'`，在开事务前抛出；或 update 是规则形式、要移动的行
+   *   移动前后的作用域上没有所需权限（US-029），在事务里算出落点之后、写入之前抛出
    * @throws {@link SortOrderError} 见 {@link SortOrderErrorReason}（邻居已不在 `expectedGroup` 为 `'staleTarget'`）；
    *   抛出时一条写都没有提交
    *
@@ -537,7 +559,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     assertReorderTarget(metadata, id, target);
     const adapter = await this.#manualOrderAdapter('重排');
     const entity = await adapter.transaction(executor =>
-      reorderRow(executor.getRepository(this.EntityType), metadata, id, target)
+      reorderRow(executor.getRepository(this.EntityType), metadata, id, target, (moving, placement) =>
+        assertReorderRule(this.EntityType, moving, placement, this.rxdb.grants)
+      )
     );
     this._setLocal(entity);
     return entity;
@@ -676,6 +700,27 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   }
 
   /**
+   * 声明了身份时，给读写远端的五个入口加每次先核对调用者的替身（US-035）
+   *
+   * @param remoteAdapter - 远端适配器
+   * @returns 没声明身份时原样返回同一个适配器；声明了就返回替身
+   *
+   * @remarks
+   * 替身按适配器实例缓存：读引擎的同步记忆按适配器实例判断「有没有换」，每次发射都换一个新对象会让记忆被清空。
+   */
+  #guardQueryCacheRemote(remoteAdapter: object): object {
+    const identity = this.rxdb.config.identity;
+    if (identity === undefined) return remoteAdapter;
+    if (this.#guardedRemote?.source === remoteAdapter) return this.#guardedRemote.guarded;
+    const guarded = createIdentityGuardedQueryCacheRemote(
+      identity,
+      remoteAdapter as QueryCacheRemoteAdapter & CallerIdentityReporter
+    );
+    this.#guardedRemote = { source: remoteAdapter, guarded };
+    return guarded;
+  }
+
+  /**
    * 构造 QueryCache 主仓储流。
    *
    * @param namespace - 实体命名空间
@@ -703,7 +748,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
       map(([localAdapter, remoteAdapter]) => {
         const session = this.#resolveQueryCacheSession(namespace, entityName, sync);
-        const primary = session.createPrimary(localAdapter, remoteAdapter);
+        const primary = session.createPrimary(localAdapter, this.#guardQueryCacheRemote(remoteAdapter));
         // 记下「此刻的那一个」：失效上报要同步作废它的在飞查询（US-023 D13）
         this.#queryCachePrimary = primary;
         return primary;
@@ -752,12 +797,43 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     const updated = await adapter.transaction(async executor => {
       assertMountedTableSet(this.rxdb, [entity]);
       const repository = executor.getRepository(this.EntityType);
+      await assertUpdateRule(repository, this.EntityType, entity, patch, this.rxdb.grants);
       const moving = regroupRow(metadata, entity, patch);
       await appendToGroupTails(repository, metadata, [moving], []);
       return updateKeepingEdits(repository, entity, { ...patch, [SORT_ORDER_FIELD]: moving.row.sortOrder });
     });
     this._setLocal(updated);
     return updated;
+  }
+
+  /**
+   * update 是规则形式（US-029）：读前像、判定与写入同在本地主适配器的一个事务里
+   *
+   * @remarks
+   * 只走本地主端：注册期校验已拒绝 remote-only 与 QueryCache 上的规则形式。前像按 id 在事务里读，
+   * 判定看的是它的落库值；被拒时事务回滚，一条都没写。
+   */
+  async #updateGuarded(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const updated = await adapter.transaction(async executor => {
+      assertMountedTableSet(this.rxdb, [entity]);
+      const repository = executor.getRepository(this.EntityType);
+      await assertUpdateRule(repository, this.EntityType, entity, patch, this.rxdb.grants);
+      return repository.update(entity, patch);
+    });
+    this._setLocal(updated);
+    return updated;
+  }
+
+  /** delete 是规则形式（US-029）：读前像、判定与删除同在本地主适配器的一个事务里 */
+  async #removeGuarded(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    return adapter.transaction(async executor => {
+      assertMountedTableSet(this.rxdb, [entity]);
+      const repository = executor.getRepository(this.EntityType);
+      await assertDeleteRule(repository, this.EntityType, entity, this.rxdb.grants);
+      return repository.remove(entity);
+    });
   }
 
   /**

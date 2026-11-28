@@ -23,6 +23,7 @@
     "src/__tests__/backup/backup-interrupt.worker.ts",
     "src/__tests__/backup/backup-test-fixture.ts",
     "src/__tests__/encrypted-test-fixture.ts",
+    "src/__tests__/scripted-remote-fixture.ts",
     "src/__tests__/test-utils.ts"
   ],
   "references": [

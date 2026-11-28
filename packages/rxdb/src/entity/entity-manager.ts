@@ -37,6 +37,7 @@ import {
   setSafeObjectWritableKey
 } from './entity.utils.js';
 import { formatMetadataViolations, validateEntityMetadataSet } from './metadata-validate.js';
+import { assertMutationRules, hasRuleWrites } from './permission-rules.js';
 import { collectMutationEntityTypes, isQueryCacheBatch, resolveBatchPrimaryAdapter } from './primary-adapter.js';
 import { createEntityProxy } from './proxy.js';
 import entity_relation_helper from './relation-helper.js';
@@ -133,7 +134,8 @@ export class EntityManager {
     const violations = validateEntityMetadataSet(
       this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)),
       this.rxdb.entitySync,
-      (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type]
+      (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type],
+      repository => this.rxdb.getRepositoryConfig(repository)?.unsupportedPermissionRules
     );
     if (violations.length > 0) {
       throw new RxDBError(formatMetadataViolations(violations));
@@ -501,7 +503,8 @@ export class EntityManager {
    * 批量修改实体（创建/更新/删除）
    * @param options 批量修改选项
    * @throws {@link RxDBReadOnlyError} 只读实例；一条都不写
-   * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；清单列出全部违规，一条都不写
+   * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；或批内有规则形式的写、某一行的作用域上没有所需权限
+   *   （US-029，前像与判定在写入的同一个事务里）；清单列出全部违规，一条都不写
    * @throws {@link SortOrderError} 手动排序键不合法，或缺键创建 / 改分组字段落在 remote-only / QueryCache 主端；一条都不写
    * @throws {@link WorktreeTableSetMismatchError} 批内有实体不是在本实例此刻挂的那套表上建出、读出的；一条都不写
    */
@@ -531,6 +534,8 @@ export class EntityManager {
     if (queryCache) {
       return this.#mutations_query_cache(options);
     }
+    // 规则形式只落在本地主端（注册期已拒绝 remote-only 与 QueryCache 上的规则）：批内没有规则写时写路径与现状一致
+    if (hasRuleWrites(options as RxDBMutationsMap)) return this.#mutations_guarded(options);
     const adapter$: Observable<IRxDBAdapter> =
       primary.kind === 'remote' ? this.rxdb.remoteAdapter$ : this.rxdb.localAdapter$;
     const adapter = await firstValueFrom(adapter$);
@@ -548,6 +553,12 @@ export class EntityManager {
    */
   async remove<T extends EntityType>(data: InstanceType<T>): Promise<InstanceType<T>> {
     const EntityType = data.constructor as EntityType;
+    // 被引用的实体：本地外键会级联删除或置空引用它的行。走批量写入，源删除与级联写入在同一个带事务号的事务里，
+    // 记成一个事务、撤销一次整组恢复（US-318）；单条删除不开事务，级联写入会各记各的
+    if (this.#removes_in_transaction(EntityType)) {
+      await this.mutations(getEntityMutations({ needSaveEntities: [], needRemoveEntities: [data] }));
+      return data;
+    }
     const entity = await this.#get_entity_repository(EntityType).remove(data);
     return entity;
   }
@@ -580,6 +591,12 @@ export class EntityManager {
    */
   async create<T extends EntityType>(data: InstanceType<T>): Promise<InstanceType<T>> {
     const EntityType = data.constructor as EntityType;
+    // 多对多中间表的行 id 由两端派生（US-228），库里可能已经有同一对（关联过、只是没加载进内存）：
+    // 走批量写，本地适配器遇到同 id 的行保留它、读回来交给这个实例，而不是报主键冲突
+    if (this.rxdb.schemaManager.isJunctionEntity(EntityType)) {
+      await this.mutations(getEntityMutations({ needSaveEntities: [data], needRemoveEntities: [] }));
+      return data;
+    }
     const entity = await this.#get_entity_repository(EntityType).create(data);
     return entity;
   }
@@ -679,6 +696,13 @@ export class EntityManager {
     return this.#get_entity_repository(EntityType);
   }
 
+  /** 删除要不要走批量写入的事务：实体被引用，且写的是本地库（远端与 QueryCache 的删除不经本地外键） */
+  #removes_in_transaction(EntityType: EntityType): boolean {
+    if (!this.rxdb.schemaManager.isReferenced(EntityType)) return false;
+    const primary = resolveBatchPrimaryAdapter([EntityType], this.rxdb.entitySync);
+    return primary?.kind === 'local' && !isQueryCacheBatch([EntityType], this.rxdb.entitySync);
+  }
+
   /**
    * 批内有缺排序键的创建或改了分组字段的更新：读尾键、追加、整批写入同在主适配器的一个事务里（US-028 写边界）
    *
@@ -703,6 +727,8 @@ export class EntityManager {
     try {
       return await adapter.transaction(async executor => {
         assertMutationsTableSet(this.rxdb, options);
+        // 规则判定排在算键之前：被拒的批次不该先改实例上的排序键（US-029）
+        await assertMutationRules(executor, options as RxDBMutationsMap, this.rxdb.grants);
         await appendBatchSortOrders(executor, options as RxDBMutationsMap);
         return executor.mutations(options);
       });
@@ -710,6 +736,22 @@ export class EntityManager {
       restore();
       throw error;
     }
+  }
+
+  /**
+   * 批内有规则形式的写（US-029）：读前像、判定与整批写入同在本地主适配器的一个事务里
+   *
+   * @remarks
+   * 与适配器自己的 `mutations()` 同一个事务体（表集断言 + `executor.mutations()`），只在写之前多一步按行判定；
+   * 前像每个实体读一次。任一行被拒，事务回滚，一条都没写。
+   */
+  async #mutations_guarded<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    return adapter.transaction(async executor => {
+      assertMutationsTableSet(this.rxdb, options);
+      await assertMutationRules(executor, options as RxDBMutationsMap, this.rxdb.grants);
+      return executor.mutations(options);
+    });
   }
 
   /**
@@ -724,7 +766,10 @@ export class EntityManager {
    */
   async #mutations_query_cache<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
     const results: InstanceType<T>[] = [];
-    for (const entity of flattenMutationEntities(options.create)) results.push(await this.create(entity));
+    // 新建直接走仓库，不经 `create()`：中间表的 `create()` 会转进批量写，回到这里就是无限递归
+    for (const entity of flattenMutationEntities(options.create)) {
+      results.push(await this.#get_entity_repository(entity.constructor as T).create(entity));
+    }
     for (const entity of flattenMutationEntities(options.update)) results.push(await this.update(entity));
     for (const entity of flattenMutationEntities(options.remove)) results.push(await this.remove(entity));
     return results;

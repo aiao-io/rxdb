@@ -1,0 +1,67 @@
+# 本地开发用的 Supabase Studio，叠加在 docker-compose.ci.yml 的隔离栈上（pnpm nx dev dev-rxdb-supabase）。
+#
+# 只经 supabase-ci-compose.sh 与 CI 配置一起传给同一个 compose 项目：CI 与 test-env 不加载本文件，
+# test-env-down（down -v --remove-orphans）会把这两个容器当作孤儿一并清掉。
+# 不写 container_name：compose 默认的 <项目>-<服务>-1 已按 checkout 隔离。
+#
+# 镜像版本与 docker-compose.yml 一致；口令、JWT secret 与两把 key 是 docker-compose.ci.yml 的公开演示值。
+# Studio 不需要登录就能读写整个库，端口只发布在 127.0.0.1，由 docker 分配。
+
+services:
+  meta:
+    image: supabase/postgres-meta:v0.96.6
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: postgres
+      CRYPTO_KEY: rxdb-local-studio-pg-meta-crypto-key
+
+  studio:
+    image: supabase/studio:2026.08.03-sha-022b374
+    depends_on:
+      kong:
+        condition: service_healthy
+      meta:
+        condition: service_started
+    ports:
+      - '127.0.0.1::3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/platform/profile').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    environment:
+      HOSTNAME: 0.0.0.0
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER_READ_WRITE: postgres
+      PG_META_CRYPTO_KEY: rxdb-local-studio-pg-meta-crypto-key
+      PGRST_DB_SCHEMAS: public,shop,storage,p2p
+      DEFAULT_ORGANIZATION_NAME: RxDB Local
+      DEFAULT_PROJECT_NAME: dev-rxdb-supabase
+      SUPABASE_URL: http://kong:8000
+      # 浏览器里展示与直连的 API 地址：Kong 的宿主端口是起栈后才知道的动态值，由 supabase-ci-compose.sh 从状态文件导出。
+      # 不设回退值：经这里的栈 Kong 端口总是动态的，回退到哪个固定端口都不对，直连要么全部失败、要么打到另一套栈上。
+      # 也不读 SUPABASE_PUBLIC_URL：compose 会加载 docker/.env，那里的同名变量是默认栈的地址
+      SUPABASE_PUBLIC_URL: ${SUPABASE_CI_PUBLIC_URL:?Kong 端口未知：先运行 pnpm nx run rxdb-adapter-supabase:test-env 起栈，再经 docker/supabase-ci-compose.sh 操作}
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+      SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q
+      AUTH_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      ENABLED_FEATURES_LOGS_ALL: 'false'
+      NEXT_PUBLIC_ENABLE_LOGS: 'false'

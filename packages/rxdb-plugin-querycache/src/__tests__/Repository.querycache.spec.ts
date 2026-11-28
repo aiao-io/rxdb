@@ -4,12 +4,13 @@
  * 这些用例全部经**统一 `Repository`** 断言，而不是直接 `new QueryCacheEngine`：
  * 病灶 1 的核心正是「类是好的，生产路径打不到它」，只测类本身无法证伪。
  */
-import type { QueryOptions, RuleGroup, RxDB, SyncStats } from '@aiao/rxdb';
+import type { QueryOptions, RuleGroup, RxDB, RxDBIdentity, SyncStats } from '@aiao/rxdb';
 import {
   createEntitySyncResolver,
   deterministicStringify,
   ENTITY_STATIC_TYPES,
   Repository,
+  RxDBIdentityMismatchError,
   RxDBQueryCacheCapabilityError,
   SyncType,
   WorktreeTableSet
@@ -103,6 +104,7 @@ stampMetadata(VersionedEntity, {
 /** 直通 QueryManager：只暴露 runner 的结果，同时留下任务 key 供指纹断言 */
 class StubQueryManager {
   lastOptions: QueryOptions<CachedEntityCtor> | undefined;
+  destroy = vi.fn();
 
   createTask<RT>(taskOptions: { options: QueryOptions<CachedEntityCtor>; runner: () => Observable<RT> }) {
     this.lastOptions = taskOptions.options;
@@ -168,6 +170,8 @@ const setup = (
     /** 让远端元数据晚于本地缓存到达，SWR 与标准模式才有可观测差异 */
     remoteDelayMs?: number;
     EntityType?: CachedEntityCtor;
+    /** 实例声明的身份（US-035）；不给就是没声明 */
+    identity?: RxDBIdentity;
   } = {}
 ) => {
   // 默认本地比远端旧一档：同步必须真的回源一次，AC#1 的 pull 断言才有意义
@@ -187,8 +191,9 @@ const setup = (
     remoteAdapter$,
     worktreeTableSet: WorktreeTableSet.MAIN,
     entitySync: createEntitySyncResolver(undefined),
-    config: { sync: undefined },
+    config: { sync: undefined, ...(overrides.identity ? { identity: overrides.identity } : {}) },
     addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经
     // `rxdb.queryCacheEngine()` 填槽，手搭的 `rxdb` 替身得把这个槽补上。用真工厂而不是桩：
     // 这些用例断言的就是引擎行为，换成桩等于把被测对象挖空（US-025 B2）。
@@ -334,6 +339,28 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await ctx.repository.create(row('b', '2024-01-04T00:00:00Z'));
 
     expect(ctx.localRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('Repository destroy 后迟到的远端响应不再写入本地缓存', async () => {
+    let release!: () => void;
+    const remoteAdapter = createRemoteAdapter();
+    remoteAdapter.fetchMetadata.mockReturnValue(
+      new Observable<{ id: string; updatedAt: string }[]>(subscriber => {
+        release = () => {
+          subscriber.next([{ id: 'a', updatedAt: '2024-01-02T00:00:00Z' }]);
+          subscriber.complete();
+        };
+      })
+    );
+    const destroyed = setup({ remoteAdapter });
+    const result = firstValueFrom(destroyed.repository.find({ where: where() }));
+
+    await vi.waitFor(() => expect(remoteAdapter.fetchMetadata).toHaveBeenCalledOnce());
+    destroyed.repository.destroy();
+    release();
+
+    await expect(result).resolves.toEqual([expect.objectContaining({ id: 'a' })]);
+    expect(destroyed.localAdapter.upsertMany).not.toHaveBeenCalled();
   });
 
   // AC#22 + D10：适配器不得在构造期固化，重连后必须打到新实例
@@ -540,5 +567,101 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await expect(firstValueFrom(broken.repository.find({ where: where() }))).rejects.toThrow(
       /getMetadataByIds.*deleteByIds|deleteByIds.*getMetadataByIds/
     );
+  });
+});
+
+describe('US-035：声明了身份的实例，QueryCache 读写远端前先核对调用者', () => {
+  const SCOPE = 'https://project-a.supabase.co';
+  const USER_A = '00000000-0000-4000-8000-0000000000a1';
+  const USER_B = '00000000-0000-4000-8000-0000000000b2';
+  const identity: RxDBIdentity = { scope: SCOPE, subject: USER_A };
+
+  /** 远端适配器带上 `callerIdentity`：真实的适配器就是在同一个对象上同时有五件套与它 */
+  const withCallerIdentity = (reported: () => string) => {
+    const remote = createRemoteAdapter();
+    const callerIdentity = vi.fn(async () => ({ scope: 'https://project-a.supabase.co', subject: reported() }));
+    Object.assign(remote, { callerIdentity });
+    return { remote, callerIdentity };
+  };
+
+  const remoteMethods = (remote: ReturnType<typeof createRemoteAdapter>) => [
+    remote.fetchMetadata,
+    remote.findByIds,
+    remote.create,
+    remote.update,
+    remote.delete
+  ];
+
+  it('远端会话是别的身份：读报身份不匹配，一个远端请求都不发', async () => {
+    const { remote } = withCallerIdentity(() => USER_B);
+    const ctx = setup({ identity, remoteAdapter: remote });
+
+    await expect(firstValueFrom(ctx.repository.find({ where: where() }))).rejects.toBeInstanceOf(
+      RxDBIdentityMismatchError
+    );
+
+    for (const method of remoteMethods(remote)) expect(method).not.toHaveBeenCalled();
+    expect(ctx.localAdapter.upsertMany).not.toHaveBeenCalled();
+  });
+
+  it('远端会话是别的身份：写同样先被拦下，本地缓存与远端都不动', async () => {
+    const { remote } = withCallerIdentity(() => USER_B);
+    const ctx = setup({ identity, remoteAdapter: remote });
+
+    await expect(ctx.repository.create(row('n', '2024-01-05T00:00:00Z'))).rejects.toBeInstanceOf(
+      RxDBIdentityMismatchError
+    );
+
+    for (const method of remoteMethods(remote)) expect(method).not.toHaveBeenCalled();
+    expect(ctx.localRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('会话就是声明的身份：读照常回源', async () => {
+    const { remote, callerIdentity } = withCallerIdentity(() => USER_A);
+    const ctx = setup({ identity, remoteAdapter: remote });
+
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+
+    expect(callerIdentity).toHaveBeenCalled();
+    expect(remote.fetchMetadata).toHaveBeenCalledTimes(1);
+    expect(remote.findByIds).toHaveBeenCalledWith('CachedEntity', ['a']);
+  });
+
+  it('身份是每次请求时问的，不缓存：第一次放行、会话换主人之后下一次就被拦下', async () => {
+    let reported = USER_A;
+    const { remote } = withCallerIdentity(() => reported);
+    // 记忆窗口关掉，保证第二次读一定要再碰远端
+    const noMemo = setup({ identity, remoteAdapter: remote, EntityType: CachedNoMemoEntity });
+
+    await firstValueFrom(noMemo.repository.find({ where: where() }));
+    reported = USER_B;
+
+    await expect(firstValueFrom(noMemo.repository.find({ where: where() }))).rejects.toBeInstanceOf(
+      RxDBIdentityMismatchError
+    );
+    expect(remote.fetchMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  // 读引擎的同步记忆按适配器实例判断「有没有换」：适配器流每次发射都重建主仓储，
+  // 要是每次都包出一个新的替身，记忆就被清空，窗口内的重复读又全部回源。
+  it('适配器流再发射同一个适配器：替身保持同一个，同步记忆不被清空', async () => {
+    const { remote } = withCallerIdentity(() => USER_A);
+    const ctx = setup({ identity, remoteAdapter: remote });
+
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+    ctx.remoteAdapter$.next(remote as never);
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+
+    expect(remote.fetchMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it('没声明身份：原样用同一个远端适配器，不问 callerIdentity', async () => {
+    const { remote, callerIdentity } = withCallerIdentity(() => USER_B);
+    const ctx = setup({ remoteAdapter: remote });
+
+    await firstValueFrom(ctx.repository.find({ where: where() }));
+
+    expect(callerIdentity).not.toHaveBeenCalled();
+    expect(remote.fetchMetadata).toHaveBeenCalledTimes(1);
   });
 });

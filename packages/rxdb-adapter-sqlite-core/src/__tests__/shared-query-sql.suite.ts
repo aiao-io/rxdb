@@ -407,13 +407,12 @@ export function querySqlSuite(factory: AdapterFactory) {
         expect(sql).toContain(`"idCard"."code" = '111'`);
       });
 
-      it('count 配合 groupBy 抛出异常', () => {
-        expect(() =>
-          generate_query_count_sql(adapter, getEntityMetadata(TypeDemo), {
-            where: { combinator: 'and', rules: [] },
-            groupBy: ['string']
-          })
-        ).toThrow(/groupBy not supported/);
+      it('count 配合 groupBy 数分组个数：子查询分组、外层计数', () => {
+        const { sql } = generate_query_count_sql(adapter, getEntityMetadata(TypeDemo), {
+          where: { combinator: 'and', rules: [] },
+          groupBy: ['string']
+        });
+        expect(sql).toMatch(/^SELECT COUNT\(\*\) AS count FROM \(SELECT 1 FROM "[^"]+" _ GROUP BY _\."string"\)$/);
       });
 
       it('keyValue 字段点号访问生成 json_extract', () => {

@@ -23,7 +23,7 @@ describe('SyncManager.push batchSize forwarding', () => {
   });
 
   it('forwards an explicit batchSize to bulkSync push options unchanged', async () => {
-    const bulkSync = vi.spyOn(rxdb.syncManager, 'bulkSync').mockResolvedValue(emptyBulkSyncResult());
+    const bulkSync = vi.spyOn(rxdb.syncManager, 'bulkSyncInSession').mockResolvedValue(emptyBulkSyncResult());
 
     await rxdb.syncManager.push({ batchSize: 0 });
 
@@ -31,7 +31,7 @@ describe('SyncManager.push batchSize forwarding', () => {
   });
 
   it('omits bulkSync push options when batchSize is undefined', async () => {
-    const bulkSync = vi.spyOn(rxdb.syncManager, 'bulkSync').mockResolvedValue(emptyBulkSyncResult());
+    const bulkSync = vi.spyOn(rxdb.syncManager, 'bulkSyncInSession').mockResolvedValue(emptyBulkSyncResult());
 
     await rxdb.syncManager.push();
 

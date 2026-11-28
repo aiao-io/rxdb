@@ -4,6 +4,7 @@ import { RxDB } from '../../RxDB.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityData, EntityType } from '../../entity/entity.interface.js';
+import { junctionEntityId } from '../../entity/many-to-many-entity.js';
 import {
   type EntityRelationManyToManyMetadata,
   type EntityRelationOneToManyMetadata,
@@ -308,10 +309,87 @@ describe('EntityRelationCache', () => {
     const rebuiltJunction = findTargetJunction(ownerSet, ownerRelation, owner.id, tag.id);
 
     expect(rebuiltJunction).not.toBe(removedJunction);
+    // US-228 AC#2：重新关联还是同一个派生 id，落库后本地只有一行
+    expect(rebuiltJunction.id).toBe(removedJunction.id);
     expect(getEntityStatus(rebuiltJunction).removed).toBe(false);
     expect(ownerSet).toEqual(new Set([tag, rebuiltJunction]));
     expect(mappedSet).toEqual(new Set([owner, rebuiltJunction]));
     expect(cache.getRemovableJunctions().size).toBe(0);
+  });
+
+  it('US-228 AC#1：新建的中间表行 id 由两端 id 派生，与从哪一端 add 无关', () => {
+    const ownerRelation = requireManyToManyRelation(RelationCacheOwner, 'tags');
+    const mappedRelation = requireManyToManyRelation(RelationCacheTag, 'owners');
+    const junction = getEntityMetadata(ownerRelation.junctionEntityType);
+    const expectedId = (owner: RelationCacheOwner, tag: RelationCacheTag) =>
+      junctionEntityId(junction, [
+        { foreignKey: `${ownerRelation.name}Id`, id: tag.id, uuid: true },
+        { foreignKey: `${ownerRelation.mappedProperty}Id`, id: owner.id, uuid: true }
+      ]);
+
+    const owner = new RelationCacheOwner();
+    const tag = new RelationCacheTag();
+    const ownerCache = createCache(owner);
+    ownerCache.add(ownerRelation, tag);
+    const fromOwner = findTargetJunction(ownerCache.get(ownerRelation), ownerRelation, owner.id, tag.id);
+    expect(fromOwner.id).toBe(expectedId(owner, tag));
+
+    const otherOwner = new RelationCacheOwner();
+    const otherTag = new RelationCacheTag();
+    const tagCache = new EntityRelationCache(
+      () => getEntityStatus(otherTag).target,
+      () => otherTag
+    );
+    tagCache.add(mappedRelation, otherOwner);
+    const fromTag = findTargetJunction(tagCache.get(mappedRelation), ownerRelation, otherOwner.id, otherTag.id);
+    expect(fromTag.id).toBe(expectedId(otherOwner, otherTag));
+    expect(fromTag.id).not.toBe(fromOwner.id);
+  });
+
+  it('US-228：同一对的中间表行已经有活实例（例如被别的查询加载过）时复用它，不另造一个同 id 的实例', () => {
+    const owner = new RelationCacheOwner();
+    const tag = new RelationCacheTag();
+    const ownerRelation = requireManyToManyRelation(RelationCacheOwner, 'tags');
+    const mappedRelation = requireManyToManyRelation(RelationCacheTag, 'owners');
+    const ownerCache = createCache(owner);
+    ownerCache.add(ownerRelation, tag);
+    const loaded = findTargetJunction(ownerCache.get(ownerRelation), ownerRelation, owner.id, tag.id);
+
+    // 两端的关系缓存里都不再有它，只剩身份缓存里的活实例：从另一端再 add 一次
+    ownerCache.clear();
+    getEntityStatus(tag).getRelationCache(mappedRelation).clear();
+    const tagCache = new EntityRelationCache(
+      () => getEntityStatus(tag).target,
+      () => tag
+    );
+    tagCache.add(mappedRelation, owner);
+
+    expect(findTargetJunction(tagCache.get(mappedRelation), ownerRelation, owner.id, tag.id)).toBe(loaded);
+  });
+
+  // 分支深度评审 #1：一端解绑、保存之前从另一端重新关联同一对。复用的中间表要是还留在解绑那一端的待删集合里，
+  // 保存时就被删掉，又因为没有改动不会重新写入：关联静默丢失
+  it('一端解绑之后从另一端重新关联同一对：复用的中间表不再留在任何一端的待删集合里', () => {
+    const owner = new RelationCacheOwner();
+    const tag = new RelationCacheTag();
+    const ownerRelation = requireManyToManyRelation(RelationCacheOwner, 'tags');
+    const mappedRelation = requireManyToManyRelation(RelationCacheTag, 'owners');
+    const ownerStatus = getEntityStatus(owner);
+    const tagStatus = getEntityStatus(tag);
+    ownerStatus.addRelationEntity(ownerRelation, tag);
+    const junction = findTargetJunction(ownerStatus.getRelationCache(ownerRelation), ownerRelation, owner.id, tag.id);
+    getEntityStatus(junction).local = true;
+    ownerStatus.removeRelationEntity(ownerRelation, tag);
+    expect(ownerStatus.getNeedRemoveEntities()).toEqual([junction]);
+
+    tagStatus.addRelationEntity(mappedRelation, owner);
+
+    expect(findTargetJunction(tagStatus.getRelationCache(mappedRelation), ownerRelation, owner.id, tag.id)).toBe(
+      junction
+    );
+    expect(ownerStatus.getRelationCache(ownerRelation)).toEqual(new Set([tag, junction]));
+    expect(ownerStatus.getNeedRemoveEntities()).toEqual([]);
+    expect(tagStatus.getNeedRemoveEntities()).toEqual([]);
   });
 
   it('removes the related entity without marking mismatched junctions as removable', () => {

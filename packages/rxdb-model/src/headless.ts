@@ -5,9 +5,16 @@
  * @module @aiao/rxdb-model/headless
  */
 export {
+  deriveCreateCapability,
   deriveEntityCapabilities,
+  deriveRowCapabilities,
+  deriveWriteBlockedReason,
+  type CapabilityDeniedReason,
+  type CreateCapability,
   type EntityCapabilities,
-  type EntityCapabilityContext
+  type EntityCapabilityContext,
+  type EntityWriteBlockedReason,
+  type RowCapabilities
 } from './entity-capabilities.js';
 export * from './entity-detail/headless.js';
 export * from './entity-detail/interfaces.js';

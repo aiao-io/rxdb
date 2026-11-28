@@ -128,14 +128,16 @@ export default async <T extends EntityType = EntityType>(
     entities.forEach(e => all_entities.add(e));
     const meta = getEntityMetadata(EntityType);
 
-    // 生成 INSERT SQL；生成器读的就是这一刻的字段值
+    // 生成 INSERT SQL；生成器读的就是这一刻的字段值。多对多中间表的行 id 由两端派生（US-228）：
+    // 库里已有同一对（关联过、只是没加载进内存）时保留那一行，下面按 id 读回来交给这个实例
     for (const entity of entities) rememberSubmission(submissions, entity, { ...entity });
     const insertSql = await generate_entity_inserts_sql(
       meta,
       adapter.tableSet,
       entities,
       adapter.rxdb.context,
-      adapter.encryptionContext
+      adapter.encryptionContext,
+      adapter.rxdb.schemaManager.isJunctionEntity(meta) ? 'ignore' : 'error'
     );
     try {
       await adapter.query(insertSql);

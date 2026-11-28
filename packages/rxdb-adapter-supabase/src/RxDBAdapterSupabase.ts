@@ -18,20 +18,34 @@ import type {
   RemoteBranchInfo,
   RemoteChange,
   RemoteEntityRef,
+  RemoteMergeOptions,
   RemoteMergeResult,
   RepositoryInstance,
   RuleGroup,
   RxDB,
+  RxDBGrant,
+  RxDBIdentity,
   RxDBMutationsMap,
   SwitchVersionActions
 } from '@aiao/rxdb';
 import { getEntityMetadata, getSyncConfig, RxDBAdapterRemoteBase, tryGetEntityStatus } from '@aiao/rxdb';
-import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient,
+  RealtimeChannel,
+  type AuthChangeEvent,
+  type Session,
+  type SupabaseClient
+} from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
-import { handleSupabaseChange } from './handle_supabase_change.js';
-import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
+import {
+  handleSupabaseChanges,
+  RXDB_CHANGES_EVENT,
+  RXDB_CHANGES_TOPIC,
+  rxdbChangesTopicForBucket
+} from './handle_supabase_change.js';
+import { chunk_values, select_after_id, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
 import {
   assert_postgrest_ok,
   is_transport_failure,
@@ -49,11 +63,15 @@ import { resolve_supabase_schema } from './schema.utils.js';
 import {
   ADAPTER_NAME,
   assertSnapshotFilterSupported,
+  canReceiveChangeNotifications,
   getUnsupportedProperty,
+  identityOfAccessToken,
   isRetryableSupabaseWriteError,
+  isSameBucketSet,
   REALTIME_RECONNECT_BASE_DELAY_MS,
   REALTIME_RECONNECT_MAX_DELAY_MS,
   REALTIME_RECONNECTABLE_STATUSES,
+  RealtimeSubscriptionBatch,
   RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS,
   RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS,
   SUPABASE_SDK_VERSION,
@@ -66,7 +84,15 @@ import {
   type RetryableWriteResponse,
   type SupabaseRlsCheckResult
 } from './supabase.helpers.js';
-import { SupabaseAdapterOptions, type SupabaseRlsCheckTable } from './supabase.interface.js';
+import {
+  SupabaseAdapterOptions,
+  type SupabaseEntityHistoryItem,
+  type SupabaseEntityHistoryOptions,
+  type SupabaseEntitySyncInfo,
+  type SupabasePendingChangeProbe,
+  type SupabaseRlsCheckTable,
+  type SupabaseScopedSyncIdentity
+} from './supabase.interface.js';
 import { build_merge_changes_payload } from './supabase.merge-changes.js';
 import {
   formatRlsRpcError,
@@ -80,31 +106,94 @@ import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
 
 export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
+type AuthStateChangeListener = (callback: (event: AuthChangeEvent, session: Session | null) => void) => {
+  data: { subscription: { unsubscribe: () => void } };
+};
+
+/** `rxdb_caller_grants()` 的一行：非空的作用域键，与非空字符串的权限名数组 */
+const isGrantRow = (row: unknown): row is RxDBGrant => {
+  const { scope, permissions } = (row ?? {}) as Partial<Record<'scope' | 'permissions', unknown>>;
+  const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+  return isText(scope) && Array.isArray(permissions) && permissions.every(isText);
+};
+
+/** `rxdb_entity_sync_info()` 的答案：字符串的命名空间与实体名，字符串或 `null` 的表名，布尔的分区标记 */
+const isEntitySyncInfo = (value: unknown): value is SupabaseEntitySyncInfo => {
+  const { namespace, entity, tableName, bucketed } = (value ?? {}) as Partial<
+    Record<keyof SupabaseEntitySyncInfo, unknown>
+  >;
+  return (
+    typeof namespace === 'string' &&
+    typeof entity === 'string' &&
+    (typeof tableName === 'string' || tableName === null) &&
+    typeof bucketed === 'boolean'
+  );
+};
+
+/**
+ * 计数类 RPC 的一项答案：非负安全整数
+ *
+ * @remarks
+ * 参考 SQL 交回 JSON 数字，只收数字，不先转成数字再校验：`Number(null)` 与 `Number('')` 都是 0，
+ * 坏应答会被当成「没有待拉」，把「远端有变更」显示成「已同步」。
+ */
+const isChangeCount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+
 /**
  * Supabase 适配器
  *
+ * @remarks
+ * 按参考 SQL 的生产权限部署后，分区日志按调用者的 caller buckets 做读取隔离：anon 默认只读 `public`，
+ * authenticated 只读已授权区。通用日志拉取、推送、分支登记与实时通知仍只对已登录身份开放。
+ * 传入应用里已经登录的客户端，或使用带 JWT 的 `accessToken` 回调。只给 `supabaseUrl` + `supabaseKey`
+ * 时适配器自建一个没有会话的客户端，只适合公开区只读 RPC 或直读业务表。
+ *
  * @example
  * ```typescript
- * const rxdb = new RxDB({
- *   adapters: {
- *     supabase: rxdb => new RxDBAdapterSupabase(rxdb, {
- *       supabaseUrl: 'https://xxx.supabase.co',
- *       supabaseKey: 'your-anon-key'
- *     })
- *   }
- * });
+ * const supabase = createClient('https://xxx.supabase.co', 'your-anon-key');
+ * // …应用在这里完成登录，supabase 带上了用户会话
+ *
+ * rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: supabase }));
  * ```
  */
 export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBAdapter {
   #client: SupabaseClient;
-  #channel: RealtimeChannel | null = null;
+  #channels: RealtimeChannel[] = [];
   #reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #reconnectAttempt = 0;
-  #realtimeState: RealtimeState = 'idle';
+  /**
+   * 构造之后、`connect()` 之前与 `disconnect()` 之后都是 `closed`
+   *
+   * @remarks
+   * 订阅只由 `connect()` 发起（RLS 自检、实体校验都在那里）。auth 监听构造时就装上了，`connect()` 之前的登录事件
+   * 照样会进来；轮换见到 `closed` 就不订阅，否则从没连过的适配器会自己起订阅、派发远端事件。
+   */
+  #realtimeState: RealtimeState = 'closed';
   #realtimeQueue: Promise<void> = Promise.resolve();
+  #realtimeGeneration = 0;
+  #realtimeIdentityKey: string | null = null;
+  /**
+   * 现有频道订阅时的分区集合；那次查询失败（只订阅了旧日志频道）时为空集
+   *
+   * @remarks
+   * 只在有频道时才有意义，由 `#createRealtimeChannels()` 先记下、再交出频道，与 `#channels` 同步更新。
+   * `getCallerBuckets()` 拿读到的分区与它对账，见 `#followRealtimeBuckets()`。
+   */
+  #subscribedBuckets: ReadonlySet<string> = new Set();
+  #authStateSubscription: { unsubscribe: () => void } | null = null;
   #rlsCheckDone = false;
   #databaseVersion: string | null = null;
+  #supabaseScope: string | null = null;
   readonly name = ADAPTER_NAME;
+  /**
+   * `rxdb_mutations` 能先把外键写空、再补写（`p_deferred_columns`，US-038）
+   *
+   * @remarks
+   * 服务端要升级到带第七个参数的 `rxdb_mutations`；没升级时需要补写的批次报 {@link SupabaseConfigError}，
+   * 不需要补写的推送照常可用。
+   */
+  override readonly supportsDeferredForeignKeys = true;
 
   get client(): SupabaseClient {
     return this.#client;
@@ -118,6 +207,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     if (options.client) {
       this.#client = options.client;
+      this.#supabaseScope = resolveSupabaseScope(options.supabaseUrl, options.client);
+      this.#installAuthStateListener();
       return;
     }
 
@@ -128,6 +219,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     this.#client = createClient(supabaseUrl, supabaseKey);
+    this.#supabaseScope = normalizeSupabaseScope(supabaseUrl);
+    this.#installAuthStateListener();
   }
 
   // ============================================
@@ -139,10 +232,18 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     await this.#verifyRlsConfiguration();
     await this.#enqueueRealtime(async () => {
       this.#clearReconnectTimer();
-      if (this.#channel) return;
+      this.#installAuthStateListener();
+      if (this.#channels.length > 0) {
+        // 已在订阅：令牌换了主人（应用切换账号后再调 connect()）就按新身份重建
+        await this.#client.realtime.setAuth();
+        this.#followRealtimeIdentity(this.#client.realtime.accessTokenValue);
+        return;
+      }
 
       this.#realtimeState = 'connecting';
-      this.#channel = this.#createRealtimeChannel();
+      this.#channels = (await this.#createRealtimeChannels()) ?? [];
+      // 没登录时不订阅：保持 idle，下一次 connect() 会按新的令牌重新判断
+      if (this.#channels.length === 0) this.#realtimeState = 'idle';
     });
     return this;
   }
@@ -152,11 +253,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       this.#realtimeState = 'closed';
       this.#clearReconnectTimer();
       this.#reconnectAttempt = 0;
-      if (!this.#channel) return;
-
-      const channel = this.#channel;
-      this.#channel = null;
-      await this.#client.removeChannel(channel);
+      this.#realtimeGeneration += 1;
+      this.#authStateSubscription?.unsubscribe();
+      this.#authStateSubscription = null;
+      await this.#removeRealtimeChannels();
     });
   }
 
@@ -189,6 +289,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       throw new SupabaseDataError('Failed to get backend id: public.rxdb_backend has no row');
     }
     return data;
+  }
+
+  /**
+   * 当前调用者的身份（US-035）
+   *
+   * @returns 当前 Supabase project scope 与会话令牌的 subject
+   * @throws {SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`
+   *
+   * @remarks
+   * 取的是**此刻**随请求发出的令牌，每次回答之前先 `realtime.setAuth()` 让客户端刷新它，不缓存：
+   * 会话可能在两次请求之间换了主人。不读 `client.auth`：客户端配了 `accessToken` 选项时，
+   * supabase-js 对 `client.auth` 的任何访问都抛错；而 Realtime 持有的就是 PostgREST 请求带的那个令牌。
+   * 取令牌与每个 PostgREST 请求走同一条路径（`accessToken` 回调或 `auth.getSession()`），不为身份另发请求：
+   * 令牌临期时的刷新由 auth-js 去重，本来就会发生在紧接着的那个请求上。
+   *
+   * 令牌换了主人而 Realtime 还按旧身份订阅着时，顺带重建频道：`accessToken` 模式没有 auth 事件可听，
+   * 私有频道又是在加入时按身份授权的。
+   */
+  override async callerIdentity(): Promise<RxDBIdentity> {
+    await this.#client.realtime.setAuth();
+    const accessToken = this.#client.realtime.accessTokenValue;
+    const identity = this.#identityFromSubject(identityOfAccessToken(accessToken));
+    this.#followRealtimeIdentity(accessToken);
+    return identity;
   }
 
   // ============================================
@@ -324,6 +448,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @remarks
    * 使用 id 而非 createdAt 作为游标，避免同毫秒内多条记录导致的重复问题
    *
+   * 只拉未分区日志（`bucket IS NULL`）。分区日志只带元数据，正文要按调用者身份从业务表派生，经
+   * {@link RxDBAdapterSupabase.pullBucketChanges} 拉取。
+   *
    * 当提供 filter 参数时，调用 `rxdb_pull_changes` RPC 在变更日志的快照上求值，不 JOIN 当前业务表：
    * `beforeData` 或 `afterData` 任一命中即返回整条变更，`snapshotComplete = false` 的历史变更不经过滤直接返回。
    * 因此 filter 只用于少拉数据，不是行级隔离边界。
@@ -347,53 +474,428 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       }
       assertSnapshotFilterSupported(filter);
       const scope = scopes[0];
-      const { data, error, status } = await this.#client.rpc('rxdb_pull_changes', {
-        p_since_id: sinceId,
-        p_limit: limit,
-        p_namespace: scope.namespace,
-        p_entity: scope.entity,
-        p_branch_id: branchId ?? null,
-        p_filter: filter
-      });
-      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
-      if (!Array.isArray(data)) {
-        throw new SupabaseDataError('Failed to pull changes: invalid response data');
-      }
-      return data.map(row => ({
+      // RPC 返回的是行集，同样受 max-rows 截断：按 id 游标翻页
+      const rows = await select_after_id(
+        async (afterId, pageSize) => {
+          const { data, error, status } = await this.#client.rpc('rxdb_pull_changes', {
+            p_since_id: afterId,
+            p_limit: pageSize,
+            p_namespace: scope.namespace,
+            p_entity: scope.entity,
+            p_branch_id: branchId ?? null,
+            p_filter: filter
+          });
+          assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
+          if (!Array.isArray(data)) {
+            throw new SupabaseDataError('Failed to pull changes: invalid response data');
+          }
+          return data;
+        },
+        sinceId,
+        limit
+      );
+      return rows.map(row => ({
         ...row,
         createdAt: new Date(row.createdAt),
         updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
       })) as RemoteChange[];
     }
 
-    let query = this.#client
+    const rows = await select_after_id(
+      async (afterId, pageSize) => {
+        let query = this.#client
+          .from('rxdb_change')
+          .select('*')
+          .gt('id', afterId)
+          .is('bucket', null)
+          .order('id', { ascending: true })
+          .limit(pageSize);
+        if (scopes?.length === 1) {
+          query = query.eq('namespace', scopes[0].namespace).eq('entity', scopes[0].entity);
+        } else if (scopes && scopes.length > 1) {
+          query = query.or(scopes.map(scope => this.#buildScopeCondition(scope)).join(','));
+        }
+        if (branchId) {
+          query = query.eq('branchId', branchId);
+        }
+        const { data, error, status } = await query;
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
+        return data ?? [];
+      },
+      sinceId,
+      limit
+    );
+
+    return rows.map(row => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
+    }));
+  }
+
+  /**
+   * 当前调用者可读的分区（US-033）
+   *
+   * @returns `rxdb_caller_buckets()` 的结果：anon 默认 `['public']`，登录用户默认再加 `user:<id>`，应用可扩展租户区
+   * @throws {SupabaseDataError} 远端返回的不是非空字符串数组
+   *
+   * @remarks
+   * 变更通知的频道按分区订阅，分区却会在会话中途变（管理员把成员加进或移出租户）。已在订阅时，
+   * 读到的分区与订阅时的集合（不计顺序与重复）对不上，就排进实时队列按新分区重建频道：新分区的提示
+   * 不必等断线重连，被撤销分区的频道也随之退订。同步插件每次分区拉取与待拉数统计都会调用本方法，
+   * 成员变动在下一次同步里就被跟上。
+   *
+   * 重建是排队后台进行的，不改变本方法的返回值，也不会让它失败；查询失败或应答形状不对时照常抛出，频道保持原样。
+   * 没有订阅（未登录、尚未 `connect()`、已 `disconnect()`）时不动：订阅只由 `connect()` 发起。
+   */
+  async getCallerBuckets(): Promise<string[]> {
+    const { data, error, status } = await this.#client.rpc('rxdb_caller_buckets');
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve caller buckets');
+    if (!Array.isArray(data) || !data.every(bucket => typeof bucket === 'string' && bucket.length > 0)) {
+      throw new SupabaseDataError('Failed to resolve caller buckets: invalid response data');
+    }
+    this.#followRealtimeBuckets(data);
+    return data;
+  }
+
+  /**
+   * 当前调用者在各作用域上的成员权限（US-029）
+   *
+   * @returns `rxdb_caller_grants()` 的结果，每行映射成 `{ scope, permissions }`；平台默认是登录用户自己的
+   *   `user:<id>` 区 `read + edit`，anon 一行都没有，应用经覆盖加上租户成员权限
+   * @throws {SupabaseConfigError} 服务端没有部署 `rxdb_caller_grants()`（PostgREST 回 `PGRST202`）
+   * @throws {SupabaseDataError} 远端拒绝，或返回的不是 `{ scope, permissions }` 数组
+   * @throws `NetworkOfflineError` 连不上远端
+   *
+   * @remarks
+   * 授权由服务端按当前会话裁决，成员表改了下一次请求就生效，不取自令牌里的声明。核心只在有实体声明了作用域时问它：
+   * 远端连接时、同步每一轮进门时与 `rxdb.grants.refresh()`。写策略与这里读的是同一份授权（`rxdb_caller_scopes`），
+   * 本机按它判定的结果与 RLS 对得上。
+   */
+  override async callerGrants(): Promise<readonly RxDBGrant[]> {
+    const { data, error, status } = await this.#client.rpc('rxdb_caller_grants');
+    if (error?.code === 'PGRST202') {
+      throw new SupabaseConfigError(
+        'The server has no public.rxdb_caller_grants(), so the grant snapshot for entities that declare ' +
+          'access.scope cannot be read. Deploy the reference SQL first: ' +
+          'website/docs/migration/supabase-member-permissions.md'
+      );
+    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve caller grants');
+    if (!Array.isArray(data) || !data.every(isGrantRow)) {
+      throw new SupabaseDataError('Failed to resolve caller grants: invalid response data');
+    }
+    return data.map(({ scope, permissions }) => ({ scope, permissions }));
+  }
+
+  /**
+   * 读一行的远端变更历史（US-229）
+   *
+   * @param EntityType - 实体类
+   * @param entityId - 行 id
+   * @param options - 分页：`afterId` 传上一页最后一条的 `id`，`limit` 一页最多几条（1～1000）
+   * @returns 调用者当前能编辑的那些历史，按写入顺序；正文只含调用者有列权限的列
+   * @throws {SupabaseDataError} 远端拒绝（没有部署读取 RPC，或调用者没有执行权：anon 一律没有）或返回的形状不对
+   *
+   * @remarks
+   * 历史与同步日志分开存放：同步日志按区开放读取、分区日志不带正文；历史记每次生效的业务写入的完整前后快照、
+   * 操作者与来源，只经服务端的 `rxdb_entity_history` 读取。能不能看由服务端的 `rxdb_caller_can_edit` 按每条历史
+   * 记录时的行判定：一行换了租户之后，改动前的历史只对旧租户的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+   * 修改的前像另判一次：换租户那一条记在新租户，调用者不能编辑改动前的行时 `beforeData` 与 `inversePatch` 为 `null`。
+   *
+   * @example
+   * ```ts
+   * const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
+   * const history = await adapter.getEntityHistory(CatalogItem, item.id);
+   * for (const entry of history) console.log(entry.createdAt, entry.actor, entry.patch);
+   * ```
+   */
+  async getEntityHistory<T extends EntityType>(
+    EntityType: T,
+    entityId: string | number,
+    options: SupabaseEntityHistoryOptions = {}
+  ): Promise<SupabaseEntityHistoryItem[]> {
+    const { namespace, name } = getEntityMetadata(EntityType);
+    const { data, error, status } = await this.#client.rpc('rxdb_entity_history', {
+      p_namespace: namespace,
+      p_entity: name,
+      p_entity_id: String(entityId),
+      ...(options.afterId === undefined ? {} : { p_after_id: options.afterId }),
+      ...(options.limit === undefined ? {} : { p_limit: options.limit })
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read entity history');
+    if (!Array.isArray(data) || !data.every(isEntityHistoryRow)) {
+      throw new SupabaseDataError('Failed to read entity history: invalid response data');
+    }
+    return data.map(item => ({ ...item, createdAt: new Date(item.createdAt) }));
+  }
+
+  /**
+   * 实体在远端的登记信息（US-033）
+   *
+   * @param namespace - 实体命名空间（即业务表所在 schema）
+   * @param entity - 实体名
+   * @returns 业务表名与是否按 `rxdb_bucket` 分区；没登记过的实体 `bucketed` 为 `false`
+   * @throws {SupabaseDataError} 远端返回的形状不对
+   */
+  async getEntitySyncInfo(namespace: string, entity: string): Promise<SupabaseEntitySyncInfo> {
+    const { data, error, status } = await this.#client.rpc('rxdb_entity_sync_info', {
+      p_namespace: namespace,
+      p_entity: entity
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve entity sync info');
+    if (!isEntitySyncInfo(data)) {
+      throw new SupabaseDataError('Failed to resolve entity sync info: invalid response data');
+    }
+    return data;
+  }
+
+  /**
+   * 一次问齐多个实体的登记信息（US-236）
+   *
+   * @param entities - 要问的实体
+   * @returns 与 `entities` 同序，每一项同 {@link RxDBAdapterSupabase.getEntitySyncInfo}；`entities` 为空时不发请求
+   * @throws {SupabaseDataError} 远端返回的形状不对，或项数、顺序与请求对不上
+   *
+   * @remarks
+   * 同步状态统计与拉取每一轮问一次，不再逐个实体打 `rxdb_entity_sync_info`。按下标交回答案，所以逐项核对实体：
+   * 错位会把别的实体的分区标记安到这个实体头上，分区实体被当成不分区，拉取只读未分区日志、静默拉空。
+   *
+   * 服务端要部署了 `rxdb_entity_sync_infos`（参考 SQL 的 `02-rxdb-sync-functions.sql`），旧服务端报 PostgREST 的 `PGRST202`：
+   * 与按区函数同一个升级顺序，先升级 SQL，再升级客户端。
+   */
+  async getEntitySyncInfos(
+    entities: readonly { namespace: string; entity: string }[]
+  ): Promise<SupabaseEntitySyncInfo[]> {
+    if (entities.length === 0) return [];
+    const { data, error, status } = await this.#client.rpc('rxdb_entity_sync_infos', {
+      p_entities: entities.map(({ namespace, entity }) => ({ namespace, entity }))
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve entity sync infos');
+    const answers: unknown[] = Array.isArray(data) ? data : [];
+    const matches = (info: unknown, index: number) =>
+      isEntitySyncInfo(info) && info.namespace === entities[index].namespace && info.entity === entities[index].entity;
+    if (answers.length !== entities.length || !answers.every(matches)) {
+      throw new SupabaseDataError('Failed to resolve entity sync infos: invalid response data');
+    }
+    return answers as SupabaseEntitySyncInfo[];
+  }
+
+  /**
+   * 一次数清多个待拉数探针（US-236）
+   *
+   * @param probes - 探针：实体（分区实体细到一个区）、游标与本库推上去的远端 id
+   * @param branchIds - 只数这些分支，与拉取同口径
+   * @returns 与 `probes` 同序的条数；`probes` 为空时不发请求
+   * @throws {SupabaseDataError} 远端返回的不是与探针等长的非负安全整数数组
+   *
+   * @remarks
+   * 以调用者身份数（`rxdb_pending_change_counts` 是 `SECURITY INVOKER`）：`rxdb_change` 的 RLS 只放行调用者可读的分区
+   * 与 authenticated 的未分区日志，分区此刻已被撤销时数出 0，与 {@link RxDBAdapterSupabase.getBucketChangeCount} 同口径。
+   * 本库推上去的远端 id 随请求体发出，不受请求地址长度的限制，不用分批。旧服务端没有这个函数时同
+   * {@link RxDBAdapterSupabase.getEntitySyncInfos}，报 `PGRST202`。
+   */
+  async countPendingChanges(
+    probes: readonly SupabasePendingChangeProbe[],
+    branchIds: readonly string[]
+  ): Promise<number[]> {
+    if (probes.length === 0) return [];
+    const { data, error, status } = await this.#client.rpc('rxdb_pending_change_counts', {
+      p_probes: probes.map(({ namespace, entity, bucket, afterId, excludeIds }) => ({
+        namespace,
+        entity,
+        bucket,
+        afterId,
+        excludeIds: [...excludeIds]
+      })),
+      p_branch_ids: [...branchIds]
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to count pending changes');
+    const counts: unknown[] = Array.isArray(data) ? data : [];
+    if (counts.length !== probes.length || !counts.every(isChangeCount)) {
+      throw new SupabaseDataError('Failed to count pending changes: invalid response data');
+    }
+    return counts as number[];
+  }
+
+  /**
+   * 分区日志的水位：某个 bucket 在给定分支上的最大日志 id（US-033）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param branchIds - 只算这些分支（通常是当前分支及其祖先）；不传时算全部分支
+   * @returns 最大日志 id，没有日志时为 0
+   * @throws {SupabaseDataError} 分区不属于调用者（`42501`），或返回值不是非负安全整数的 JSON 数字
+   *
+   * @remarks
+   * 拉取只拉给定分支的日志，水位必须同口径：把别的分支算进来，游标就永远追不上它。
+   *
+   * 参考 SQL 声明 `RETURNS integer`，PostgREST 一定交回 JSON 数字，所以只收数字，不先转成数字再校验：
+   * `Number(null)` 与 `Number('')` 都是 0，空应答会被当成水位 0，把「远端有变更」显示成「已同步」。
+   */
+  async getBucketSnapshotPoint(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    branchIds?: readonly string[]
+  ): Promise<number> {
+    const { data, error, status } = await this.#client.rpc('rxdb_bucket_snapshot_point', {
+      p_namespace: namespace,
+      p_entity: entity,
+      p_bucket: bucket,
+      p_branch_ids: branchIds ?? null
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read bucket snapshot point');
+    if (!isChangeCount(data)) {
+      throw new SupabaseDataError('Failed to read bucket snapshot point: invalid response data');
+    }
+    return data;
+  }
+
+  /**
+   * 分区在游标之后的日志条数（US-233）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param afterId - 游标：只数 id 大于它的日志
+   * @param branchIds - 只算这些分支，与拉取同口径
+   * @param ids - 给了就只数这些 id（同步插件按批传，每批不超过 100 个）
+   * @returns 条数
+   * @throws {@link SupabaseDataError} 查询失败，或应答里没有条数时
+   *
+   * @remarks
+   * 直接数 `rxdb_change`：表上的 `rxdb_change_read_by_bucket` 策略只放行调用者可读分区的行，
+   * 分区此刻已被撤销时数出来是 0，不需要另开 RPC。不求值实体同步规则，与快照点同口径。
+   * 不按 `clientId` 排除自己推的：它每次启动都换，刷新之后认不出上一次会话推的；
+   * 同步插件拿本地记下的远端 id 按 `ids` 再数一次，两次相减。
+   */
+  async getBucketChangeCount(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    afterId: number,
+    branchIds: readonly string[],
+    ids?: readonly number[]
+  ): Promise<number> {
+    const query = this.#client
       .from('rxdb_change')
-      .select('*')
-      .gt('id', sinceId)
-      .order('id', { ascending: true })
-      .limit(limit);
+      .select('id', { count: 'exact', head: true })
+      .eq('namespace', namespace)
+      .eq('entity', entity)
+      .eq('bucket', bucket)
+      .gt('id', afterId)
+      .in('branchId', [...branchIds]);
+    const { count, error, status } = await (ids === undefined ? query : query.in('id', [...ids]));
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to count bucket changes');
+    if (typeof count !== 'number') throw new SupabaseDataError('Failed to count bucket changes: invalid response data');
+    return count;
+  }
 
-    if (scopes?.length === 1) {
-      query = query.eq('namespace', scopes[0].namespace).eq('entity', scopes[0].entity);
-    } else if (scopes && scopes.length > 1) {
-      query = query.or(scopes.map(scope => this.#buildScopeCondition(scope)).join(','));
+  /**
+   * 按分区从业务表读一页快照（US-033）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param filter - 实体同步规则，只能在分区内缩小范围
+   * @param afterId - 上一页最后一行的 id（`String(row.id)`）；第一页传 `null`
+   * @param limit - 每页行数
+   * @returns 按 id 升序、以调用者身份在业务表 RLS 下读到的行
+   * @throws {SupabaseDataError} 分区不属于调用者、实体未分区或返回值不是对象数组
+   *
+   * @remarks
+   * 按 id 接着上一页读（keyset），不用 OFFSET：翻页之间有人删行时，OFFSET 会把边界上的幸存行挤掉。
+   */
+  async pullBucketSnapshot(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    filter: RuleGroup<unknown> | undefined,
+    afterId: string | null,
+    limit: number
+  ): Promise<Record<string, unknown>[]> {
+    if (limit <= 0) return [];
+    if (filter) assertSnapshotFilterSupported(filter);
+    const { data, error, status } = await this.#client.rpc('rxdb_pull_bucket_snapshot', {
+      p_namespace: namespace,
+      p_entity: entity,
+      p_bucket: bucket,
+      p_filter: filter ?? null,
+      p_after_id: afterId,
+      p_limit: limit
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket snapshot');
+    if (!Array.isArray(data) || !data.every(row => row !== null && typeof row === 'object' && !Array.isArray(row))) {
+      throw new SupabaseDataError('Failed to pull bucket snapshot: invalid response data');
     }
+    return data as Record<string, unknown>[];
+  }
 
-    if (branchId) {
-      query = query.eq('branchId', branchId);
-    }
+  /**
+   * 拉某个分区在游标之后的增量日志（US-033）
+   *
+   * @param sinceId - 游标：只返回 id 大于它的日志
+   * @param limit - 最多返回条数
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param filter - 实体同步规则；不再匹配的行以 DELETE 返回
+   * @param branchId - 只拉这个分支；不传时不按分支过滤
+   * @returns 按 id 升序的日志；正文按调用者身份从业务表当前行重新派生，行已不在或不可见时为 DELETE
+   * @throws {SupabaseDataError} 分区不属于调用者、实体未分区或返回值不是数组
+   */
+  async pullBucketChanges(
+    sinceId: number,
+    limit: number,
+    namespace: string,
+    entity: string,
+    bucket: string,
+    filter?: RuleGroup<unknown>,
+    branchId?: string
+  ): Promise<RemoteChange[]> {
+    if (limit <= 0) return [];
+    if (filter) assertSnapshotFilterSupported(filter);
+    // RPC 返回的是行集，同样受 max-rows 截断：按 id 游标翻页
+    const rows = await select_after_id(
+      async (afterId, pageSize) => {
+        const { data, error, status } = await this.#client.rpc('rxdb_pull_bucket_changes', {
+          p_since_id: afterId,
+          p_limit: pageSize,
+          p_namespace: namespace,
+          p_entity: entity,
+          p_bucket: bucket,
+          p_branch_id: branchId ?? null,
+          p_filter: filter ?? null
+        });
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket changes');
+        if (!Array.isArray(data)) {
+          throw new SupabaseDataError('Failed to pull bucket changes: invalid response data');
+        }
+        return data;
+      },
+      sinceId,
+      limit
+    );
+    return rows.map(row => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
+    })) as RemoteChange[];
+  }
 
-    const { data, error, status } = await query;
-    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
-
-    return (data ?? [])
-      .map(row => ({
-        ...row,
-        createdAt: new Date(row.createdAt),
-        updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
-      }))
-      .sort((left, right) => left.id - right.id)
-      .slice(0, limit);
+  /**
+   * 同步插件绑定本地库时用的调用者身份（US-033）
+   *
+   * @returns 与 {@link RxDBAdapterSupabase.callerIdentity} 相同
+   * @throws {SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`
+   *
+   * @remarks
+   * 一个令牌只有一个身份：本地库按它绑定、远端会话按它核对，两处同一编码，`service_role` 不会被记成 anon。
+   */
+  async syncIdentity(): Promise<SupabaseScopedSyncIdentity> {
+    return this.callerIdentity();
   }
 
   /**
@@ -401,6 +903,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    *
    * 此方法只查询远程有多少新变更，不返回实际数据。
    * 用于实现 checkRepositoryUpdates() 功能，节省带宽。
+   * 只数未分区日志，与 {@link RxDBAdapterSupabase.pullChanges} 同口径；分区日志的水位见 {@link RxDBAdapterSupabase.getBucketSnapshotPoint}。
    *
    * @param sinceId - 起始 changeId（不包含该 ID）
    * @param repositoryFilter - 可选的实体过滤列表
@@ -422,7 +925,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     latestChangeId: number;
   }> {
     const scopes = this.#resolveRepositoryScopes(repositoryFilter);
-    let query = this.#client.from('rxdb_change').select('id', { count: 'exact' }).gt('id', sinceId);
+    let query = this.#client.from('rxdb_change').select('id', { count: 'exact' }).gt('id', sinceId).is('bucket', null);
 
     if (scopes?.length === 1) {
       query = query.eq('namespace', scopes[0].namespace).eq('entity', scopes[0].entity);
@@ -455,14 +958,21 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @param branchId - 分支 ID
    * @param changes - 完整的原始变更记录（可选，用于保留完整历史）
    *
+   * @param options - 外键成环时先写空、再补写的外键（US-038），换成 `p_deferred_columns` 发给 `rxdb_mutations`
+   * @throws {SupabaseConfigError} 带了延迟外键、服务端的 `rxdb_mutations` 却还没有 `p_deferred_columns`（PGRST202）
+   *
    * @remarks
    * 载荷一律以 `id` 键定位行，不读实体主键的 columnName：同步协议的两端（变更日志触发器记 `NEW.id`、
    * `rxdb_mutations` 按 `id` 判冲突）都绑定业务表的 `id` 列，只在本地改了主键列名的同步实体照常推送。
+   *
+   * 延迟外键只在推 main 分支、且确有要补写的列时才带：非 main 推送只写日志、不写业务表；
+   * 不带时请求与从前逐字相同，没升级的服务端照常可用。列名即载荷里的键（属性名），与其他列同一口径。
    */
   async mergeChanges(
     actions: SwitchVersionActions,
     branchId?: string,
-    changes?: IRxDBChange[]
+    changes?: IRxDBChange[],
+    options?: RemoteMergeOptions
   ): Promise<RemoteMergeResult> {
     if (actions.inserts.size === 0 && actions.updates.size === 0 && actions.deletes.size === 0 && !changes?.length) {
       return { results: [] };
@@ -496,6 +1006,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return { namespace: metadata.namespace, entity: metadata.name, entityId: ref.entityId };
     };
 
+    const p_deferred_columns = (branchId ?? 'main') === 'main' ? this.#deferredColumns(options) : [];
+
     // 调用 RPC（单一事务，跳过触发器；p_receipts 开启逐实体回执，一条被拒不拖垮整批；瞬时网络错误自动重试）
     return this.executeRetryableWrite(
       'merge changes',
@@ -506,8 +1018,15 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
           p_deletes,
           p_changes,
           p_skip_sync: true,
-          p_receipts: true
+          p_receipts: true,
+          ...(p_deferred_columns.length > 0 ? { p_deferred_columns } : {})
         });
+        if (p_deferred_columns.length > 0 && error?.code === 'PGRST202') {
+          throw new SupabaseConfigError(
+            'The server rxdb_mutations does not accept p_deferred_columns, so rows whose foreign keys form a cycle ' +
+              'cannot be pushed. Upgrade the reference SQL first: website/docs/migration/supabase-fk-cycle-push.md'
+          );
+        }
         return { data, error, status };
       },
       data => validateMergeResponse(data, changes, resolveDependsOnEntity)
@@ -544,27 +1063,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       })
       .join(',');
 
-    let query = this.#client
-      .from('rxdb_change')
-      .select('*')
-      .or(orConditions)
-      .order('id', { ascending: true })
-      .limit(limit);
+    // 批量拉取一次要「每个仓库的上限 × 仓库数」条，远超 max-rows：按 id 游标翻页，每个仓库的起点仍在 or 条件里
+    const rows = await select_after_id(
+      async (afterId, pageSize) => {
+        let query = this.#client
+          .from('rxdb_change')
+          .select('*')
+          .or(orConditions)
+          .is('bucket', null)
+          .gt('id', afterId)
+          .order('id', { ascending: true })
+          .limit(pageSize);
+        // 支持多分支过滤（包括祖先分支）
+        if (branchIds && branchIds.length > 0) {
+          query = branchIds.length === 1 ? query.eq('branchId', branchIds[0]) : query.in('branchId', branchIds);
+        }
+        const { data, error, status } = await query;
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to batch pull changes');
+        return data ?? [];
+      },
+      0,
+      limit
+    );
 
-    // 支持多分支过滤（包括祖先分支）
-    if (branchIds && branchIds.length > 0) {
-      if (branchIds.length === 1) {
-        query = query.eq('branchId', branchIds[0]);
-      } else {
-        query = query.in('branchId', branchIds);
-      }
-    }
-
-    const { data, error, status } = await query;
-
-    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to batch pull changes');
-
-    return (data ?? []).map(row => ({
+    return rows.map(row => ({
       ...row,
       createdAt: new Date(row.createdAt),
       updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
@@ -837,6 +1359,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return results;
   }
 
+  /** 延迟外键换成 `rxdb_mutations` 的 `p_deferred_columns`：表取实体的表名，列即属性名 */
+  #deferredColumns(options: RemoteMergeOptions | undefined): { schema: string; table: string; column: string }[] {
+    return (options?.deferredForeignKeys ?? []).map(key => {
+      const metadata = this.rxdb.schemaManager.getEntityMetadata(key.entity, key.namespace);
+      if (!metadata) {
+        throw new SupabaseConfigError(
+          `Deferred foreign key references an unregistered entity: ${key.namespace}.${key.entity}`
+        );
+      }
+      return { schema: metadata.namespace, table: metadata.tableName, column: key.property };
+    });
+  }
+
+  #requireSupabaseScope(): string {
+    if (this.#supabaseScope) return this.#supabaseScope;
+    throw new SupabaseConfigError(
+      'The supplied Supabase client does not expose its project URL. Pass supabaseUrl when configuring the adapter.'
+    );
+  }
+
+  #identityFromSubject(subject: string): RxDBIdentity {
+    return { scope: this.#requireSupabaseScope(), subject };
+  }
+
   #assertConfiguredEntitiesSupported(): void {
     for (const EntityType of this.rxdb.config.entities) {
       this.#assertEntitySupported(EntityType);
@@ -862,7 +1408,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     const options = getRlsCheckOptions(this.options.rlsCheck);
-    const tables = resolveRlsCheckTables(options.tables, this.rxdb.config.entities);
+    const tables = resolveRlsCheckTables(options.tables, this.rxdb.config.entities, this.rxdb.entitySync);
     if (tables.length === 0) {
       this.#rlsCheckDone = true;
       return;
@@ -899,48 +1445,140 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     const missingOrDisabled = tables.filter(table => {
       const result = resultOf(table);
-      return result?.exists !== true || result.rlsEnabled !== true;
+      return result?.exists !== true || (result.rlsEnabled !== true && result.relationKind !== 'view');
     });
-    if (missingOrDisabled.length > 0) {
+    // 视图没有自己的 RLS：普通视图以属主权限执行，有它 SELECT 权的人都能绕过底层表的 RLS
+    const ownerRightsViews = tables.filter(table => {
+      const result = resultOf(table);
+      return result?.exists === true && result.relationKind === 'view' && result.securityInvoker !== true;
+    });
+    const problems = [
+      ...(missingOrDisabled.length > 0 ? [`RLS is disabled for tables: ${label(missingOrDisabled)}`] : []),
+      ...(ownerRightsViews.length > 0 ?
+        [
+          `views without security_invoker run with their owner's rights and bypass the RLS of their tables: ` +
+            `${label(ownerRightsViews)} (recreate them WITH (security_invoker = true))`
+        ]
+      : [])
+    ];
+    if (problems.length > 0) {
       handleRlsCheckFailure(
-        `[RxDB Supabase] RLS is disabled for tables: ${label(missingOrDisabled)}. Fix the policies before exposing this adapter to untrusted clients.`,
+        `[RxDB Supabase] ${problems.join('; ')}. Fix the policies before exposing this adapter to untrusted clients.`,
         options.failureMode
       );
     }
     this.#rlsCheckDone = true;
   }
 
-  #createRealtimeChannel(): RealtimeChannel {
-    const channel = this.#client
-      .channel('rxdb-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rxdb_change' }, payload =>
-        handleSupabaseChange(this, payload)
+  /**
+   * 订阅变更通知的私有频道（US-225）。
+   *
+   * @remarks
+   * 通知由参考 SQL 在日志落库后广播，只带元数据；未分区旧日志进入统一私有频道，分区日志进入带 bucket 的
+   * 私有频道。Realtime 加入频道时按 `realtime.messages` 的 RLS 策略以当前登录身份放行，anon 订阅会被拒。
+   *
+   * 订阅前先 `realtime.setAuth()`：Realtime 客户端取令牌是异步的，不等它就加入频道，带上的是 apikey
+   * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌；
+   * 没有会话时 supabase-js 交出的就是 apikey 本身。
+   *
+   * caller buckets 查询失败时只保留未分区旧日志频道，订阅集合记为空。这样不会越权，拉取仍以 RPC 为准；
+   * 之后任何一次成功的 {@link RxDBAdapterSupabase.getCallerBuckets}（同步每次分区拉取与待拉数统计都会调）
+   * 发现读到的分区与空集对不上，会排队重建来补上分区频道，重连时也会再试一次。
+   * 令牌不属于已登录身份时不订阅，返回 `null`。
+   *
+   * 订阅时的分区集合记在 `#subscribedBuckets`，供 `getCallerBuckets()` 对账。本方法自己问分区时
+   * `#channels` 一定是空的（`connect()`、轮换、重连都先清空频道再调用本方法），那一次问分区不会触发对账，
+   * 重建不会递归；改动这几处调用顺序时要守住这一点。
+   *
+   * @returns 订阅中的频道；未登录时为 `null`
+   */
+  async #createRealtimeChannels(): Promise<RealtimeChannel[] | null> {
+    await this.#client.realtime.setAuth();
+    const accessToken = this.#client.realtime.accessTokenValue;
+    this.#realtimeIdentityKey = this.#identityKeyForToken(accessToken);
+    // 访客（anon）是正式支持的身份（epic-015 公开数据给 anon），不是配置错误：给 info 提示，不报 warning
+    if (!canReceiveChangeNotifications(accessToken)) {
+      console.info(
+        '[RxDB Supabase] Change notifications need a signed-in session; skipping the realtime subscription. ' +
+          "Call rxdb.connect('supabase') again after sign-in to receive them."
       );
+      return null;
+    }
+    if (realtimeSubjectOf(accessToken) === undefined) {
+      console.warn(
+        '[RxDB Supabase] Cannot tell who the session token belongs to (a signed-in role without "sub"); ' +
+          'skipping the realtime subscription.'
+      );
+      return null;
+    }
 
-    channel.subscribe((status, err) => {
-      void this.#enqueueRealtime(async () => {
-        if (this.#channel !== channel || this.#realtimeState === 'closed') return;
+    const topics = [RXDB_CHANGES_TOPIC];
+    let buckets: string[] = [];
+    try {
+      buckets = await this.getCallerBuckets();
+      topics.push(...buckets.map(rxdbChangesTopicForBucket));
+    } catch (error) {
+      // 频道通知只是拉取提示，权限与正文始终由拉取 RPC 决定；收不到分区通知要让人看得见
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[RxDB Supabase] Failed to resolve caller buckets; bucket change notifications stay off until a later caller bucket lookup succeeds or the realtime channels reconnect: ${message}.`
+      );
+    }
+    this.#subscribedBuckets = new Set(buckets);
 
-        if (status === 'SUBSCRIBED') {
-          this.#realtimeState = 'connected';
-          this.#reconnectAttempt = 0;
-          this.#refreshPullableCount();
-          return;
-        }
+    const generation = this.#realtimeGeneration;
+    // 这一批都有了结局才请求一次重算，见 RealtimeSubscriptionBatch（US-236）
+    const batch = new RealtimeSubscriptionBatch<RealtimeChannel>(() => this.#refreshPullableCount());
+    return [...new Set(topics)].map(topic => {
+      const channel = this.#client
+        .channel(topic, { config: { private: true } })
+        .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => {
+          if (generation !== this.#realtimeGeneration || !this.#channels.includes(channel)) return;
+          handleSupabaseChanges(this, message['payload']);
+        });
+      batch.add(channel);
 
-        if (err) {
-          console.error('Supabase Realtime subscription failed:', err);
-        }
+      channel.subscribe((status, err) => {
+        void this.#enqueueRealtime(async () => {
+          if (
+            generation !== this.#realtimeGeneration ||
+            !this.#channels.includes(channel) ||
+            this.#realtimeState === 'closed'
+          )
+            return;
 
-        if (REALTIME_RECONNECTABLE_STATUSES.has(status)) {
-          this.#scheduleRealtimeReconnect(channel, status, err?.message);
-        }
-      }).catch(error => {
-        console.error('[RxDB Supabase] Realtime status handling failed:', error);
+          this.#followRealtimeStatus(channel, status, err);
+          batch.settle(channel, status);
+        }).catch(error => {
+          console.error('[RxDB Supabase] Realtime status handling failed:', error);
+        });
       });
-    });
 
-    return channel;
+      return channel;
+    });
+  }
+
+  /**
+   * 按一个频道报的订阅状态更新连接状态：订阅上记为已连接，可重连的失败排一次重连
+   *
+   * @param channel - 报状态的频道
+   * @param status - Realtime 报的状态
+   * @param err - 订阅失败时 Realtime 给的错误
+   */
+  #followRealtimeStatus(channel: RealtimeChannel, status: string, err: Error | undefined): void {
+    if (status === 'SUBSCRIBED') {
+      this.#realtimeState = 'connected';
+      this.#reconnectAttempt = 0;
+      return;
+    }
+
+    if (err) {
+      console.error('Supabase Realtime subscription failed:', err);
+    }
+
+    if (REALTIME_RECONNECTABLE_STATUSES.has(status)) {
+      this.#scheduleRealtimeReconnect(channel, status, err?.message);
+    }
   }
 
   #scheduleRealtimeReconnect(channel: RealtimeChannel, status: string, reason?: string): void {
@@ -948,7 +1586,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       this.#realtimeState === 'closed' ||
       this.#realtimeState === 'idle' ||
       this.#reconnectTimer ||
-      this.#channel !== channel
+      !this.#channels.includes(channel)
     ) {
       return;
     }
@@ -965,28 +1603,25 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     this.#reconnectTimer = setTimeout(() => {
       this.#reconnectTimer = null;
-      void this.#enqueueRealtime(() => this.#reconnectRealtimeChannel(channel)).catch(error => {
+      void this.#enqueueRealtime(() => this.#reconnectRealtimeChannels()).catch(error => {
         console.error('[RxDB Supabase] Realtime reconnect failed:', error);
       });
     }, delay);
   }
 
-  async #reconnectRealtimeChannel(channel: RealtimeChannel): Promise<void> {
-    if (this.#realtimeState === 'closed' || this.#channel !== channel) {
+  async #reconnectRealtimeChannels(): Promise<void> {
+    if (this.#realtimeState === 'closed' || this.#channels.length === 0) {
       return;
     }
 
     this.#realtimeState = 'reconnecting';
-    this.#channel = null;
-    try {
-      await this.#client.removeChannel(channel);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[RxDB Supabase] Failed to remove realtime channel: ${message}.`);
-    }
+    this.#realtimeGeneration += 1;
+    await this.#removeRealtimeChannels();
 
     this.#realtimeState = 'connecting';
-    this.#channel = this.#createRealtimeChannel();
+    this.#channels = (await this.#createRealtimeChannels()) ?? [];
+    // 重连途中退出了登录：不再订阅，也就不再重试
+    if (this.#channels.length === 0) this.#realtimeState = 'idle';
   }
 
   /**
@@ -1009,6 +1644,120 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     const result = this.#realtimeQueue.then(operation);
     this.#realtimeQueue = result.catch(() => undefined);
     return result;
+  }
+
+  #installAuthStateListener(): void {
+    if (this.#authStateSubscription) return;
+    let auth: SupabaseClient['auth'];
+    try {
+      auth = this.#client.auth;
+    } catch {
+      return;
+    }
+    let onAuthStateChange: AuthStateChangeListener;
+    try {
+      if (!auth) return;
+      onAuthStateChange = auth.onAuthStateChange as AuthStateChangeListener;
+    } catch {
+      return;
+    }
+
+    try {
+      const { data } = onAuthStateChange.call(auth, (event, session) => {
+        // INITIAL_SESSION 是订阅后补报的当前会话，不是变化：频道由 connect() 按当时的令牌建。
+        // 它赶在首次 connect() 建频道之前到达时，曾被当成「身份变了」再建一遍
+        if (event === 'INITIAL_SESSION') return;
+        const changed = this.#updateRealtimeIdentity(session?.access_token ?? null);
+        if (!changed) return;
+        void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {
+          console.error('[RxDB Supabase] Realtime identity rotation failed:', error);
+        });
+      });
+      this.#authStateSubscription = data.subscription;
+    } catch {
+      this.#authStateSubscription = null;
+    }
+  }
+
+  #updateRealtimeIdentity(accessToken: string | null): boolean {
+    const next = this.#identityKeyForToken(accessToken);
+    if (next === this.#realtimeIdentityKey) return false;
+    this.#realtimeIdentityKey = next;
+    this.#realtimeGeneration += 1;
+    return true;
+  }
+
+  /**
+   * 订阅中的频道属于别的身份时按新令牌重建。没有订阅时不动：未登录或已断开，由下一次 `connect()` 按当时的令牌建。
+   */
+  #followRealtimeIdentity(accessToken: string | null): void {
+    if (this.#channels.length === 0 || !this.#updateRealtimeIdentity(accessToken)) return;
+    void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {
+      console.error('[RxDB Supabase] Realtime identity rotation failed:', error);
+    });
+  }
+
+  /**
+   * 调用者的分区与频道订阅时的不同，就按新分区重建频道。没有订阅时不动
+   *
+   * @param buckets - 刚从 `rxdb_caller_buckets()` 读到、已校验的分区
+   *
+   * @remarks
+   * 与 {@link RxDBAdapterSupabase.getCallerBuckets} 配套，只排队、不等待，重建走与身份轮换同一条串行队列。
+   * 排队前与轮到执行时各判一次：同步对每个仓库各问一次分区，它们读到的是同一份新分区，
+   * 排在最前的那次重建已经按它订阅过了，后面的到点发现对上了就不再重复。
+   */
+  #followRealtimeBuckets(buckets: readonly string[]): void {
+    if (!this.#realtimeBucketsChanged(buckets)) return;
+    void this.#enqueueRealtime(async () => {
+      if (this.#realtimeBucketsChanged(buckets)) await this.#rotateRealtimeChannels();
+    }).catch(error => {
+      console.error('[RxDB Supabase] Realtime bucket rotation failed:', error);
+    });
+  }
+
+  /**
+   * 频道还在订阅，且订阅时的分区集合与 `buckets` 对不上
+   *
+   * @remarks
+   * 没有频道（未登录、尚未 `connect()`）或已断开时不算变了：订阅只由 `connect()` 发起，拉取不该借机重新订阅。
+   * 建频道时自己问分区那一次，`#channels` 一定是空的（见 `#createRealtimeChannels()`），所以同样不算，不会递归重建。
+   */
+  #realtimeBucketsChanged(buckets: readonly string[]): boolean {
+    if (this.#channels.length === 0 || this.#realtimeState === 'closed') return false;
+    return !isSameBucketSet(this.#subscribedBuckets, buckets);
+  }
+
+  /**
+   * 令牌对应的 Realtime 身份键。读不出是谁的令牌（声称已登录却没有 `sub`）记为 `null`，订阅时据此跳过；
+   * 不在 auth 事件回调里抛错，否则频道停在旧身份上、再也不轮换。同步照旧由 `callerIdentity()` 对它报错。
+   */
+  #identityKeyForToken(accessToken: string | null): string {
+    const scope = this.#supabaseScope ?? '';
+    return JSON.stringify([scope, realtimeSubjectOf(accessToken) ?? null]);
+  }
+
+  async #rotateRealtimeChannels(): Promise<void> {
+    this.#clearReconnectTimer();
+    await this.#removeRealtimeChannels();
+    if (this.#realtimeState === 'closed') return;
+    this.#reconnectAttempt = 0;
+    this.#realtimeState = 'connecting';
+    this.#channels = (await this.#createRealtimeChannels()) ?? [];
+    if (this.#channels.length === 0) this.#realtimeState = 'idle';
+  }
+
+  async #removeRealtimeChannels(): Promise<void> {
+    const channels = this.#channels;
+    this.#channels = [];
+    for (const channel of channels) {
+      try {
+        await this.#client.removeChannel(channel);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[RxDB Supabase] Failed to remove realtime channel: ${message}.`);
+      }
+    }
   }
 
   #clearReconnectTimer(): void {
@@ -1066,5 +1815,73 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     return rows;
+  }
+}
+
+/** 令牌代表的调用者；声称已登录却没有 `sub`、读不出是谁时为 `undefined`（不猜） */
+/** `rxdb_entity_history()` 返回的一行，日期还是字符串 */
+type EntityHistoryRow = Omit<SupabaseEntityHistoryItem, 'createdAt'> & { createdAt: string };
+
+const HISTORY_TYPES: readonly unknown[] = ['INSERT', 'UPDATE', 'DELETE'];
+const HISTORY_SOURCES: readonly unknown[] = ['trigger', 'push', 'cascade'];
+
+const isNullableBody = (value: unknown): boolean =>
+  value === null || (typeof value === 'object' && !Array.isArray(value));
+
+const isNullableOf = (value: unknown, type: 'string' | 'number'): boolean => value === null || typeof value === type;
+
+/** 远端交回的一行历史形状对不对：交给调用方之前逐字段核对，坏数据整批拒绝 */
+function isEntityHistoryRow(value: unknown): value is EntityHistoryRow {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row['id'] === 'number' &&
+    isNullableOf(row['changeId'], 'number') &&
+    typeof row['namespace'] === 'string' &&
+    typeof row['entity'] === 'string' &&
+    typeof row['entityId'] === 'string' &&
+    isNullableOf(row['bucket'], 'string') &&
+    HISTORY_TYPES.includes(row['type']) &&
+    ['patch', 'inversePatch', 'beforeData', 'afterData'].every(key => isNullableBody(row[key])) &&
+    isNullableOf(row['actor'], 'string') &&
+    isNullableOf(row['role'], 'string') &&
+    HISTORY_SOURCES.includes(row['source']) &&
+    isNullableOf(row['clientId'], 'string') &&
+    isNullableOf(row['localId'], 'number') &&
+    typeof row['branchId'] === 'string' &&
+    typeof row['createdAt'] === 'string'
+  );
+}
+
+function realtimeSubjectOf(accessToken: string | null): string | undefined {
+  try {
+    return identityOfAccessToken(accessToken);
+  } catch (error) {
+    if (error instanceof SupabaseConfigError) return undefined;
+    throw error;
+  }
+}
+
+/**
+ * 身份的 scope：请求实际发往的项目。客户端自己报得出 URL 就以它为准；报不出时用配置的 `supabaseUrl`。
+ * 两个都有却指向不同项目时拒绝，不猜：按配置的算，身份就会落在请求根本没去的那个项目上。
+ */
+function resolveSupabaseScope(configuredUrl: string | undefined, client: SupabaseClient): string | null {
+  const runtimeUrl = (client as unknown as { supabaseUrl?: unknown }).supabaseUrl;
+  const runtime = typeof runtimeUrl === 'string' && runtimeUrl.trim() ? normalizeSupabaseScope(runtimeUrl) : null;
+  const configured = configuredUrl?.trim() ? normalizeSupabaseScope(configuredUrl) : null;
+  if (runtime !== null && configured !== null && runtime !== configured) {
+    throw new SupabaseConfigError(
+      `supabaseUrl (${configured}) does not match the project URL of the supplied client (${runtime}).`
+    );
+  }
+  return runtime ?? configured;
+}
+
+function normalizeSupabaseScope(value: string): string {
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    throw new SupabaseConfigError(`Invalid Supabase project URL: ${value}`);
   }
 }

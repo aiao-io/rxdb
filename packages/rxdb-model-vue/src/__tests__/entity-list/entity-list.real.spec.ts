@@ -10,7 +10,7 @@ import {
   type HistoryScopeAPI
 } from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
-import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
+import { Account, AuditLog, Contract, Invoice, Task, TenantNote, Todo } from '@aiao/rxdb-test/entities';
 import { mount } from '@vue/test-utils';
 import { of } from 'rxjs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1084,6 +1084,8 @@ describe('EntityList（真实组件）', () => {
 
       expect(component.isCreateBlocked).toBe(true);
       expect(wrapper.element.textContent).not.toContain('+ 新增');
+      // 写入口全关时给出可读的原因（US-029 AC#20）
+      expect(wrapper.find('[data-testid="entity-write-blocked"]').text()).toContain('只读实例');
       expect(
         (component.tableColumns[colOf(component, 'title') - 1] as Record<string, unknown>)['editor']
       ).toBeUndefined();
@@ -1153,6 +1155,112 @@ describe('EntityList（真实组件）', () => {
       await FLUSH();
 
       expect(await titlesOf(Contract as unknown as EntityType)).toEqual(['final-terms']);
+    });
+
+    describe('US-029 规则形式的入口按行与授权快照派生', () => {
+      type Scoped = EntityBase & { title: string; tenantId: string };
+      type Wrapper = ReturnType<typeof mountWithRxDB>['wrapper'];
+      let scoped: RxDB;
+      let rows: { a: Scoped; b: Scoped };
+
+      const GRANTS = [
+        { scope: 'tenant:a', permissions: ['read', 'edit'] },
+        { scope: 'tenant:b', permissions: ['read'] }
+      ];
+
+      const noticeOf = (wrapper: Wrapper): string | undefined => {
+        const notice = wrapper.find('[data-testid="entity-write-blocked"]');
+        return notice.exists() ? notice.text() : undefined;
+      };
+
+      beforeEach(async () => {
+        const [ScopedNote] = cloneEntityClasses([TenantNote as unknown as EntityType]) as unknown as [
+          new (data: Partial<Scoped>) => Scoped
+        ];
+        scoped = createInMemoryRxdb([ScopedNote as unknown as EntityType]);
+        await scoped.connect(IN_MEMORY_ADAPTER_NAME);
+        const { firstValueFrom } = await import('rxjs');
+        const scopedAdapter = await firstValueFrom(scoped.localAdapter$);
+        rows = {
+          a: new ScopedNote({ title: 'in-a', tenantId: 'a' }),
+          b: new ScopedNote({ title: 'in-b', tenantId: 'b' })
+        };
+        // 系统写：经适配器落库不判定，快照未取到也写得进去
+        await scopedAdapter.mutations({
+          create: new Map<EntityType, Set<EntityBase>>([
+            [ScopedNote as unknown as EntityType, new Set([rows.a, rows.b])]
+          ]),
+          update: new Map(),
+          remove: new Map()
+        });
+      });
+
+      afterEach(async () => {
+        // 先卸载再断开：外层的卸载排在本层 afterEach 之后
+        for (const wrapper of mounted.splice(0)) {
+          wrapper.unmount();
+        }
+        await scoped.disconnectAll();
+      });
+
+      /** 挂载 TenantNote 列表并等首页加载完成 */
+      async function renderScoped() {
+        const { wrapper, child } = mountWithRxDB(EntityList, scoped, {
+          props: { namespace: 'public', name: 'TenantNote' }
+        });
+        mounted.push(wrapper);
+        const component = child.vm as unknown as ListVM;
+        await FLUSH();
+        await FLUSH();
+        return { wrapper, child, component };
+      }
+
+      it('快照未取到：写入口全关并说明原因，行只读、只能查看', async () => {
+        const { wrapper, child, component } = await renderScoped();
+
+        expect(noticeOf(wrapper)).toContain('还没取到授权');
+        expect(component.isCreateBlocked).toBe(true);
+        expect(wrapper.element.textContent).not.toContain('+ 新增');
+        expect(component.tableRecords).toHaveLength(2);
+        expect(component.tableRecords.every(r => r['_readonly'] === true)).toBe(true);
+        expect(actionIconNames(child, component, rowOf(component, rows.a.id))).toEqual(['view-action']);
+      });
+
+      it('a 可编辑、b 只读：a 的行可编辑可删，b 的行只读只能查看，新增放行', async () => {
+        await scoped.grants.set(GRANTS);
+        const { wrapper, child, component } = await renderScoped();
+
+        const rowA = rowOf(component, rows.a.id);
+        const rowB = rowOf(component, rows.b.id);
+        expect(noticeOf(wrapper)).toBeUndefined();
+        expect(component.isCreateBlocked).toBe(false);
+        expect(wrapper.element.textContent).toContain('+ 新增');
+        expect(component.tableRecords[rowA - 1]['_readonly']).toBeUndefined();
+        expect(titleEditorOf(child, component, rowA)).toBeDefined();
+        expect(actionIconNames(child, component, rowA)).toEqual(['view-action', 'delete-action']);
+        expect(component.tableRecords[rowB - 1]['_readonly']).toBe(true);
+        expect(titleEditorOf(child, component, rowB)).toBeUndefined();
+        expect(actionIconNames(child, component, rowB)).toEqual(['view-action']);
+      });
+
+      it('收回 a 的 edit：不重新挂载，a 的行变只读、删除入口消失，新增关闭', async () => {
+        await scoped.grants.set(GRANTS);
+        const { wrapper, child, component } = await renderScoped();
+        expect(actionIconNames(child, component, rowOf(component, rows.a.id))).toEqual([
+          'view-action',
+          'delete-action'
+        ]);
+
+        await scoped.grants.set([{ scope: 'tenant:a', permissions: ['read'] }]);
+        await FLUSH();
+        await FLUSH();
+
+        const rowA = rowOf(component, rows.a.id);
+        expect(component.tableRecords[rowA - 1]['_readonly']).toBe(true);
+        expect(actionIconNames(child, component, rowA)).toEqual(['view-action']);
+        expect(component.isCreateBlocked).toBe(true);
+        expect(wrapper.element.textContent).not.toContain('+ 新增');
+      });
     });
   });
 

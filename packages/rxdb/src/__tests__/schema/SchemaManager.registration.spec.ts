@@ -266,7 +266,7 @@ describe('SchemaManager 建表与实体注册冲突检测', () => {
 
     // 断言「注入的就是本实例那一份清单」，不再手抄类名：手抄的那份每加一张系统表就得改
     // 一次，改漏了断言仍然为真，等于没有门禁。基准是 `database.systemEntities`
-    // （核心四张 + 本实例的贡献）而不是模块级的 `SYSTEM_ENTITIES`：后者只增不减，
+    // （核心五张 + 本实例的贡献）而不是模块级的 `SYSTEM_ENTITIES`：后者只增不减，
     // 同进程别的库 use() 过的贡献也在里面，拿它当基准等于把跨实例污染写进断言。
     expect(database.config.entities).toEqual([...database.systemEntities]);
     // 上一条是拿清单和它自己比，贡献接线整条断掉也会绿。补这一条把它钉成非平凡的：

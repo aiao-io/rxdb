@@ -16,9 +16,10 @@ import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
+import { createAuthenticatedTestClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -80,15 +81,12 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('祖先分支未推送变更的�
       'wa-sqlite',
       db => new RxDBAdapterWaSqlite(db, { vfs: 'MemoryAsyncVFS', async: true, worker: false, wasmPath: asyncWasmPath })
     );
-    rxdb.adapter(
-      'supabase',
-      async db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.use(rxDBPluginHistory);
     rxdb.use(rxDBPluginSync);
     await rxdb.connect('wa-sqlite');
 
-    remote = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+    remote = createAuthenticatedTestClient();
   });
 
   afterAll(async () => {

@@ -13,8 +13,30 @@
 正源于此（当时跑的是 Angular dev server，工作区 `.env` 的 `VITE_SUPABASE_*` 泄进了 `import.meta.env`）。
 
 远端同步由独立的 `e2e-remote` target 覆盖：`remote-sync.spec.ts` 使用 `serve-remote`，创建 Todo
-后点击 Push，断言真实 `POST /rest/v1/rpc/rxdb_mutations`，并检查远端安全告警。CI 仅在
+后点顶栏的「推送」，断言真实 `POST /rest/v1/rpc/rxdb_mutations`，并检查远端安全告警。CI 仅在
 `e2e-remote` 受影响时启动 Supabase 栈；本地-only 用例仍不连远端。
+
+推拉、撤销与重做都在顶栏（epic-016），用例一律经顶栏的锚点：`sync-pull` / `sync-push`，
+`workbench-sync-group` 上的 `data-sync-round` 每结束一轮加一（`src/support/workbench.ts` 的 `pull` / `push` 等它，
+再按 `data-source="sync-round-<轮次>"` 找这一轮的消息）。操作结果都是右下角的消息（`toast`），成功的几秒后自己消失，拿到就断言；
+被拒的推送在同步中心里（`openSidePanel(page, 'sync')`），商品页的「模拟服务端变更」要先经页头开关打开（`openSidePanel(page, 'server')`），
+操作历史在左侧一栏（`openHistory(page)`，宽屏默认开着）。
+
+商品的写入按成员权限裁决（US-234）：自助加入的匿名用户只是员工。要写商品的用例先调 `src/support/members.ts` 的
+`promoteToAdmin(browser, page)`：另开一个浏览器上下文登录这个租户的管理员（星河零售是 Alice，极光百货是 Bob），
+在「成员与权限」里按用户 id（`catalog-user-id`）把他设为管理员，成员再拉取一次：拉取进门时引擎刷新授权快照
+（`rxdb.grants`，US-234 阶段 B），写入口随之出现。
+Alice、Bob 自己的权限一律不改；`catalog-member-permissions.spec.ts` 里 Alice 加入极光百货的用例结束时退出，回到初始状态。
+断网重开的用例（AC#19）只断 Supabase：按 `VITE_SUPABASE_URL` 的 host 用 `page.route` 与 `page.routeWebSocket` 拦截，
+页面资源照常从 web server 加载（`setOffline` 会连页面一起断，刷新就加载不出来）。
+
+`e2e-remote` 分两轮跑：
+
+1. `remote-sync`、`catalog-sync`、`catalog-local-writes`、`catalog-member-permissions`、`orders-sync`、`workbench` 并行跑。
+   它们只断自己建的行，行名带唯一后缀，结束时删掉；
+2. `sync-counts.spec.ts` 单独一轮、`--workers=1` 串行（`REMOTE_E2E_COUNTS=true`）：它断顶栏 ↓N 的绝对数
+   （刷新之后自己推上去的不算、分区按真实条数，US-233），栈上有别人在写数字就不准，与其它用例一起跑时整组跳过。
+   共用栈上手动演示也会打乱这一轮，跑之前别在演示里写。
 
 ## 跑
 
@@ -34,6 +56,16 @@ pnpm exec playwright test src/home.spec.ts     # 已 build 过时直接跑
 复用又会让残留进程（serve 的是旧产物）被当成本次的服务器，两者叠加就是「测试跑在说不清是哪份产物的服务上」。
 
 `e2e-remote` 改用 `serve-remote` 和 8314 端口，远端变量由 CI 或本地 `.env` 提供。
+
+`pnpm nx dev dev-rxdb-supabase` 开着时 `serve-remote` 起不来（Nx 不让同一个 serve 任务跑两份），改为直接打到开着的 dev server：
+
+```bash
+BASE_URL=http://localhost:4203 VITE_SUPABASE_URL=http://localhost:<Kong 端口> \
+  pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --excludeTaskDependencies
+```
+
+`VITE_SUPABASE_URL` 要与 dev server 用的地址逐字相同（`remote-sync.spec.ts` 用它算库名）。dev server 是热更新的：
+跑之前等它编译完，跑的过程中别改源码或重建 `packages/*/dist`，页面被热重载会让用例在半途换一个页面实例。
 
 ## 产物落点
 

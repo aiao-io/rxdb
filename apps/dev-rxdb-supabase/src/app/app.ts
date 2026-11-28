@@ -5,33 +5,52 @@ import { RouterOutlet } from '@angular/router';
 import { AppHeader } from './app-header';
 import { AppSidebar } from './app-sidebar';
 import { AppService } from './app.service';
-import { RemoteSecurityNotice } from './remote-security-notice';
+import { DemoSession } from './demo-session';
+import { HistoryColumnOutlet } from './history-column';
+import { PageWorkbench } from './page-workbench';
+import { SessionNotice } from './session-notice';
+import { SidePanelOutlet } from './side-panel';
+import { ToastOutlet } from './toast-outlet';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, RemoteSecurityNotice],
+  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice, HistoryColumnOutlet, SidePanelOutlet, ToastOutlet],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex size-full" id="layout-main">
+      @if (app.$sidebarPinned()) {
+        <!-- 窄屏上侧栏是抽屉：遮罩盖住页面，点一下收起（宽屏由 md:hidden 隐藏） -->
+        <div class="sidebar-overlay md:hidden" (click)="app.toggleSidebar()" aria-hidden="true"></div>
+      }
       <app-sidebar></app-sidebar>
-      <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
+      <div class="flex h-full min-w-0 grow flex-col" id="layout-container">
         <app-header></app-header>
-        <app-remote-security-notice></app-remote-security-notice>
-        <div id="layout-content">
-          <router-outlet></router-outlet>
+        <app-session-notice></app-session-notice>
+        <!-- 左侧操作历史、内容与右侧面板并排、各自滚动：宽屏两侧各占一栏不挡页面，窄屏是盖住页面的抽屉 -->
+        <div class="flex min-h-0 grow">
+          <app-history-column-outlet></app-history-column-outlet>
+          <div class="min-w-0 grow overflow-auto" id="layout-content">
+            <router-outlet></router-outlet>
+          </div>
+          <app-side-panel-outlet></app-side-panel-outlet>
         </div>
       </div>
     </div>
+    <!-- 操作结果的消息：盖在页面与右侧面板之上 -->
+    <app-toast-outlet></app-toast-outlet>
   `,
   styles: [],
   host: {
     '[class.left-menu-pinned]': 'app.$sidebarPinned()',
-    '[class.header-floating]': 'app.$headerFloating()'
+    // 远端身份或页面登记的按钮出现时，顶栏独占一行。本地首页的顶栏悬浮在页面上
+    '[class.header-floating]': 'app.$headerFloating() && !session.description && !workbench.current()'
   }
 })
 export class App implements OnInit {
   #document = inject(DOCUMENT);
   app = inject(AppService);
+  session = inject(DemoSession);
+  workbench = inject(PageWorkbench);
   isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   ngOnInit(): void {

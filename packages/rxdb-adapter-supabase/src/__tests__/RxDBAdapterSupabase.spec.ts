@@ -3,9 +3,7 @@ import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuSimple, Todo } from '@aiao/rxdb-test/entities';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 describe('RxDB Supabase 适配器', () => {
   let rxdb: RxDB;
@@ -30,8 +28,7 @@ describe('RxDB Supabase 适配器', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
     rxdb.init();

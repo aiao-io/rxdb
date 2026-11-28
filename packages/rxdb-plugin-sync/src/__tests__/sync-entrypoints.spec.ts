@@ -75,8 +75,9 @@ function createHarness(adapter?: string, entities: unknown[] = []) {
     config: { entities, sync: { remote: { adapter } } },
     dispatchEvent
   } as unknown as RxDB;
+  // pull / push 已经排在同步队列里，逐仓库走不排队的那一个（排队就是等自己）
   const bulkSync = vi.fn();
-  const vm = { rxdb, bulkSync } as unknown as SyncManager;
+  const vm = { rxdb, bulkSyncInSession: bulkSync } as unknown as SyncManager;
   return { bulkSync, dispatchEvent, vm };
 }
 
@@ -119,7 +120,14 @@ describe('pull / push 入口的聚合与事件派发', () => {
     vi.mocked(pullBatch).mockResolvedValue(result);
 
     await expect(pull(vm, { limit: 25, fetchAll: true })).resolves.toEqual(result);
-    expect(pullBatch).toHaveBeenCalledWith(vm, { limit: 25, fetchAll: true });
+    // 远端登记为分区的仓库每次 pull 只查一次，交给批量拉取跳过；这个宿主没有可同步的实体，
+    // 也就没有拉取补不齐的外键环要排除（US-038）
+    expect(pullBatch).toHaveBeenCalledWith(vm, {
+      limit: 25,
+      fetchAll: true,
+      bucketedRepositories: new Set(),
+      excludedRepositories: new Set()
+    });
     expect(dispatchEvent.mock.calls[0]?.[0]).toBeInstanceOf(SyncBeginEvent);
     expect(dispatchEvent.mock.calls[1]?.[0]).toBeInstanceOf(SyncCompleteEvent);
   });

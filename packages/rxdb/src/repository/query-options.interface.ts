@@ -211,5 +211,12 @@ export interface FindAllOptions<
  */
 export interface CountOptions<T extends EntityType = EntityType, U = RuleGroup<InstanceType<T>>> {
   where: U;
+  /**
+   * 分组字段：给了就数满足 `where` 的行分成几组（SQL：`COUNT(*) FROM (… GROUP BY …)`），不再数行
+   *
+   * @remarks
+   * 只接受本实体自己的属性或外键字段。分组字段为空的行并成一组，要分开数就在 `where` 里拆成两次。
+   * 本地 SQL 适配器（SQLite 家族、PGlite）执行；远端 Supabase 仓储不支持，给了就抛错。
+   */
   groupBy?: string[];
 }

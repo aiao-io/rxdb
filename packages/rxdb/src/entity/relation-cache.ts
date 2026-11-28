@@ -2,7 +2,8 @@ import { RxDBError } from '../RxDBError.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { ENTITY_MANAGER } from '../rxdb.private.js';
 import { EntityData, EntityType, RxDBEntityId } from './entity.interface.js';
-import { EntityRelationMetadata, RelationKind } from './metadata-options.interface.js';
+import { junctionEntityId } from './many-to-many-entity.js';
+import { EntityRelationMetadata, PropertyType, RelationKind } from './metadata-options.interface.js';
 
 /**
  * 关系 Observable 的记忆化缓存条目
@@ -27,6 +28,10 @@ const findInSet = <V>(set: Set<V>, predicate: (value: V) => boolean): V | undefi
 };
 
 const getRelationValue = (entity: object, property: string): unknown => Reflect.get(entity, property) as unknown;
+
+/** 这个实体的主键是不是 uuid：派生关联行 id 时 uuid 统一转小写 */
+const hasUuidPrimaryKey = (entity: InstanceType<EntityType>): boolean =>
+  getEntityMetadata(entity.constructor as EntityType).propertyMap.get('id')?.type === PropertyType.uuid;
 
 /**
  * 把一个实体类解析成**当前实例的 schema 里注册的那一个**。
@@ -69,18 +74,23 @@ const junctionTypeOf = (relation: { name: string; junctionEntityType?: EntityTyp
   return junctionEntityType;
 };
 
-const getScopedEntityType = (entity: InstanceType<EntityType>, EntityType: EntityType): EntityType => {
-  const manager = (
-    entity as unknown as {
-      [ENTITY_MANAGER]?: {
-        rxdb: { schemaManager: { getEntityType: (name: string, namespace?: string) => EntityType | undefined } };
-      };
-    }
-  )[ENTITY_MANAGER];
-  const metadata = getEntityMetadata(EntityType);
+/** 关系缓存用到的那部分 EntityManager：解析本实例注册的类、按 id 读身份缓存 */
+interface RelationCacheManager {
+  rxdb: { schemaManager: { getEntityType: (name: string, namespace?: string) => EntityType | undefined } };
+  getEntityRef(EntityType: EntityType, id: RxDBEntityId): InstanceType<EntityType> | undefined;
+}
+
+const managerOf = (entity: InstanceType<EntityType>, metadata: { namespace: string; name: string }) => {
+  const manager = (entity as unknown as { [ENTITY_MANAGER]?: RelationCacheManager })[ENTITY_MANAGER];
   if (!manager) {
     throw new RxDBError(`关系缓存无法解析 ${metadata.namespace}:${metadata.name}：实体未绑定 EntityManager`);
   }
+  return manager;
+};
+
+const getScopedEntityType = (entity: InstanceType<EntityType>, EntityType: EntityType): EntityType => {
+  const metadata = getEntityMetadata(EntityType);
+  const manager = managerOf(entity, metadata);
   const scoped = manager.rxdb.schemaManager.getEntityType(metadata.name, metadata.namespace);
   if (!scoped) {
     throw new RxDBError(`关系缓存无法解析 ${metadata.namespace}:${metadata.name}：该实体未注册到本 RxDB 实例`);
@@ -193,36 +203,22 @@ export class EntityRelationCache {
       // 尝试复用关联实体的 Junction（避免创建重复的连接记录）
       const mappedMetadata = getEntityMetadata(entity.constructor as EntityType);
       const mappedRelation = mappedMetadata.relations.find(r => r.name === relation.mappedProperty);
+      const relatedStatus = getEntityStatus(entity);
+      const relationCache = mappedRelation && relatedStatus.getRelationCache(mappedRelation as EntityRelationMetadata);
 
-      let relationCache: Set<InstanceType<EntityType>> | undefined;
-      let junctionEntity: InstanceType<EntityType> | undefined;
+      // 两端缓存里的，或两端解绑之后还没保存、待删的同一对：接着用这个实例
+      const found =
+        (relationCache && findInSet(relationCache, isTargetJunction)) ??
+        findInSet(this.#remove_junction_set, isTargetJunction) ??
+        relatedStatus.getNeedRemoveEntities().find(isTargetJunction);
+      if (found) this.#keepJunction(found, relatedStatus);
 
-      if (mappedRelation) {
-        relationCache = getEntityStatus(entity).getRelationCache(mappedRelation as EntityRelationMetadata);
-        junctionEntity = findInSet(relationCache, isTargetJunction);
-      }
-
-      if (!junctionEntity) {
-        junctionEntity = findInSet(this.#remove_junction_set, isTargetJunction);
-      }
-
-      if (junctionEntity && this.#remove_junction_set.has(junctionEntity)) {
-        this.#remove_junction_set.delete(junctionEntity);
-      }
-
-      // 如果未找到或已标记删除，创建新的 Junction 实体
-      if (!junctionEntity || getEntityStatus(junctionEntity).removed) {
-        if (junctionEntity) {
-          this.#remove_junction_set.delete(junctionEntity);
-        }
-        const createJunctionEntity = JunctionEntityType as unknown as new (
-          data: EntityData
-        ) => InstanceType<EntityType>;
-        junctionEntity = new createJunctionEntity({
-          [foreignKeyA]: entity.id,
-          [foreignKeyB]: target.id
-        });
-      }
+      // 如果未找到或已标记删除：复用同一对的活实例，没有就按派生 id 新建（US-228）
+      const junctionEntity =
+        found && !getEntityStatus(found).removed ?
+          found
+        : this.#junction_for(JunctionEntityType, foreignKeyA, entity, foreignKeyB, target);
+      this.#keepJunction(junctionEntity, relatedStatus);
 
       // 双向更新缓存：this → entity 和 entity → this
       cache.add(entity);
@@ -408,5 +404,48 @@ export class EntityRelationCache {
    */
   forgetRemovedJunctions(junctions: Iterable<InstanceType<EntityType>>): void {
     for (const junction of junctions) this.#remove_junction_set.delete(junction);
+  }
+
+  /**
+   * 重新关联的这一对：中间表不再在任何一端待删。
+   *
+   * @param junction - 这一对的中间表实例
+   * @param relatedStatus - 另一端实体的状态
+   *
+   * @remarks
+   * 解绑把中间表放进**解绑那一端**的待删集合；从另一端重新关联时复用的是同一个实例（派生 id 相同，身份缓存里还是它）。
+   * 只从本端的集合里拿掉，它就还挂在另一端：保存时被删掉，又因为没有改动不会重新写入，关联静默丢失。
+   */
+  #keepJunction(junction: InstanceType<EntityType>, relatedStatus: ReturnType<typeof getEntityStatus>): void {
+    this.#remove_junction_set.delete(junction);
+    relatedStatus.forgetRemovedJunctions([junction]);
+  }
+
+  /**
+   * 一对数据的中间表实例：身份缓存里有没删的活实例就用它，否则按两端派生的 id 新建
+   *
+   * @remarks
+   * id 由两端 id 确定性派生（{@link junctionEntityId}）：同一对不管从哪一端、在哪个客户端关联都是同一行。
+   * 活实例可能是别的查询加载的、或者另一端的缓存刚放下的；另造一个同 id 的实例会占掉身份缓存的槽位，
+   * 两个对象各持一份状态，之后解绑删的是没落库的那个。已删的实例不复用：新建的那个接管槽位，重新落库。
+   * 这一对已经在库里、只是没有加载时，新建的实例照常保存：本地适配器插入中间表行时遇到同 id 的行不报错，
+   * 保存之后读回库里那一行。
+   */
+  #junction_for(
+    JunctionEntityType: EntityType,
+    foreignKeyA: string,
+    entity: InstanceType<EntityType>,
+    foreignKeyB: string,
+    target: InstanceType<EntityType>
+  ): InstanceType<EntityType> {
+    const junction = getEntityMetadata(JunctionEntityType);
+    const id = junctionEntityId(junction, [
+      { foreignKey: foreignKeyA, id: entity.id, uuid: hasUuidPrimaryKey(entity) },
+      { foreignKey: foreignKeyB, id: target.id, uuid: hasUuidPrimaryKey(target) }
+    ]);
+    const live = managerOf(target, junction).getEntityRef(JunctionEntityType, id);
+    if (live && !getEntityStatus(live).removed) return live;
+    const createJunctionEntity = JunctionEntityType as unknown as new (data: EntityData) => InstanceType<EntityType>;
+    return new createJunctionEntity({ id, [foreignKeyA]: entity.id, [foreignKeyB]: target.id });
   }
 }

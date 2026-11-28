@@ -13,7 +13,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
     const mockVm = {
       rxdb: mockRxDB,
-      bulkSync: mockBulkSync
+      bulkSyncInSession: mockBulkSync
     } as unknown as SyncManager;
 
     await pull(mockVm, { repositoryFilter: ['Todo', 'User'] });
@@ -37,7 +37,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
     const mockVm = {
       rxdb: mockRxDB,
-      bulkSync: mockBulkSync
+      bulkSyncInSession: mockBulkSync
     } as unknown as SyncManager;
 
     await pull(mockVm, {
@@ -66,7 +66,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
     const mockVm = {
       rxdb: mockRxDB,
-      bulkSync: mockBulkSync
+      bulkSyncInSession: mockBulkSync
     } as unknown as SyncManager;
 
     await pull(mockVm, {
@@ -91,11 +91,26 @@ describe('pull', () => {
     } as unknown as RxDB;
 
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
 
     await pull(mockVm, { repositoryFilter: ['Todo'], limit: 50, fetchAll: true });
 
     expect(mockBulkSync).toHaveBeenCalledWith(expect.objectContaining({ pull: { limit: 50, fetchAll: true } }));
+  });
+
+  // RV-01a21194e6b6742e98c9d90c0a3e6270：limit 不是正整数时，批量路径一条不拉就报「已全部同步」，按区快照原地空转
+  it.each([0, -1, 1.5, Number.NaN])('limit = %s：拒绝，不发 SyncBeginEvent，也不开始拉取', async limit => {
+    const mockRxDB = {
+      config: { sync: { remote: { adapter: 'mock-adapter' } } },
+      dispatchEvent: vi.fn()
+    } as unknown as RxDB;
+    const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
+
+    await expect(pull(mockVm, { repositoryFilter: ['Todo'], limit })).rejects.toBeInstanceOf(RxDBError);
+
+    expect(mockBulkSync).not.toHaveBeenCalled();
+    expect(mockRxDB.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // RXD-031 B：某个仓库拉取失败时，此前被静默跳过、聚合结果仍当作成功派发 Complete
@@ -131,7 +146,7 @@ describe('pull', () => {
         }
       ]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
 
     const thrown: unknown = await pull(mockVm, { repositoryFilter: ['User', 'Todo'] }).catch(error => error);
 
@@ -154,7 +169,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({
       results: [{ repository: { namespace: 'public', entity: 'Todo' }, success: false, error: repoError }]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
 
     await expect(pull(mockVm, { repositoryFilter: ['Todo'] })).rejects.toBe(repoError);
   });
@@ -214,7 +229,7 @@ describe('pull', () => {
         { repository: postRepo, success: false, error: postError }
       ]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
 
     const thrown = (await pull(mockVm, { repositoryFilter: ['User', 'Todo', 'Post'] }).catch(
       error => error as unknown
@@ -250,7 +265,7 @@ describe('pull', () => {
         { repository: postRepo, success: false, error: postError }
       ]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
 
     const thrown = (await pull(mockVm, { repositoryFilter: ['Todo', 'Post'] }).catch(
       error => error as unknown
@@ -277,7 +292,7 @@ describe('pull', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({
       results: [{ repository: todoRepo, success: false }]
     });
-    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+    const mockVm = { rxdb: mockRxDB, bulkSyncInSession: mockBulkSync } as unknown as SyncManager;
 
     const thrown = (await pull(mockVm, { repositoryFilter: ['Todo'] }).catch(error => error as unknown)) as RxDBError;
 

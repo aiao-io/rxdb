@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.rxdb_change (
   id serial PRIMARY KEY,
   namespace varchar NOT NULL DEFAULT 'public',
   entity varchar NOT NULL,
+  "bucket" varchar,
   "entityId" varchar NOT NULL,
   "branchId" varchar DEFAULT 'main',
   type varchar NOT NULL CHECK (type IN ('INSERT', 'UPDATE', 'DELETE')),
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.rxdb_change (
   "updatedAt" timestamptz(3) NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "bucket" varchar;
 ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "beforeData" jsonb;
 ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "afterData" jsonb;
 ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "snapshotComplete" boolean NOT NULL DEFAULT false;
@@ -49,7 +51,19 @@ SET
     WHEN type = 'DELETE' THEN COALESCE(patch, "inversePatch") IS NOT NULL
     ELSE false
   END
-WHERE NOT "snapshotComplete";
+WHERE NOT "snapshotComplete"
+  AND "bucket" IS NULL;
+
+-- 分区日志只保存授权元数据。旧库里已经存在的分区正文不能继续留在日志表中，
+-- 否则业务表权限收紧后仍能从日志历史读到敏感列。
+UPDATE public.rxdb_change
+SET
+  patch = NULL,
+  "inversePatch" = NULL,
+  "beforeData" = NULL,
+  "afterData" = NULL,
+  "snapshotComplete" = false
+WHERE "bucket" IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_entity ON public.rxdb_change(entity);
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_entity_id ON public.rxdb_change("entityId");
@@ -58,6 +72,8 @@ CREATE INDEX IF NOT EXISTS idx_rxdb_change_branch_id ON public.rxdb_change("bran
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_type ON public.rxdb_change(type);
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_scope_cursor
 ON public.rxdb_change(namespace, entity, "branchId", id);
+CREATE INDEX IF NOT EXISTS idx_rxdb_change_bucket_cursor
+ON public.rxdb_change(namespace, entity, bucket, id);
 WITH duplicate_changes AS (
   SELECT
     id,
@@ -100,6 +116,40 @@ VALUES ('main', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
+-- rxdb_branch_owner 表（非 main 分支的所有者，US-225）
+-- ============================================
+-- 第一个登记或推送某个非 main 分支的已登录用户认领它，之后只有所有者能登记、改写它，或往它推送日志。
+-- 单独成表、不给 rxdb_branch 加列：一次推送会顺带上行从未登记过的祖先分支，认领它们时不能在
+-- rxdb_branch 里造缺父分支的占位行（客户端 syncBranches 会把它当成拓扑错误）。
+-- 只经 rxdb_claim_branch（SECURITY DEFINER，见 02）写入；开 RLS 且不建任何策略，
+-- 客户端即便经下文的整库授权拿到表权限，也读写不了任何一行。
+CREATE TABLE IF NOT EXISTS public.rxdb_branch_owner (
+  "branchId" varchar PRIMARY KEY,
+  "ownerId" uuid NOT NULL,
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.rxdb_branch_owner ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- rxdb_sync_entity 表（同步实体注册）
+-- ============================================
+-- rxdb_enable_sync_for_table 记录实体名到业务表名的映射，并记下是否存在 rxdb_bucket。
+-- 按区快照需要这个映射，因为实体名不一定等于 PostgreSQL 表名。
+CREATE TABLE IF NOT EXISTS public.rxdb_sync_entity (
+  namespace varchar NOT NULL,
+  entity varchar NOT NULL,
+  "tableName" varchar NOT NULL,
+  "bucketColumn" varchar,
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+  PRIMARY KEY (namespace, entity)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rxdb_sync_entity_bucket
+ON public.rxdb_sync_entity(namespace, entity, "bucketColumn");
+
+-- ============================================
 -- rxdb_backend 表（远端身份，单行）
 -- ============================================
 -- 拉取游标是 rxdb_change.id，只在同一个库里单调：库重建或变更日志被清空重新计数后，
@@ -114,6 +164,41 @@ CREATE TABLE IF NOT EXISTS public.rxdb_backend (
 
 INSERT INTO public.rxdb_backend DEFAULT VALUES
 ON CONFLICT (singleton) DO NOTHING;
+
+-- ============================================
+-- rxdb_change_history 表（远端变更历史，US-229）
+-- ============================================
+-- 每次生效的业务写入一条：完整的前后快照、操作者与来源。与同步日志 rxdb_change 分开存放：同步日志按区开放读取，
+-- 分区日志不带正文；历史只经读取 RPC rxdb_entity_history 按「调用者当前能否编辑这一行」与列权限开放。
+-- 只经 SECURITY DEFINER 的写入点落库：直写时的同步触发器（source = trigger），推送的 rxdb_insert_changes
+-- （push；被级联删除的子行为 cascade）。开 RLS 并 FORCE、不建任何策略：客户端即便经下文的整库授权拿到表权限，
+-- 也读写不了任何一行；属主（BYPASSRLS）的 SECURITY DEFINER 函数照常写入。
+CREATE TABLE IF NOT EXISTS public.rxdb_change_history (
+  id bigserial PRIMARY KEY,
+  "changeId" integer,
+  namespace varchar NOT NULL,
+  entity varchar NOT NULL,
+  "entityId" varchar NOT NULL,
+  bucket varchar,
+  type varchar NOT NULL CHECK (type IN ('INSERT', 'UPDATE', 'DELETE')),
+  patch jsonb,
+  "inversePatch" jsonb,
+  "beforeData" jsonb,
+  "afterData" jsonb,
+  actor uuid,
+  role varchar,
+  source varchar NOT NULL CHECK (source IN ('trigger', 'push', 'cascade')),
+  "clientId" varchar,
+  "localId" integer,
+  "branchId" varchar NOT NULL DEFAULT 'main',
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rxdb_change_history_entity
+ON public.rxdb_change_history(namespace, entity, "entityId", id);
+
+ALTER TABLE public.rxdb_change_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rxdb_change_history FORCE ROW LEVEL SECURITY;
 
 -- ============================================
 -- 自动更新 updatedAt 触发器
@@ -148,28 +233,30 @@ BEFORE UPDATE ON public.rxdb_branch
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 启用 Supabase Realtime（仅 rxdb_change 表）
+-- 日志表不进 Supabase Realtime 发布（US-225）
 -- ============================================
+-- 变更通知改由日志插入触发器经 realtime.send 发只带元数据的广播（见 02 的 rxdb_change_broadcast）。
+-- 日志表留在 supabase_realtime 发布里，订阅 postgres_changes 的客户端仍会收到带 patch 的完整行，
+-- 所以旧版本加进去的 rxdb_change 在这里移出。
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    CREATE PUBLICATION supabase_realtime;
-  END IF;
-
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1
     FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime'
       AND schemaname = 'public'
       AND tablename = 'rxdb_change'
   ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.rxdb_change;
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.rxdb_change;
   END IF;
 END $$;
 
 -- ============================================
 -- 禁用 RLS 并授权（仅测试环境）
 -- ============================================
+-- 下面的整库授权作用于 public 下此刻已有的全部表，包括业务表。已有业务表的生产库不要重跑本文件：
+-- 生产权限脚本只收回 RxDB 自己的对象，放宽的业务表权限收不回来。升级走增量脚本
+-- （如 production/rxdb-sync-access-upgrade.sql），见 website/docs/migration/。
 ALTER TABLE IF EXISTS public.rxdb_change DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_branch DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_backend DISABLE ROW LEVEL SECURITY;

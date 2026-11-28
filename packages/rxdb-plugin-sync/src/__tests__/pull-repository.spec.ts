@@ -15,7 +15,10 @@ import {
   type RuleGroup,
   RxDBBranch,
   RxDBChange,
+  RxDBDependencyFailedError,
+  RxDBError,
   type RxDBEvent,
+  RxDBIdentityMismatchError,
   RxDBPartialSyncError,
   RxDBSync,
   type SwitchVersionActions,
@@ -25,11 +28,16 @@ import {
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RxDBForeignKeyCycleError } from '../foreign-key-cycle-error.js';
+import { pullBatch } from '../pull-batch.js';
 import { pullRepository, type PullRepositoryResult } from '../pull-repository.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
 import type { SyncManager } from '../SyncManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
+
+// 外键成环的级联把整个环交给批量拉取（US-038）；本文件其余用例走单仓拉取，碰不到它
+vi.mock('../pull-batch.js', () => ({ pullBatch: vi.fn() }));
 
 const FULL_SYNC: SyncOptions = {
   type: SyncType.Full,
@@ -455,6 +463,29 @@ describe('pullRepository', () => {
         applied: 2,
         persistedProgress: true
       });
+      expect(syncRecord.lastPullRemoteChangeId).toBe(9);
+      expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+    });
+
+    // US-035 AC#7：A 的拉取在途，会话换了主人，旧响应这时才到。身份核对与远端身份核对共用这道落库前的门，
+    // 所以旧响应一行不写、游标不动；真实的核对链（入口放行、落库前拒绝）见 remote-identity.spec.ts。
+    it('会话在途中换了主人：旧响应不落库，游标停在上一轮', async () => {
+      const syncRecord = createSyncRecord('PullSliceItem', 4);
+      const harness = createHarness({
+        syncRecords: [syncRecord],
+        remoteChanges: [createRemoteChange(5), createRemoteChange(9), createRemoteChange(12)]
+      });
+      const mismatch = new RxDBIdentityMismatchError('remote', 'key-a', ['key-b']);
+      harness.verifyRemoteBackend.mockResolvedValueOnce(undefined).mockRejectedValueOnce(mismatch);
+
+      const error = await pullRepository(harness.vm, 'public', 'PullSliceItem', {
+        includeRelated: false,
+        limit: 2,
+        fetchAll: true
+      }).catch((rejection: unknown) => rejection);
+
+      expect(error).toBeInstanceOf(RxDBPartialSyncError);
+      expect((error as RxDBPartialSyncError<PullRepositoryResult>).cause).toBe(mismatch);
       expect(syncRecord.lastPullRemoteChangeId).toBe(9);
       expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
     });
@@ -940,6 +971,35 @@ describe('pullRepository 级联调度契约（RXD-030）', () => {
 
 // RXD-029：`RxDBSync.enabled` 此前只被状态展示读取，没有任何一条调度路径看过它 ——
 // 用户在 UI 上把某个仓库的同步关掉，下一次 pull 照拉不误。
+// RV-01a21194e6b6742e98c9d90c0a3e6270：分页靠「这一页不满就是最后一页」收尾，limit 不是正整数时这条判据成立不了，
+// 按区快照会原地空转、反复打远端
+describe('pullRepository 的 limit 必须是正整数', () => {
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('limit = %s：拒绝，不碰远端也不发事件', async limit => {
+    const syncRecord = createSyncRecord('PullSliceItem', 3);
+    const harness = createHarness({ syncRecords: [syncRecord], remoteChanges: [createRemoteChange(4)] });
+
+    await expect(
+      pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false, limit })
+    ).rejects.toBeInstanceOf(RxDBError);
+
+    expect(harness.pullChanges).not.toHaveBeenCalled();
+    expect(harness.dispatchEvent).not.toHaveBeenCalled();
+    expect(syncRecord.lastPullRemoteChangeId).toBe(3);
+  });
+
+  it('不传 limit（含显式 undefined）：按默认值拉取', async () => {
+    const syncRecord = createSyncRecord('PullSliceItem', 3);
+    const harness = createHarness({ syncRecords: [syncRecord], remoteChanges: [createRemoteChange(4)] });
+
+    const result = await pullRepository(harness.vm, 'public', 'PullSliceItem', {
+      includeRelated: false,
+      limit: undefined
+    });
+
+    expect(result.pulled).toBe(1);
+  });
+});
+
 describe('pullRepository 尊重 RxDBSync.enabled（RXD-029）', () => {
   it('enabled = false 时拒绝拉取，且不碰远端', async () => {
     const syncRecord = createSyncRecord('PullSliceItem', 3);
@@ -1035,5 +1095,212 @@ describe('pullRepository 的分支范围覆盖祖先链', () => {
     expect(result.applied).toBe(2);
     expect(result.hasMore).toBe(true);
     expect(harness.syncRecords[0].lastPullRemoteChangeId).toBe(2);
+  });
+});
+
+// 双向一对一：CascadeCycleOwner.card 可空 ↔ CascadeCycleCard.owner 非空；证件还引用环外的签发方
+@Entity({
+  name: 'CascadeCycleOwner',
+  properties: [{ name: 'value', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'card',
+      kind: RelationKind.ONE_TO_ONE,
+      mappedEntity: 'CascadeCycleCard',
+      mappedProperty: 'owner',
+      nullable: true
+    }
+  ]
+})
+class CascadeCycleOwner extends EntityBase {}
+
+@Entity({
+  name: 'CascadeCycleCard',
+  properties: [{ name: 'value', type: PropertyType.string }],
+  relations: [
+    { name: 'owner', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'CascadeCycleOwner', mappedProperty: 'card' },
+    { name: 'issuer', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'CascadeCycleIssuer', mappedProperty: 'cards' }
+  ]
+})
+class CascadeCycleCard extends EntityBase {}
+
+@Entity({ name: 'CascadeCycleIssuer', properties: [{ name: 'value', type: PropertyType.string }] })
+class CascadeCycleIssuer extends EntityBase {}
+
+describe('pullRepository 的级联把外键环当一个单元拉（US-038）', () => {
+  const CYCLE_ENTITIES = [CascadeCycleCard, CascadeCycleOwner, CascadeCycleIssuer];
+  const OWNER = 'public:CascadeCycleOwner';
+  const CARD = 'public:CascadeCycleCard';
+  const ISSUER = 'public:CascadeCycleIssuer';
+  const batchProgress = (): PullRepositoryResult => ({
+    repository: { namespace: 'public', entity: 'CascadeCycleOwner' },
+    pulled: 2,
+    compacted: 0,
+    applied: 2,
+    hasMore: false,
+    conflictsResolved: 0,
+    conflictsDeferred: 0,
+    failures: [],
+    persistedProgress: true,
+    historyInvalidated: true
+  });
+  /** 失败归成（实体，原因）：环上的报环的原因，被依赖阻断的报 `dependency-failed`，其余报错误消息 */
+  const reasonsOf = (result: PullRepositoryResult) =>
+    result.failures.map(failure => {
+      const error = failure.error;
+      if (error instanceof RxDBForeignKeyCycleError) return [failure.repository?.entity, error.reason];
+      if (error instanceof RxDBDependencyFailedError) return [failure.repository?.entity, 'dependency-failed'];
+      return [failure.repository?.entity, error?.message];
+    });
+
+  beforeEach(() => {
+    vi.mocked(pullBatch).mockReset();
+  });
+
+  it('AC#14：拉环上的一个仓库，整个环交给一次批量拉取（只拉环上的仓库），进度记在目标仓库上；环外的父仓照常单独拉', async () => {
+    vi.mocked(pullBatch).mockImplementation(async () => batchProgress());
+    const { vm, pullChanges } = createHarness({ entities: CYCLE_ENTITIES });
+
+    const result = await pullRepository(vm, 'public', 'CascadeCycleOwner', { limit: 5, fetchAll: true });
+
+    expect(pullBatch).toHaveBeenCalledOnce();
+    expect(pullBatch).toHaveBeenCalledWith(vm, { limit: 5, fetchAll: true, onlyRepositories: new Set([OWNER, CARD]) });
+    expect(result).toMatchObject({ success: true, pulled: 2, applied: 2, failures: [] });
+    expect(result.relatedResults?.map(related => [related.repository.entity, related.success, related.pulled])).toEqual(
+      [
+        ['CascadeCycleIssuer', true, 0],
+        ['CascadeCycleCard', true, 0]
+      ]
+    );
+    // 环外的父仓走单仓拉取，环上的仓库不单独拉
+    expect(pullChanges.mock.calls.map(call => call[2])).toEqual([[ISSUER]]);
+  });
+
+  it('AC#17：环上有按条件同步的成员：整个环以 pull-unsupported-member 失败，不发批量拉取', async () => {
+    const filter: SyncOptions = {
+      type: SyncType.Filter,
+      local: { adapter: 'sqlite' },
+      remote: { adapter: 'remote', filter: () => ({ combinator: 'and', rules: [] }) }
+    };
+    const { vm } = createHarness({
+      entities: CYCLE_ENTITIES,
+      overrides: new Map([[getEntityMetadata(CascadeCycleCard), filter]])
+    });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner').catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RxDBPartialSyncError);
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(partial.cause).toBeInstanceOf(RxDBForeignKeyCycleError);
+    expect(reasonsOf(partial.result)).toEqual([
+      ['CascadeCycleOwner', 'pull-unsupported-member'],
+      ['CascadeCycleCard', 'pull-unsupported-member']
+    ]);
+    expect(String(partial.cause)).toContain('public:CascadeCycleCard is synced by filter or by bucket');
+    expect(pullBatch).not.toHaveBeenCalled();
+  });
+
+  it('环上有远端登记为分区的成员：同样以 pull-unsupported-member 失败', async () => {
+    const { vm, pullChanges } = createHarness({ entities: CYCLE_ENTITIES });
+    const getEntitySyncInfo = vi.fn(async (_namespace: string, entity: string) => ({
+      bucketed: entity === 'CascadeCycleOwner'
+    }));
+    vi.mocked(vm.getRemoteRepositories).mockResolvedValue({ adapter: { pullChanges, getEntitySyncInfo } } as never);
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleCard').catch((caught: unknown) => caught);
+
+    expect(reasonsOf((error as RxDBPartialSyncError<PullRepositoryResult>).result)).toEqual([
+      ['CascadeCycleOwner', 'pull-unsupported-member'],
+      ['CascadeCycleCard', 'pull-unsupported-member']
+    ]);
+    expect(String((error as RxDBPartialSyncError<PullRepositoryResult>).cause)).toContain(
+      'public:CascadeCycleOwner is synced by filter or by bucket'
+    );
+    expect(pullBatch).not.toHaveBeenCalled();
+  });
+
+  // 分支深度评审 #3：同步关着的成员不在批量拉取的事务里，续拉补进来的引用照样撞外键、整批回滚、下次重演
+  it('环上有同步关着的成员：同样以 pull-unsupported-member 失败，说明这个成员同步关着', async () => {
+    const card = createSyncRecord('CascadeCycleCard');
+    card.enabled = false;
+    const { vm } = createHarness({
+      entities: CYCLE_ENTITIES,
+      syncRecords: [createSyncRecord('CascadeCycleOwner'), card, createSyncRecord('CascadeCycleIssuer')]
+    });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner').catch((caught: unknown) => caught);
+
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(reasonsOf(partial.result)).toEqual([
+      ['CascadeCycleOwner', 'pull-unsupported-member'],
+      ['CascadeCycleCard', 'pull-unsupported-member']
+    ]);
+    expect(String(partial.cause)).toContain(
+      'public:CascadeCycleCard is not pulled into the local database: sync is disabled (RxDBSync.enabled = false)'
+    );
+    expect(pullBatch).not.toHaveBeenCalled();
+  });
+
+  it('环外的父仓拉取失败：整个环被依赖阻断，不发批量拉取', async () => {
+    const boom = new Error('issuer unavailable');
+    const { vm } = createHarness({
+      entities: CYCLE_ENTITIES,
+      pullChanges: async (_sinceId, _limit, repositoryFilter) => {
+        if (repositoryFilter?.includes(ISSUER)) throw boom;
+        return [];
+      }
+    });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner').catch((caught: unknown) => caught);
+
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(partial).toBeInstanceOf(RxDBPartialSyncError);
+    expect(partial.cause).toBe(boom);
+    expect(reasonsOf(partial.result)).toEqual([
+      ['CascadeCycleIssuer', 'issuer unavailable'],
+      ['CascadeCycleOwner', 'dependency-failed'],
+      ['CascadeCycleCard', 'dependency-failed']
+    ]);
+    const blocked = partial.result.failures[1].error as RxDBDependencyFailedError;
+    expect(blocked.dependency).toEqual({ namespace: 'public', entity: 'CascadeCycleIssuer' });
+    expect(pullBatch).not.toHaveBeenCalled();
+  });
+
+  // 分支深度评审 #2：fetchAll 多轮拉取后一轮失败时，前几轮已经落库、水位线已推进。进度铺成空的，SyncManager 就判定历史
+  // 没有失效、不推进撤销边界，用户还能撤销到「合并前」的内容，与已落库的远端数据分叉（参照 pullCascadeNode 的写法）
+  it('批量拉取中途失败：已提交的进度照样记在目标仓库上，历史按它判定失效', async () => {
+    vi.mocked(pullBatch).mockRejectedValue(new RxDBPartialSyncError(batchProgress(), new Error('round 2 failed')));
+    const { vm } = createHarness({ entities: CYCLE_ENTITIES });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner', { fetchAll: true }).catch(
+      (caught: unknown) => caught
+    );
+
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(partial.result).toMatchObject({
+      pulled: 2,
+      applied: 2,
+      persistedProgress: true,
+      historyInvalidated: true,
+      success: false
+    });
+    expect(
+      partial.result.relatedResults?.find(related => related.repository.entity === 'CascadeCycleCard')
+    ).toMatchObject({ pulled: 0, persistedProgress: false, success: false });
+  });
+
+  it('批量拉取抛错：环上每个成员都记这个错误（部分提交的进度取它的根因）', async () => {
+    const boom = new Error('remote down');
+    vi.mocked(pullBatch).mockRejectedValue(new RxDBPartialSyncError(batchProgress(), boom));
+    const { vm } = createHarness({ entities: CYCLE_ENTITIES });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner').catch((caught: unknown) => caught);
+
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(partial.cause).toBe(boom);
+    expect(partial.result.failures.map(failure => [failure.repository?.entity, failure.error])).toEqual([
+      ['CascadeCycleOwner', boom],
+      ['CascadeCycleCard', boom]
+    ]);
   });
 });

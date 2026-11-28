@@ -72,3 +72,19 @@ export const assertSyncOnMainCheckout = (
     throw new RxDBError(`${operation}: 读取期间检出位已变，拒绝同步非主检出位分支 ${branch.id}`);
   }
 };
+
+/**
+ * 拉取的单页上限必须是正整数
+ *
+ * @param limit - 调用方传的 `limit`；不传（含显式 `undefined`）时用默认值
+ * @param operation - 报错里点名的入口
+ * @throws RxDBError `limit` 不是正整数时
+ *
+ * @remarks
+ * 分页靠「这一页不满就是最后一页」收尾，`limit` 不是正整数时这条判据永远成立不了：按区快照会原地空转、
+ * 每一轮都打一次远端；批量路径一条不拉就报「已全部同步」。在入口拒绝，一个请求都不发。
+ */
+export const assertPullLimit = (limit: number | undefined, operation: string): void => {
+  if (limit === undefined || (Number.isInteger(limit) && limit > 0)) return;
+  throw new RxDBError(`${operation}: limit must be a positive integer, got ${String(limit)}`);
+};
