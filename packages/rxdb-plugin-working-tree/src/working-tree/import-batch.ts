@@ -1,5 +1,5 @@
 /**
- * @fileoverview 导入批次的形状判定（US-316）：纯函数，不读库。
+ * @fileoverview 导入批次的形状判定（US-319）：纯函数，不读库。
  *
  * @remarks
  * 从 `import-command.ts` 拆出来，只因为它全是对一份不可信输入的逐字段核对，与命令体的读写顺序无关。

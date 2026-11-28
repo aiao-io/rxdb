@@ -16,6 +16,7 @@ import {
   cascadeMutationSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
+  entityAccessRulesSuite,
   joinSqlSuite,
   menuIntegrationSuite,
   querySqlSuite,
@@ -67,6 +68,7 @@ customPrimaryKeySuite(electronAdapterFactory);
 relationIntegrationSuite(electronAdapterFactory);
 menuIntegrationSuite(electronAdapterFactory);
 cascadeMutationSuite(electronAdapterFactory);
+entityAccessRulesSuite(electronAdapterFactory);
 treeIntegrationSuite(electronAdapterFactory);
 
 versionBranchSuite(electronAdapterFactory);

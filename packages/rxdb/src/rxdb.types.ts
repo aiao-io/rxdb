@@ -78,4 +78,22 @@ export interface IRepositoryConfig<RT extends RepositoryInstance = RepositoryIns
    * ```
    */
   unsupportedSyncTypes?: Partial<Record<SyncType, string>>;
+
+  /**
+   * 本仓储撑不住规则形式的写权限（US-029）时，**不支持的理由**。
+   *
+   * @remarks
+   * 注册期校验会把实体上的每条规则翻成 `invalidPermissions` 违规，理由原样拼进消息。
+   * 规则判定落在门面的公开写入口上；仓储另有绕开门面的写入口时（如图插件的 `addEdge()` 直写边表），
+   * 声明了规则也拦不住，所以由注册方声明而不是核心硬编码。
+   *
+   * @example
+   * ```typescript
+   * rxdb.repository('GraphRepository', {
+   *   class: GraphRepository, // 来自 @aiao/rxdb-plugin-graph
+   *   unsupportedPermissionRules: 'addEdge() 直写边表、不经门面写入口，规则判定管不到这些写。'
+   * });
+   * ```
+   */
+  unsupportedPermissionRules?: string;
 }

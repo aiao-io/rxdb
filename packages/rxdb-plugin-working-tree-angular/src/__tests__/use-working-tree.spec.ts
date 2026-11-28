@@ -430,7 +430,7 @@ describe('useWorkingTree：没有 provider', () => {
   });
 });
 
-describe('useWorkingTree：导入与导出远端提交（US-316 AC#9）', () => {
+describe('useWorkingTree：导入与导出远端提交（US-319 AC#9）', () => {
   // 入参原样交给核心：批次与三个捕获位一个字段都不改写——本端替调用方补一个「内部读的 revision」，HEAD 的 CAS 就永远命中
   it('importCommits 的两个实参原样传给核心，成功落在 success，返回值与核心那一份是同一个', async () => {
     const { workingTree, tree } = createFixture();
@@ -514,7 +514,7 @@ describe('useWorkingTree：导入与导出远端提交（US-316 AC#9）', () => 
 });
 
 describe('tri-framework-api.md §3 清单守卫', () => {
-  // 清单原有十二项，US-314 阶段 A 又补两项，US-316 再补导入与导出两项，十六项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
+  // 清单原有十二项，US-314 阶段 A 又补两项，US-319 再补导入与导出两项，十六项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
   // 它现在守的是反方向的那件事：任何一项被摘掉（重构时顺手改了返回值、某端漏接一次）
   // 都会在这里当场红，而不是等到另外两端的用户先发现分歧。
   // `switchBranch` 那一行今天从「不该有」翻成「该有」，靠的就是这条断言先红。
@@ -533,8 +533,8 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     { member: 'switchBranch', deliveredIn: 'T123' },
     { member: 'checkBranchFromCommit', deliveredIn: 'US-314' },
     { member: 'createBranchFromCommit', deliveredIn: 'US-314' },
-    { member: 'importCommits', deliveredIn: 'US-316' },
-    { member: 'exportCommits', deliveredIn: 'US-316' }
+    { member: 'importCommits', deliveredIn: 'US-319' },
+    { member: 'exportCommits', deliveredIn: 'US-319' }
   ] as const;
 
   it.each(CHECKLIST)('$member 由 $deliveredIn 交付', ({ member }) => {

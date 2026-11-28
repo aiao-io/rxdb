@@ -19,10 +19,12 @@ import {
   getSyncCapability,
   getSyncType,
   isRepositorySyncEnabled,
+  isSystemEntity,
   LWWConflictResolver,
   type PullBatchRequest,
   type PullResult,
   type RemoteChange,
+  type RepositoryIdentifier,
   RxDBChange,
   RxDBError,
   type RxDBEvent,
@@ -40,6 +42,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
+import { closeCycleReferences } from './pull-cycle.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
@@ -73,9 +76,26 @@ const MAX_FETCH_ALL_ROUNDS = 1000;
  */
 export async function pullBatch(
   sm: SyncManager,
-  options?: { limit?: number; fetchAll?: boolean; conflictResolver?: ConflictResolver }
+  options?: {
+    limit?: number;
+    fetchAll?: boolean;
+    conflictResolver?: ConflictResolver;
+    /** 远端登记为分区的仓库（`namespace:entity`），批量跳过，由调用方逐个按区拉取 */
+    bucketedRepositories?: ReadonlySet<string>;
+    /** 只拉这些仓库（`namespace:entity`）：级联拉取把一个外键环放进同一个本地事务（US-038） */
+    onlyRepositories?: ReadonlySet<string>;
+    /** 这一次不拉的仓库（`namespace:entity`）：拉取补不齐的外键环与它的下游，由调用方记失败（US-038） */
+    excludedRepositories?: ReadonlySet<string>;
+  }
 ): Promise<PullResult> {
-  if (options?.fetchAll !== true) return await pullBatchOnce(sm, options?.limit, options?.conflictResolver);
+  const scope: PullBatchScope = {
+    bucketed: options?.bucketedRepositories ?? new Set<string>(),
+    ...(options?.onlyRepositories ? { only: options.onlyRepositories } : {}),
+    excluded: options?.excludedRepositories ?? new Set<string>()
+  };
+  if (options?.fetchAll !== true) {
+    return await pullBatchOnce(sm, options?.limit, options?.conflictResolver, scope);
+  }
 
   const total: PullResult = {
     pulled: 0,
@@ -104,7 +124,7 @@ export async function pullBatch(
   for (let round = 0; round < MAX_FETCH_ALL_ROUNDS; round++) {
     let result: PullResult;
     try {
-      result = await pullBatchOnce(sm, options.limit, options.conflictResolver);
+      result = await pullBatchOnce(sm, options.limit, options.conflictResolver, scope);
     } catch (error) {
       // 前几轮已经落库且水位线已推进，裸抛原始错误会让调用方以为什么都没发生。
       // 把已完成部分的统计连同原始错误一起交出去；本轮内部的部分进度由
@@ -148,10 +168,21 @@ function toPartialSyncError(error: unknown, accumulated: PullResult): unknown {
 /**
  * 批量拉取所有实体的变更（单次 HTTP 请求）
  */
+/** 一次批量拉取覆盖哪些仓库（键都是 `namespace:entity`） */
+interface PullBatchScope {
+  /** 分区仓库：建同步记录，但不在批量里拉 */
+  readonly bucketed: ReadonlySet<string>;
+  /** 只拉这些；没有就是全部 */
+  readonly only?: ReadonlySet<string>;
+  /** 不拉这些，连同步记录都不碰 */
+  readonly excluded: ReadonlySet<string>;
+}
+
 async function pullBatchOnce(
   sm: SyncManager,
-  limitOption?: number,
-  conflictResolverOption?: ConflictResolver
+  limitOption: number | undefined,
+  conflictResolverOption: ConflictResolver | undefined,
+  scope: PullBatchScope
 ): Promise<PullResult> {
   const rxdb = sm.rxdb;
   const limit = limitOption ?? 1000;
@@ -173,7 +204,8 @@ async function pullBatchOnce(
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const allRepos: RepoSyncInfo[] = [];
 
-  for (const EntityClass of rxdb.config.entities) {
+  // 系统表跟随库级配置会被判成能拉取，它们是不记变更日志的本地簿记表，远端日志里永远没有它们的行（US-236）
+  for (const EntityClass of rxdb.config.entities.filter(Entity => !isSystemEntity(Entity))) {
     const metadata = getEntityMetadata(EntityClass);
     const syncType = getSyncType(metadata, rxdb.entitySync);
 
@@ -182,6 +214,9 @@ async function pullBatchOnce(
 
     // filter 同步类型需要逐仓库处理，不参与批量
     if (syncType === 'filter') continue;
+
+    const scopeKey = `${metadata.namespace}:${metadata.name}`;
+    if (scope.excluded.has(scopeKey) || (scope.only && !scope.only.has(scopeKey))) continue;
 
     const repoSync = await getOrCreateSyncRecord(
       repoSyncRepo,
@@ -193,6 +228,8 @@ async function pullBatchOnce(
       },
       () => instantiateSyncRecord(sm)
     );
+
+    if (scope.bucketed.has(scopeKey)) continue;
 
     // 批量是枚举路径 —— 被关掉的仓库跳过而不是让整批失败
     if (!isRepositorySyncEnabled(repoSync)) continue;
@@ -259,6 +296,21 @@ async function pullBatchOnce(
     );
     allRemoteChanges = perRepo.flat();
   }
+
+  // 外键成环（US-038）：一页在环中间截断时，环内引用的另一半既不在本页也不在本地，提交时会撞外键——续拉补齐。
+  // 全部在事务之前做完，事务里只有本地工作
+  allRemoteChanges = await closeCycleReferences(
+    graph,
+    allRemoteChanges,
+    new Map(orderedRepos.map(repo => [`${repo.namespace}:${repo.entity}`, repo.lastPullRemoteChangeId])),
+    {
+      fetchAfter: (repository, sinceId) =>
+        remoteAdapter.pullChangesBatch ?
+          remoteAdapter.pullChangesBatch([{ ...repository, sinceId }], limit, branchIds)
+        : pullAncestorBranchChanges(remoteAdapter, { ...repository, sinceId, limit }, branchIds),
+      existingIds: (repository, ids) => existingLocalIds(sm, localAdapter, repository, ids)
+    }
+  );
 
   // 远端交回了变更：落库之前确认远端还是入口核对过的那一个（fetchAll 跑到这一轮时远端可能已被重建），
   // 对不上就停，这一轮一行不写、水位线不动。什么都没交回时没有要证明出处的数据，不多打这一次远端。
@@ -391,4 +443,22 @@ async function pullBatchOnce(
     historyInvalidated: totalApplied > 0,
     failures: []
   };
+}
+
+/** 本地已有这些行中的哪些（拉取补齐环内引用用，US-038） */
+async function existingLocalIds(
+  sm: SyncManager,
+  localAdapter: Awaited<ReturnType<SyncManager['getLocalRepositories']>>['adapter'],
+  repository: RepositoryIdentifier,
+  ids: readonly string[]
+): Promise<ReadonlySet<string>> {
+  const EntityType = sm.rxdb.config.entities.find(entity => {
+    const metadata = getEntityMetadata(entity);
+    return metadata.namespace === repository.namespace && metadata.name === repository.entity;
+  });
+  if (!EntityType) throw new RxDBError(`Entity not found: ${repository.namespace}:${repository.entity}`);
+  const rows = await localAdapter.getRepository(EntityType).find({
+    where: { combinator: 'and', rules: [{ field: 'id', operator: 'in', value: [...ids] }] }
+  });
+  return new Set(rows.map(row => String((row as { id: unknown }).id)));
 }

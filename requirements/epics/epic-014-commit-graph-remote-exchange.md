@@ -18,15 +18,15 @@ owner: jimmy
 
 ## 目标
 
-- [x] 导入远端提交并快进分支头，保留提交身份，支持多父合并提交（[US-316](../stories/collaboration/US-316-remote-commit-import.md)）。
-- [x] `discard()` / `restore()` 回写业务表，查询结果与工作树状态一致（[US-317](../stories/collaboration/US-317-discard-restore-projection.md)）。
+- [x] 导入远端提交并快进分支头，保留提交身份，支持多父合并提交（[US-319](../stories/collaboration/US-319-remote-commit-import.md)）。
+- [x] `discard()` / `restore()` 回写业务表，查询结果与工作树状态一致（[US-320](../stories/collaboration/US-320-discard-restore-projection.md)）。
 
 ## 故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
-- [US-316 导入远端提交：保留提交身份并快进分支头](../stories/collaboration/US-316-remote-commit-import.md) (High)
-- [US-317 放弃与恢复回写业务表](../stories/collaboration/US-317-discard-restore-projection.md) (High)
+- [US-319 导入远端提交：保留提交身份并快进分支头](../stories/collaboration/US-319-remote-commit-import.md) (High)
+- [US-320 放弃与恢复回写业务表](../stories/collaboration/US-320-discard-restore-projection.md) (High)
 
 ## 非目标
 

@@ -680,6 +680,8 @@ const placeAtGroupTail = async (
  * @param metadata - 实体元数据
  * @param id - 被移动行的 id
  * @param target - 目标位置，须先经 {@link assertReorderTarget}
+ * @param guard - 算出落点之后、写入之前调用：拿到事务里读出的那一行（`origin` 即前像）与要写的字段
+ *   （已在目标位置时为 `null`）。抛错即整个重排不写，规则形式的写权限（US-029）在这里判
  * @returns 移动后的行；已在目标位置时原样返回、零写
  * @throws {@link SortOrderError} 移动行不存在（`'notFound'`）、邻居不存在 / 不再相邻 / 不在同一组 /
  *   已不在 `expectedGroup`（`'staleTarget'`）、锚点键不合法（`'corruptAnchor'`）
@@ -693,7 +695,8 @@ export const reorderRow = async <T extends EntityType>(
   repository: IRepository<T>,
   metadata: ManualOrderMetadata,
   id: unknown,
-  target: ReorderTarget<unknown>
+  target: ReorderTarget<unknown>,
+  guard: (moving: InstanceType<T>, placement: object | null) => void
 ): Promise<InstanceType<T>> => {
   const untyped = repository as unknown as IRepository<EntityType>;
   const entity = metadata.name;
@@ -705,6 +708,7 @@ export const reorderRow = async <T extends EntityType>(
     'group' in target ?
       await placeAtGroupTail(untyped, entity, fields, row, target.group)
     : await placeBetweenNeighbors(untyped, entity, fields, row, target);
+  guard(moving, placement);
   if (placement === null) return moving;
   return updateKeepingEdits(repository, moving, placement as Partial<InstanceType<T>>);
 };

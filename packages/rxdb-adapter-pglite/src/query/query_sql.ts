@@ -6,6 +6,7 @@ import {
   type EntityPropertyMetadata,
   type FindAllOptions,
   type FindOptions,
+  getEntityColumnName,
   isManualOrderEntity,
   manualOrderGroupFields,
   type OrderBy,
@@ -510,12 +511,34 @@ const generate_select_sql = (options: GenerateSqlOptions, params: unknown[]): st
   return sql;
 };
 
-const generate_count_sql_helper = (options: GenerateSqlOptions): string => {
+/**
+ * 分组列：只认本实体自己的属性或外键，关系路径与未知字段报查询错误，不拼进 SQL
+ */
+const build_count_group_by = (metadata: EntityMetadata, groupBy: readonly string[]): string =>
+  groupBy
+    .map(field => {
+      const column = getEntityColumnName(metadata, field);
+      if (column === undefined) {
+        throw new RxdbAdapterPGliteError(
+          `Count groupBy field "${field}" must be a property or foreign key of ${metadata.name}`,
+          INVALID_QUERY_ERROR_CODE
+        );
+      }
+      return `${MAIN_TABLE_ALIAS}.${quoteIdentifier(column)}`;
+    })
+    .join(', ');
+
+/**
+ * 给了分组列时数的是分组个数：子查询先筛行、分组，外层再数有几组；JOIN 展开的行落在同一组里，不用去重
+ */
+const generate_count_sql_helper = (options: GenerateSqlOptions & { groupBy?: string }): string => {
+  let from = `${options.tableName} AS ${MAIN_TABLE_ALIAS}`;
+  if (options.join) from += ` ${options.join}`;
+  if (options.where) from += ` WHERE ${options.where}`;
+  if (options.groupBy)
+    return `SELECT COUNT(*) as count FROM (SELECT 1 FROM ${from} GROUP BY ${options.groupBy}) AS grouped`;
   const countExpression = options.join ? `COUNT(DISTINCT ${MAIN_TABLE_ALIAS}.id)` : 'COUNT(*)';
-  let sql = `SELECT ${countExpression} as count FROM ${options.tableName} AS ${MAIN_TABLE_ALIAS}`;
-  if (options.join) sql += ` ${options.join}`;
-  if (options.where) sql += ` WHERE ${options.where}`;
-  return sql;
+  return `SELECT ${countExpression} as count FROM ${from}`;
 };
 
 /** 按适配器的 schemaManager 解析关联实体元数据 */
@@ -561,12 +584,10 @@ export const generate_count_sql = (
   metadata: EntityMetadata,
   options: CountOptions
 ): GenerateSqlResult => {
-  if (options.groupBy) {
-    throw new RxdbAdapterPGliteError('groupBy not supported in count queries', INVALID_QUERY_ERROR_CODE);
-  }
-  validateEncryptedQuery(metadata, { where: options.where }, (name, namespace) =>
+  validateEncryptedQuery(metadata, { where: options.where, groupBy: options.groupBy }, (name, namespace) =>
     adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)
   );
+  const groupBy = options.groupBy?.length ? build_count_group_by(metadata, options.groupBy) : undefined;
 
   const tableName = getTableNameByMetadata(metadata, adapter.tableSet);
   const params: unknown[] = [];
@@ -579,5 +600,5 @@ export const generate_count_sql = (
     options.where ?
       buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, tableAlias, metadata_resolver(adapter))
     : undefined;
-  return { sql: generate_count_sql_helper({ tableName, where, join: joinSQL }), params };
+  return { sql: generate_count_sql_helper({ tableName, where, join: joinSQL, groupBy }), params };
 };

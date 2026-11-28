@@ -551,7 +551,7 @@ const messageOfCommit = (rows: readonly Commit[], commitId: string | null): stri
  * §2.6 那两次提交指向的实体主键：一个合法的 uuid。
  *
  * @remarks
- * US-317 之后 restore / discard 会把差异回写进业务表，这两次提交的单元于是真的要变成一条
+ * US-320 之后 restore / discard 会把差异回写进业务表，这两次提交的单元于是真的要变成一条
  * `UPDATE conformance_notes … WHERE id = ?`。`EntityBase` 把 `id` 声明成 `PropertyType.uuid`，PGlite 建出来的是
  * Postgres 的 `uuid` 列：`'note-1'` 这种可读假 id 在那一个后端上直接报 `22P02`，另外五个后端照常过——
  * 套件自己造出的后端差异（与 `capture.suite.ts` 的 `newEntityId` 同一条理由）。

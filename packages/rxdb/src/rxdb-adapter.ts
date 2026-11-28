@@ -5,13 +5,16 @@ import type { RawWriteContext } from './capture/raw-write-gate.js';
 import { EntityType } from './entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from './entity/metadata-options.interface.js';
 import type { EntityMetadata } from './entity/metadata.interface.js';
+import type { RxDBGrant } from './grants/grant-snapshot.js';
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
 import { settleRepositoryTransaction, transactionalRepository } from './repository/transactional-repository.js';
 import { RxDB } from './RxDB.js';
+import { RxDBError } from './RxDBError.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
+import type { RxDBIdentity } from './system/identity-binding.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { WorktreeTableSet, WorktreeTableSetSeed } from './system/worktree-table-set.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
@@ -941,7 +944,44 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
 /**
  * 数据库适配器基类（远程）
  */
+/**
+ * 推送时先写空、同一个请求里再补写的外键属性（US-038）
+ *
+ * @remarks
+ * 外键成环的实体（例如双向一对一）排不出写入顺序：同步插件选出环上可空的外键，让远端先把这一列写空、
+ * 写完同一请求里的其他行之后再补写，环就在一个请求里落齐。
+ */
+export interface RemoteDeferredForeignKey {
+  /** 实体命名空间 */
+  readonly namespace: string;
+  /** 实体名 */
+  readonly entity: string;
+  /** 外键属性名（不是列名，适配器按元数据换成列） */
+  readonly property: string;
+}
+
+/** {@link RxDBAdapterRemoteBase.mergeChanges} 的可选项 */
+export interface RemoteMergeOptions {
+  /**
+   * 先写空、同一请求里再补写的外键属性
+   *
+   * @remarks
+   * 只发给声明了 {@link RxDBAdapterRemoteBase.supportsDeferredForeignKeys} 的适配器，且只在本批确有要补写的值时才带。
+   */
+  readonly deferredForeignKeys?: readonly RemoteDeferredForeignKey[];
+}
+
 export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
+  /**
+   * 能否在同一个请求里先把外键写空、再补写（{@link RemoteMergeOptions.deferredForeignKeys}，US-038）
+   *
+   * @remarks
+   * 默认 `false`。不支持的适配器收不到延迟外键：外键成环、同一批里互相引用的行推不上去，同步插件让这个环以
+   * `remote-unsupported` 失败，而不是把它们推上去撞外键、再按被拒把本地行对齐删掉。只有确实实现了补写的适配器
+   * 才声明 `true`，忽略第四个参数的实现不能声明。
+   */
+  readonly supportsDeferredForeignKeys: boolean = false;
+
   /**
    * 远端身份：远端库建立时生成、重建后改变的标识
    *
@@ -956,6 +996,43 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    * 不支持变更日志同步的适配器直接抛不支持错误，不要返回占位值。
    */
   abstract backendId(): Promise<string>;
+
+  /**
+   * 当前调用者的身份：这个适配器此刻是以谁的名义和远端说话
+   *
+   * @returns 当前后端 scope 与当前调用者 subject；必须与应用声明的 `RxDBOptions.identity` 同口径
+   * @throws {@link RxDBError} 适配器不报告调用者身份（基类的默认行为）
+   *
+   * @remarks
+   * 声明了 `RxDBOptions.identity` 的实例，在每次与远端交换数据之前问它一次，对不上就停下。
+   * 因此要回答**此刻**的调用者而不是连接时的：会话令牌可能在两次请求之间换了主人。实现应当只读本地已有的会话状态，
+   * 不要为它单独发网络请求。
+   *
+   * 不是抽象方法：只有声明了身份的实例才会问它，不支持它的适配器照常使用；
+   * 声明了身份却问到不支持的适配器时，抛错而不是当作通过——无法核对就等于没有这道防线。
+   */
+  async callerIdentity(): Promise<RxDBIdentity> {
+    throw new RxDBError(
+      `${this.constructor.name} does not report the caller identity (callerIdentity()), ` +
+        'so RxDBOptions.identity cannot be verified against this remote adapter.'
+    );
+  }
+
+  /**
+   * 当前调用者在各作用域上的成员权限（US-029），可选能力
+   *
+   * @returns 调用者在每个作用域上的权限；没有任何权限时为空数组
+   *
+   * @remarks
+   * 实现了它，这个远端就是授权快照（`rxdb.grants`）的来源：有实体声明了作用域（`access`）时，远端连接时、
+   * 同步每一轮进门时与 `rxdb.grants.refresh()` 都问它一次（之前先核对调用者身份），应用不能再自己设入。
+   * 没有实体声明作用域时一次都不问，没部署对应服务端函数的旧服务端照常可用。
+   *
+   * 授权必须来自服务端按当前会话的裁决（Supabase 读 `rxdb_caller_grants()`），不能取自令牌里的声明：
+   * 成员关系改了，下一次请求就该生效。读不到时抛错：服务端没部署对应函数这类配置错误让连接失败，
+   * 连不上远端（离线）时核心沿用上次的快照。
+   */
+  callerGrants?(): Promise<readonly RxDBGrant[]>;
 
   /**
    * 从远程拉取变更记录
@@ -1011,6 +1088,7 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    * @param actions - 压缩后的变更操作集合（从本地 push 来的）
    * @param branchId - 分支 ID（用于在远程变更记录中设置 branchId）
    * @param changes - 完整的原始变更记录（可选，用于保留完整的变更历史）
+   * @param options - 可选项：先写空、再补写的外键（只发给声明了 {@link supportsDeferredForeignKeys} 的实现）
    * @returns 创建的远程 RxDBChange 的最大 ID（用于更新 lastPullRemoteChangeId）
    *
    * @remarks
@@ -1020,7 +1098,8 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
   abstract mergeChanges(
     actions: SwitchVersionActions,
     branchId?: string,
-    changes?: IRxDBChange[]
+    changes?: IRxDBChange[],
+    options?: RemoteMergeOptions
   ): Promise<RemoteMergeResult>;
 
   /**

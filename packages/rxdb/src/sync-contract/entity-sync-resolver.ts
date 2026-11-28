@@ -60,6 +60,18 @@ export interface EntitySyncResolver {
 const metadataOf = (target: EntitySyncTarget): EntityMetadata =>
   typeof target === 'function' ? getEntityMetadata(target) : target;
 
+/**
+ * 查多对多中间表的两端（US-228）
+ *
+ * @remarks
+ * 返回 `undefined` 表示不是中间表。RxDB 传 `schemaManager.junctionEndpointsOf`：中间表在 `init()` 时才生成，
+ * 解析器在那之前就建好了，所以每次解析时现查。
+ */
+export type JunctionEndpointsLookup = (metadata: EntityMetadata) => readonly EntityMetadata[] | undefined;
+
+/** 不同步的端点：中间表跟着它只在本地（或干脆不同步） */
+const NON_SYNCING: ReadonlySet<RepositorySyncType> = new Set(['local', 'none']);
+
 /** 覆盖索引键：见 {@link EntitySyncTarget} 为什么不按对象身份 */
 const overrideKey = ({ namespace, name }: EntityMetadata): string => `${namespace}:${name}`;
 
@@ -68,7 +80,14 @@ const overrideKey = ({ namespace, name }: EntityMetadata): string => `${namespac
  *
  * @param databaseSync - 数据库级默认 `sync`
  * @param overrides - 实例级覆盖，以实体元数据为键；内部改按 `namespace:name` 查，省略即没有覆盖
+ * @param junctionEndpointsOf - 查多对多中间表的两端；省略时中间表与普通实体一样解析
  * @returns 解析器
+ *
+ * @remarks
+ * 中间表跟随两端（US-228）：两端按给出的顺序看，第一个只在本地或不同步的一端（`local` / `none`）的配置
+ * 就是中间表的配置；两端都同步时中间表照旧按装饰器与数据库默认解析。中间表不能被 `syncOverrides`
+ * 直接覆盖（它不是接入方注册的实体），访客把两端设成只存本地时，中间表因此不会还按库级默认推拉。
+ * 两端是 `Filter` / `QueryCache` 的多对多不在支持范围内，按数据库默认解析。
  *
  * @example
  * ```ts
@@ -78,19 +97,27 @@ const overrideKey = ({ namespace, name }: EntityMetadata): string => `${namespac
  */
 export function createEntitySyncResolver(
   databaseSync: SyncOptions | undefined,
-  overrides: ReadonlyMap<EntityMetadata, SyncOptions> = new Map()
+  overrides: ReadonlyMap<EntityMetadata, SyncOptions> = new Map(),
+  junctionEndpointsOf?: JunctionEndpointsLookup
 ): EntitySyncResolver {
   const byName = new Map([...overrides].map(([metadata, sync]) => [overrideKey(metadata), sync]));
+  const ownSync = (metadata: EntityMetadata) => byName.get(overrideKey(metadata)) ?? metadata.sync ?? databaseSync;
+  const ownType = (metadata: EntityMetadata): RepositorySyncType => {
+    const explicit = byName.get(overrideKey(metadata)) ?? metadata.sync;
+    return explicit ? syncTypeOf(explicit, false) : syncTypeOf(databaseSync, true);
+  };
+  // 中间表的端点是接入方的实体，本身不是中间表：按自身配置判，不会递归
+  const nonSyncingEndpointOf = (metadata: EntityMetadata) =>
+    junctionEndpointsOf?.(metadata)?.find(endpoint => NON_SYNCING.has(ownType(endpoint)));
   return {
     databaseSync,
     resolve: target => {
       const metadata = metadataOf(target);
-      return byName.get(overrideKey(metadata)) ?? metadata.sync ?? databaseSync;
+      return ownSync(nonSyncingEndpointOf(metadata) ?? metadata);
     },
     resolveType: target => {
       const metadata = metadataOf(target);
-      const explicit = byName.get(overrideKey(metadata)) ?? metadata.sync;
-      return explicit ? syncTypeOf(explicit, false) : syncTypeOf(databaseSync, true);
+      return ownType(nonSyncingEndpointOf(metadata) ?? metadata);
     }
   };
 }

@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-316：合并提交（多父）上的遍历——历史列表、导出、restore、提交视图与从提交建分支各自怎么走。
+ * @fileoverview US-319：合并提交（多父）上的遍历——历史列表、导出、restore、提交视图与从提交建分支各自怎么走。
  *
  * @remarks
  * 实现目标是 `src/commit/list-commits.ts`（拓扑序）、`src/commit/commit-ancestry.ts`（全部父链 / 第一父链两种可达）、
@@ -97,7 +97,7 @@ const mergedScene = (): WorkingTreeScene => {
 
 const idsOf = (commits: readonly { readonly id: string }[]): string[] => commits.map(commit => commit.id);
 
-describe('listCommits()：合并图上子先于父（US-316 AC#6）', () => {
+describe('listCommits()：合并图上子先于父（US-319 AC#6）', () => {
   it('每个可达提交恰好一次，任何祖先都不排在它的子前面', async () => {
     const scene = mergedScene();
 
@@ -135,7 +135,7 @@ describe('listCommits()：合并图上子先于父（US-316 AC#6）', () => {
   });
 });
 
-describe('第一父链与全部父链：两种「从 HEAD 到它」（US-316 AC#6）', () => {
+describe('第一父链与全部父链：两种「从 HEAD 到它」（US-319 AC#6）', () => {
   it('第一父链上的目标交回撤销路径，HEAD 在前、不含目标，侧枝不在路上', async () => {
     const scene = mergedScene();
 
@@ -158,7 +158,7 @@ describe('第一父链与全部父链：两种「从 HEAD 到它」（US-316 AC#
   });
 });
 
-describe('restore()：沿第一父链撤销，侧枝上的目标单独拒绝（US-316 AC#6）', () => {
+describe('restore()：沿第一父链撤销，侧枝上的目标单独拒绝（US-319 AC#6）', () => {
   const credentialsOf = (scene: WorkingTreeScene) => ({
     expectedBranch: { branchId: SCENE_BRANCH_ID, activationRevision: 0 },
     expectedHeadRevision: refRowOf(scene).headRevision,
@@ -196,7 +196,7 @@ describe('restore()：沿第一父链撤销，侧枝上的目标单独拒绝（U
   });
 });
 
-describe('从提交建分支：可达性走全部父链，数据由分叉点给出（US-316）', () => {
+describe('从提交建分支：可达性走全部父链，数据由分叉点给出（US-319）', () => {
   it('侧枝提交有分叉点（它是在本库某条分支上提交的）：能建', async () => {
     const scene = mergedScene();
     const forkPoint = scene.database.entityManager.instantiate(CommitForkPoint);
@@ -223,7 +223,7 @@ describe('从提交建分支：可达性走全部父链，数据由分叉点给�
   });
 });
 
-describe('导出：某个提交之后的提交，父先于子、落库形态（US-316 导出侧）', () => {
+describe('导出：某个提交之后的提交，父先于子、落库形态（US-319 导出侧）', () => {
   it('不给 afterCommitId：整条可达历史，含根与侧枝，最后一个是 HEAD', async () => {
     const scene = mergedScene();
 

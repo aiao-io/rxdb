@@ -49,7 +49,7 @@ export async function push(sm: SyncManager, options?: PushOptions): Promise<Push
       ...(options?.batchSize === undefined ? {} : { push: { batchSize: options.batchSize } })
     };
 
-    const bulkResult = await sm.bulkSync(bulkOptions);
+    const bulkResult = await sm.bulkSyncInSession(bulkOptions);
 
     // 汇总结果
     const pushResult: PushResult = {

@@ -18,7 +18,7 @@
  * 从提交建分支（US-314 阶段 A）也收在这里：判据同口径——切到新分支读到的，与那次 `commit()` 刚完成时读到的逐行一致。
  * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。不切换的对比与合并预览（US-312）的真库冒烟同理收在这里。
  *
- * 导入远端提交（US-316）收在这里：两台设备各是一个库，一台提交、导出，另一台经一次 JSON 往返（模拟服务端）导入，
+ * 导入远端提交（US-319）收在这里：两台设备各是一个库，一台提交、导出，另一台经一次 JSON 往返（模拟服务端）导入，
  * 判据是两台设备的提交历史与业务表逐行一致——布尔、日期、JSON 列与多对多中间表都在里面。合并提交由用例自己按
  * 「相对第一父的增量」拼出来，与首个使用方的服务端做的事相同。加密列的信封绑在写下它的那个库的密钥环身份上，
  * 另一台设备解不开：那条路径钉的是「整笔回滚、一个字节都没写」。
@@ -355,10 +355,10 @@ const changeCountOf = async (rxdb: RxDB): Promise<number> => {
   }, false);
 };
 
-/** 拿现读的三个捕获位丢弃整棵工作树（US-317）。 */
+/** 拿现读的三个捕获位丢弃整棵工作树（US-320）。 */
 const discardAll = async (rxdb: RxDB) => rxdb.workingTree.discard(await credentialsOf(rxdb));
 
-/** 拿现读的三个捕获位把工作树恢复到一个提交（US-317）。 */
+/** 拿现读的三个捕获位把工作树恢复到一个提交（US-320）。 */
 const restoreTo = async (rxdb: RxDB, commitId: string) =>
   rxdb.workingTree.restore({ commitId }, await credentialsOf(rxdb));
 
@@ -395,7 +395,7 @@ class InjectedRewriteFailure extends Error {
 }
 
 /**
- * 让下一次 `mergeChanges` 先把回写**真的写进去**、再抛错（US-317 AC4）。
+ * 让下一次 `mergeChanges` 先把回写**真的写进去**、再抛错（US-320 AC4）。
  *
  * @remarks
  * 注入点挑在「写完之后」而不是「写之前」：写之前抛，测的只是「没写就没变化」；写完再抛，业务表里
@@ -418,7 +418,7 @@ const injectRewriteFailure = async (rxdb: RxDB): Promise<() => void> => {
 };
 
 /**
- * 模拟服务端：交换记录经一次 JSON 往返再交出去，时间还原成 `Date`（US-316）。
+ * 模拟服务端：交换记录经一次 JSON 往返再交出去，时间还原成 `Date`（US-319）。
  *
  * @remarks
  * 首个使用方的线上格式就是 JSON。往返之后指纹仍然对得上，才说明「落库形态的单元就是交换格式」这件事在每个后端上都成立
@@ -429,7 +429,7 @@ const viaServer = (records: readonly CommitExchangeRecord[]): CommitExchangeReco
     record => ({ ...record, createdAt: new Date(record.createdAt) })
   );
 
-/** 拿现读的三个捕获位导入一批提交（US-316）。 */
+/** 拿现读的三个捕获位导入一批提交（US-319）。 */
 const importInto = async (rxdb: RxDB, commits: readonly CommitExchangeRecord[]) =>
   rxdb.workingTree.importCommits(commits, await credentialsOf(rxdb));
 
@@ -454,7 +454,7 @@ const importSnapshotOf = async (rxdb: RxDB) => ({
 });
 
 /**
- * 在一台设备上铺两次提交：c1 建任务（布尔、整数、日期、JSON 各一列）与标签关联，c2 改名、删行（US-316）。
+ * 在一台设备上铺两次提交：c1 建任务（布尔、整数、日期、JSON 各一列）与标签关联，c2 改名、删行（US-319）。
  *
  * @remarks
  * 多对多关联在这里一次建完：两个库共用同一份实体类，后初始化的那个库会把关系上的中间表类换成它自己的，
@@ -490,7 +490,7 @@ const seedSharedHistory = async (rxdb: RxDB) => {
 };
 
 /**
- * 服务端拼出来的合并提交：ChangeSet 是合并结果相对第一父的增量，指纹按内容现算（US-316）。
+ * 服务端拼出来的合并提交：ChangeSet 是合并结果相对第一父的增量，指纹按内容现算（US-319）。
  *
  * @param parentIds - 第一父在前
  * @param units - 相对第一父的增量
@@ -511,7 +511,7 @@ const mergeRecordOf = (parentIds: readonly string[], units: CommitExchangeRecord
 };
 
 /**
- * 服务端拼出来的一个普通提交：单父，ChangeSet 由服务端给，指纹按内容现算（US-316 前像核对）。
+ * 服务端拼出来的一个普通提交：单父，ChangeSet 由服务端给，指纹按内容现算（US-319 前像核对）。
  *
  * @param parentId - 父
  * @param units - 相对父的增量；服务端按哪一份数据算的，前像核对就核对那一份
@@ -1041,9 +1041,9 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
       });
     });
 
-    // US-317：discard / restore 连业务表一起改。判据与上面两组同一把尺子——「那次 commit() 刚完成时读到的」
+    // US-320：discard / restore 连业务表一起改。判据与上面两组同一把尺子——「那次 commit() 刚完成时读到的」
     // 与「切过去读到的」：前者说明回写对了，后者说明变更日志跟着回写走了（切分支按日志撤投影、按日志重放）。
-    describe('放弃与恢复回写业务表（US-317）', () => {
+    describe('放弃与恢复回写业务表（US-320）', () => {
       it('discard()：跨实体的插入、修改与删除逐行回到 HEAD；工作树 clean，修订号推进一格，HEAD 与历史不动', async () => {
         const seed = await seedTwoBranches(database);
         await commitAll(database, 'HEAD');
@@ -1238,8 +1238,8 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
       });
     });
 
-    // US-316：两台设备，一台提交、导出，另一台经服务端（一次 JSON 往返）导入。判据是两台设备的提交历史与业务表逐行一致
-    describe('导入远端提交（US-316）', () => {
+    // US-319：两台设备，一台提交、导出，另一台经服务端（一次 JSON 往返）导入。判据是两台设备的提交历史与业务表逐行一致
+    describe('导入远端提交（US-319）', () => {
       it('空分支导入整条链：提交身份与指纹逐字相同，业务表等于链末，工作树 clean（AC#1）', async () => {
         const { c2 } = await seedSharedHistory(database);
         const exported = await database.workingTree.exportCommits();
@@ -1757,7 +1757,7 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         expect(await activeBranchOf(database)).toBe(FEATURE);
       });
 
-      // 检出位里 discard / restore（US-317）：与主检出位同一条路径——执行器落在这套影子表上，回写与它的变更日志
+      // 检出位里 discard / restore（US-320）：与主检出位同一条路径——执行器落在这套影子表上，回写与它的变更日志
       // 都记在持有分支名下。判据是「删掉检出位、主检出位切过去读到的」与检出位里最后读到的逐行一致
       it('检出位里 discard / restore 回写的是那套影子表：主检出位一处不动，删掉检出位再切过去读到的一致', async () => {
         const { featureOnly, featureCommitId } = await seedTwoBranches(database);
@@ -1801,7 +1801,7 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
       });
 
       // 只有主检出位同步（epic-006）：导入沿用这一条——检出位里那条分支的数据不该被服务端那条线快进
-      it('挂在可写检出位上导入：not_main_checkout，检出位与主检出位一处都不动（US-316）', async () => {
+      it('挂在可写检出位上导入：not_main_checkout，检出位与主检出位一处都不动（US-319）', async () => {
         await seedTwoBranches(database);
         const batch = viaServer((await database.workingTree.exportCommits()).commits);
         const before = await mainStateOf(database);

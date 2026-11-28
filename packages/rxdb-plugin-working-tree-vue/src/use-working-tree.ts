@@ -56,7 +56,7 @@ import { computed, shallowRef, type ComputedRef } from 'vue';
  * 不传第二参时与今天逐字节一致（无条件切换），`{ requireClean: true }` 在工作树非空时**抛**
  * `WorkingTreeDirtyError` —— 被拒不是返回值，因为那一刻分支根本没切。
  *
- * `importCommits(commits, options)` / `exportCommits(options?)` 由 US-316 接进来：导入的十种被拒成因
+ * `importCommits(commits, options)` / `exportCommits(options?)` 由 US-319 接进来：导入的十种被拒成因
  * （`not_fast_forward`、`fingerprint_mismatch`、`precondition_mismatch` 等）走**返回值**，`importCommitsState` 因此**没有 empty**，成功与否
  * 都重读一次 status（HEAD 快进过，或面板上那份凭据已经过期）；`exportCommitsState` 的空只有一个含义——那个提交之后
  * 这条分支上没有新提交，上传逻辑据此跳过一轮。导入的提交不经 `commits$` 发事件。
@@ -92,9 +92,9 @@ export interface WorkingTreeResource {
   readonly checkBranchFromCommitState: ComputedRef<WorkingTreeCommandState<WorkingTreeBranchFromCommitCheck>>;
   /** 上一次 `createBranchFromCommit()` 的相位；**没有 empty** —— 建好了与三种被拒成因都是结果 */
   readonly createBranchFromCommitState: ComputedRef<WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>>;
-  /** 上一次 `importCommits()` 的相位；**没有 empty** —— 被拒的各种成因与 no-op 都是结果（US-316） */
+  /** 上一次 `importCommits()` 的相位；**没有 empty** —— 被拒的各种成因与 no-op 都是结果（US-319） */
   readonly importCommitsState: ComputedRef<WorkingTreeCommandState<CommitImportResult>>;
-  /** 上一次 `exportCommits()` 的相位；那个提交之后没有新提交是 `empty`，**带着**那一页（US-316） */
+  /** 上一次 `exportCommits()` 的相位；那个提交之后没有新提交是 `empty`，**带着**那一页（US-319） */
   readonly exportCommitsState: ComputedRef<WorkingTreeQueryState<CommitExportPage>>;
 
   /** 读取这个库启没启用提交能力。 */
@@ -131,12 +131,12 @@ export interface WorkingTreeResource {
     branchId: string,
     commitId: string
   ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
-  /** 导入一段远端提交并快进分支头；被拒走返回值，不是异常。无论结果都重读一次 status（US-316）。 */
+  /** 导入一段远端提交并快进分支头；被拒走返回值，不是异常。无论结果都重读一次 status（US-319）。 */
   readonly importCommits: (
     commits: readonly CommitExchangeRecord[],
     options: CommitImportOptions
   ) => Promise<CommitImportResult>;
-  /** 列出某个提交之后的提交供上传，父先于子、落库形态（US-316）。 */
+  /** 列出某个提交之后的提交供上传，父先于子、落库形态（US-319）。 */
   readonly exportCommits: (options?: CommitExportOptions) => Promise<CommitExportPage>;
 }
 

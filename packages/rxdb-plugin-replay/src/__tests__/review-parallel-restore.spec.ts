@@ -85,7 +85,7 @@ const byEntityId = (entries: readonly WorkingTreeDiffEntry[]): WorkingTreeDiffEn
   [...entries].sort((left, right) => String(left.entityId).localeCompare(String(right.entityId)));
 
 describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
-  // US-317 之后 restore 把业务表写成目标提交的数据，条目是「HEAD → 目标」的差异（不再是目标节点自己的变更单元），
+  // US-320 之后 restore 把业务表写成目标提交的数据，条目是「HEAD → 目标」的差异（不再是目标节点自己的变更单元），
   // discard 把业务表退回 HEAD。replay 只是现取凭据转调 restore()，两条路落下的业务表、条目与状态必须一模一样。
   it('replay 恢复与直接 restore 对照一致：业务表呈现目标提交的数据、差异计为未提交改动，discard 退回 HEAD', async () => {
     const db = await createApp();

@@ -79,20 +79,26 @@ const writeSourceFile = async (root, relPath, source) => {
 // 登记表的词法解析
 // ---------------------------------------------------------------------------
 
-test('parseRegistry 从真实源码解析出 15 行登记与 9 个意图', async () => {
+test('parseRegistry 从真实源码解析出 17 行登记与 9 个意图', async () => {
   const { intents, rows } = parseRegistry(await readFile(join(PACKAGES_ROOT, REGISTRY_SOURCE_FILE), 'utf8'));
-  assert.equal(rows.length, 15);
+  assert.equal(rows.length, 17);
   assert.equal(intents.length, 9);
-  assert.equal(new Set(rows.map(registryKeyOf)).size, 15, '15 行必须是 15 个不同的登记键');
+  assert.equal(new Set(rows.map(registryKeyOf)).size, 17, '17 行必须是 17 个不同的登记键');
   assert.deepEqual(
     rows.filter(row => row.intent === 'working_tree_projection').map(row => `${row.file}·${row.symbol}`),
     ['discard-command.ts·rewriteProjectionToHead', 'restore-command.ts·rewriteProjectionToTarget'],
-    'discard 与 restore 的回写各占一行（US-317）：同一个意图，靠文件与符号分开'
+    'discard 与 restore 的回写各占一行（US-320）：同一个意图，靠文件与符号分开'
   );
   assert.deepEqual(
     rows.filter(row => row.intent === 'remote_commit_import').map(row => `${row.file}·${row.symbol}`),
     ['import-command.ts·applyImportedCommit'],
-    '导入远端提交独占一个意图（US-316）：与 remote_sync / working_tree_projection 都不合并'
+    '导入远端提交独占一个意图（US-319）：与 remote_sync / working_tree_projection 都不合并'
+  );
+  assert.deepEqual(
+    rows
+      .filter(row => row.intent === 'remote_sync' && row.file.startsWith('bucketed-'))
+      .map(row => `${row.file}·${row.symbol}`),
+    ['bucketed-pull.ts·applyScopedBatch', 'bucketed-scope-cleanup.ts·removeBucketScopeInTransaction']
   );
   assert.ok(
     rows.every(row => Number.isInteger(row.verifiedAtLine) && row.verifiedAtLine > 0),
@@ -739,7 +745,7 @@ test('collectSourceFiles 按同一套规则过滤真实目录树', async () => {
 // 真实仓库
 // ---------------------------------------------------------------------------
 
-test('真实仓库当前没有漂移，15 行登记全部找得到', async () => {
+test('真实仓库当前没有漂移，17 行登记全部找得到', async () => {
   const result = await auditRepository({ packagesRoot: PACKAGES_ROOT });
   assert.deepEqual(result.offenders, [], result.offenders.join('\n'));
   assert.equal(result.seenKeys.size, result.registry.rows.length);

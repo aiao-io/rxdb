@@ -1,5 +1,5 @@
 /**
- * @fileoverview `discardWorkingTree()` —— 把当前分支的工作树整体退回当前 HEAD，业务表一起退（FR-016、US-317）。
+ * @fileoverview `discardWorkingTree()` —— 把当前分支的工作树整体退回当前 HEAD，业务表一起退（FR-016、US-320）。
  *
  * @remarks
  * 五件事在这里被钉死：
@@ -17,9 +17,9 @@
  *    自己丢掉的是他看过的那些改动。
  * 4. **HEAD 一列都不动。** discard 不是 `reset --hard HEAD~1`：它不写提交历史，也不挪
  *    `baseHeadCommitId`。
- * 5. **业务表逐行回到 HEAD（US-317）。** v1 只回滚「逻辑工作树」，业务表停在丢弃前的值：
+ * 5. **业务表逐行回到 HEAD（US-320）。** v1 只回滚「逻辑工作树」，业务表停在丢弃前的值：
  *    `status()` 报 clean，列表与表单读到的却仍是被丢掉的草稿。现在回写与删条目、推 revision
- *    在调用方的同一个写事务里：回写经登记表 #13（{@link rewriteProjectionToHead}）的那一次
+ *    在调用方的同一个写事务里：回写经登记表 #15（{@link rewriteProjectionToHead}）的那一次
  *    `executor.mergeChanges`，任何一步抛错整笔回滚，业务表、条目与 revision 一起停在丢弃之前。
  *
  * ## 回写的三个裁决
@@ -124,7 +124,7 @@ const revertActionsOf = (context: CommitWriteContext, entries: readonly WorkingT
 };
 
 /**
- * 把业务表撤回 HEAD：受信调用点登记表 #13。
+ * 把业务表撤回 HEAD：受信调用点登记表 #15。
  *
  * @param executor - 调用方那个写事务的执行器；声明挂在它上面，由挂载点 2 当场取走
  * @param actions - {@link revertActionsOf} 算出的增删改
@@ -145,7 +145,7 @@ const rewriteProjectionToHead = async (executor: TransactionExecutor, actions: S
 };
 
 /**
- * 把当前分支的工作树整体退回当前 HEAD，业务表一起退（FR-016、US-317）。
+ * 把当前分支的工作树整体退回当前 HEAD，业务表一起退（FR-016、US-320）。
  *
  * @param executor - 调用方那个写事务的执行器；本函数**不自己开事务**
  * @param context - 见 {@link CommitWriteContext}：解码条目补丁要的实体元数据，与 `commit()` / `restore()` 同源

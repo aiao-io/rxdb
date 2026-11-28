@@ -92,7 +92,7 @@ export { generate_entity_delete_sql } from './entity/delete_sql.js';
 export { generate_entity_deletes_sql } from './entity/deletes_sql.js';
 export { generate_entity_insert_sql } from './entity/insert_sql.js';
 export type { InsertSqlOptions } from './entity/insert_sql.js';
-export { generate_entity_inserts_sql } from './entity/inserts_sql.js';
+export { generate_entity_inserts_sql, type InsertsSqlOptions } from './entity/inserts_sql.js';
 export { update_sql } from './entity/update_sql.js';
 
 // 查询 SQL 生成

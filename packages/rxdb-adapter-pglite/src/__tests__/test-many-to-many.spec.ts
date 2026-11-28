@@ -4,7 +4,16 @@
  * 重点验证添加和删除关系的一致性
  */
 
-import { getEntityStatus, RxDB, SyncType } from '@aiao/rxdb';
+import {
+  type EntityBase,
+  type EntityType,
+  getEntityMetadata,
+  getEntityStatus,
+  junctionEntityId,
+  RelationKind,
+  RxDB,
+  SyncType
+} from '@aiao/rxdb';
 import { Category, ENTITIES, Order, OrderItem, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
@@ -339,6 +348,102 @@ describe('MANY_TO_MANY 关系测试', () => {
       );
 
       expect(resultAfterDelete.rows.length).toBe(0);
+    });
+  });
+
+  describe('确定性关联行 id（US-228）', () => {
+    const junctionOf = (): EntityType => {
+      const relation = getEntityMetadata(OrderItem).relationMap.get('categories');
+      if (relation?.kind !== RelationKind.MANY_TO_MANY) throw new Error('OrderItem.categories 不是多对多');
+      return relation.junctionEntityType;
+    };
+    const derivedId = (category: Category, orderItem: OrderItem) =>
+      junctionEntityId(getEntityMetadata(junctionOf()), [
+        { foreignKey: 'categoriesId', id: category.id, uuid: true },
+        { foreignKey: 'orderItemsId', id: orderItem.id, uuid: true }
+      ]);
+    const idsOf = async (category: Category, orderItem: OrderItem) => {
+      const result = await adapter.internalQuery<{ id: string }>(
+        `SELECT id FROM "shop"."Category_OrderItem" WHERE "categoriesId" = $1 AND "orderItemsId" = $2`,
+        [category.id, orderItem.id]
+      );
+      return result.rows.map(row => row.id);
+    };
+    const newPair = async (name: string) => {
+      const category = new Category();
+      category.name = name;
+      await category.save();
+      const orderItem = new OrderItem();
+      orderItem.productName = name;
+      orderItem.quantity = 1;
+      orderItem.price = 1;
+      orderItem.order$.set(order);
+      await orderItem.save();
+      return { category, orderItem };
+    };
+
+    it('AC#1 从两端各关联一次：中间表只有一行，id 由两端 id 派生', async () => {
+      const { category, orderItem } = await newPair('US-228 两端');
+
+      await orderItem.categories$.add(category);
+      await orderItem.save();
+      await category.orderItems$.add(orderItem);
+      await category.save();
+
+      expect(await idsOf(category, orderItem)).toEqual([derivedId(category, orderItem)]);
+    });
+
+    it('AC#2 取消关联后重新关联：还是同一个 id，只有一行；重新关联的那一行照样删得掉', async () => {
+      const { category, orderItem } = await newPair('US-228 重新关联');
+      await orderItem.categories$.add(category);
+      await orderItem.save();
+      await orderItem.categories$.remove(category);
+      await orderItem.save();
+      expect(await idsOf(category, orderItem)).toEqual([]);
+
+      await orderItem.categories$.add(category);
+      await orderItem.save();
+      expect(await idsOf(category, orderItem)).toEqual([derivedId(category, orderItem)]);
+
+      await orderItem.categories$.remove(category);
+      await orderItem.save();
+      expect(await idsOf(category, orderItem)).toEqual([]);
+    });
+
+    // 分支深度评审 #1：复用同一对的中间表时，它还挂在解绑那一端的待删集合里，保存把关联行删掉、不再写回
+    it('一端解绑、保存之前从另一端重新关联：两端保存之后这一对仍在，只有一行', async () => {
+      const { category, orderItem } = await newPair('US-228 跨端重新关联');
+      await orderItem.categories$.add(category);
+      await orderItem.save();
+
+      await orderItem.categories$.remove(category);
+      await category.orderItems$.add(orderItem);
+      await orderItem.save();
+      await category.save();
+
+      expect(await idsOf(category, orderItem)).toEqual([derivedId(category, orderItem)]);
+    });
+
+    it('AC#3 这一对已在本地库里、没有加载进内存：再关联并保存不报主键冲突，仍只有一行', async () => {
+      const { category, orderItem } = await newPair('US-228 已在库里');
+      const Junction = junctionOf() as unknown as new (data: object) => EntityBase;
+      const stored = new Junction({
+        id: derivedId(category, orderItem),
+        categoriesId: category.id,
+        orderItemsId: orderItem.id
+      });
+      await stored.save();
+      // 内存里不再有这一行：例如别的设备推上来、本机刚拉到，还没被任何查询加载
+      rxdb.entityManager.removeEntityCache(stored);
+
+      await orderItem.categories$.add(category);
+      await orderItem.save();
+      expect(await idsOf(category, orderItem)).toEqual([derivedId(category, orderItem)]);
+
+      // 保存之后实例接管了库里那一行：解绑删得掉
+      await orderItem.categories$.remove(category);
+      await orderItem.save();
+      expect(await idsOf(category, orderItem)).toEqual([]);
     });
   });
 });

@@ -27,13 +27,23 @@ const dedupeEntitiesForUpsert = <T extends EntityType>(entities: InstanceType<T>
   return result.reverse();
 };
 
+/**
+ * 主键已经存在时怎么办
+ *
+ * - `error`：照常报主键冲突（普通实体的新建）
+ * - `update`：按新值更新可变列（upsert）
+ * - `ignore`：保留库里那一行，什么都不改。多对多中间表的行 id 由两端确定性派生（US-228），
+ *   同 id 就是同一对，库里已有这一对时新建退化成空操作，不报错、也不多记一条变更
+ */
+export type InsertConflictMode = 'error' | 'update' | 'ignore';
+
 const generateEntityInsertsSql = async <T extends EntityType>(
   metadata: EntityMetadata,
   tableSet: WorktreeTableSet,
   entities: InstanceType<T>[],
   context?: IQueryContext,
   encryption?: EncryptionContext,
-  upsert = false
+  conflict: InsertConflictMode = 'error'
 ): Promise<string> => {
   const createdBy = Boolean(context?.userId && metadata.propertyMap.has('createdBy'));
   const updatedBy = Boolean(context?.userId && metadata.propertyMap.has('updatedBy'));
@@ -77,12 +87,17 @@ const generateEntityInsertsSql = async <T extends EntityType>(
   const assignments = updateColumns
     .map(column => `${quoteIdentifier(column)} = EXCLUDED.${quoteIdentifier(column)}`)
     .join(',');
-  const conflictClause =
-    updateColumns.length === 0 ?
-      ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO NOTHING`
-    : ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO UPDATE SET ${assignments}`;
+  const ignoreClause = ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO NOTHING`;
+  const conflictClauses: Record<InsertConflictMode, string> = {
+    error: '',
+    update:
+      updateColumns.length === 0 ?
+        ignoreClause
+      : ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO UPDATE SET ${assignments}`,
+    ignore: ignoreClause
+  };
 
-  return `INSERT INTO ${getTableNameByMetadata(metadata, tableSet)} (${quotedColumns}) VALUES ${valueGroups.join(',')}${upsert ? conflictClause : ''};`;
+  return `INSERT INTO ${getTableNameByMetadata(metadata, tableSet)} (${quotedColumns}) VALUES ${valueGroups.join(',')}${conflictClauses[conflict]};`;
 };
 
 export const generate_entity_upserts_sql = <T extends EntityType>(
@@ -92,6 +107,6 @@ export const generate_entity_upserts_sql = <T extends EntityType>(
   context?: IQueryContext,
   encryption?: EncryptionContext
 ): Promise<string> =>
-  generateEntityInsertsSql(metadata, tableSet, dedupeEntitiesForUpsert(entities), context, encryption, true);
+  generateEntityInsertsSql(metadata, tableSet, dedupeEntitiesForUpsert(entities), context, encryption, 'update');
 
 export default generateEntityInsertsSql;

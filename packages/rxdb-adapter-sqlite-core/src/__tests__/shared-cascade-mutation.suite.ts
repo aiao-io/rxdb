@@ -6,8 +6,10 @@ import {
   PropertyType,
   RelationEntityObservable,
   RelationKind,
+  RxDBChange,
   UUID,
-  getEntityStatus
+  getEntityStatus,
+  getRxDBChangeEntityIdQueryValues
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
@@ -423,6 +425,77 @@ export function cascadeMutationSuite(factory: AdapterFactory) {
             where: { combinator: 'and', rules: [] }
           });
           expect(deletedChildren.length).toBe(0);
+        });
+      });
+
+      describe('级联写入与源删除记成一个事务（US-318）', () => {
+        const changesOf = (entityIds: string[]) =>
+          adapter.getRepository(RxDBChange).find({
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'entityId', operator: 'in', value: getRxDBChangeEntityIdQueryValues(entityIds) }]
+            }
+          });
+        const byId = <T extends typeof Parent | typeof Category | typeof Product>(EntityType: T, id: string) =>
+          adapter.getRepository(EntityType).find({
+            where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+          });
+        const childrenOf = (parentId: string) =>
+          adapter.getRepository(Child).find({
+            where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parentId }] }
+          });
+
+        it('删除父记录：级联删掉的子记录与源删除同一个事务号，撤销一次全部回来，重做一次全部删掉', async () => {
+          const parent = new Parent();
+          parent.name = 'US-318 parent';
+          await parent.save();
+          const children = ['a', 'b'].map(name => {
+            const child = new Child();
+            child.name = `US-318 child ${name}`;
+            child.parentId = parent.id;
+            return child;
+          });
+          for (const child of children) await child.save();
+
+          await parent.remove();
+
+          const deletes = (await changesOf([parent.id, ...children.map(child => child.id)])).filter(
+            change => change.type === 'DELETE'
+          );
+          expect(deletes).toHaveLength(3);
+          expect(new Set(deletes.map(change => change.transactionId)).size).toBe(1);
+          expect(deletes[0].transactionId).not.toBeNull();
+
+          const history = adapter.rxdb.versionManager.history();
+          await history.undo();
+          expect(await byId(Parent, parent.id)).toHaveLength(1);
+          expect(await childrenOf(parent.id)).toHaveLength(2);
+
+          await history.redo();
+          expect(await byId(Parent, parent.id)).toHaveLength(0);
+          expect(await childrenOf(parent.id)).toHaveLength(0);
+        });
+
+        it('删除被可空外键引用的记录：置空与源删除同一个事务号，撤销一次两边都回来', async () => {
+          const category = new Category();
+          category.name = 'US-318 category';
+          await category.save();
+          const product = new Product();
+          product.name = 'US-318 product';
+          product.categoryId = category.id;
+          await product.save();
+
+          await category.remove();
+
+          const writes = (await changesOf([category.id, product.id])).filter(change => change.type !== 'INSERT');
+          expect(writes.map(change => change.type).sort()).toEqual(['DELETE', 'UPDATE']);
+          expect(new Set(writes.map(change => change.transactionId)).size).toBe(1);
+          expect(writes[0].transactionId).not.toBeNull();
+
+          await adapter.rxdb.versionManager.history().undo();
+          expect(await byId(Category, category.id)).toHaveLength(1);
+          const [restored] = await byId(Product, product.id);
+          expect(restored.categoryId).toBe(category.id);
         });
       });
 

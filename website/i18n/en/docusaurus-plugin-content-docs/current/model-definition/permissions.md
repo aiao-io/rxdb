@@ -4,6 +4,7 @@ Every entity can declare, for each of the three write operations - create, updat
 
 - `'both'`: users and the system can both write (the default, same as the current behavior)
 - `'system'`: system writes only - a user write through a public write entry point is rejected on the spot, naming the entity and the operation
+- `{ requires: '<permission>' }`: checked against the scope the row belongs to - the caller needs that member permission on that scope; see [Scoped member permissions](#scoped-member-permissions)
 
 The same declaration drives two things at once: fast failure at the write entry points (throwing `PermissionDeniedError`), and which create, edit, and delete entry points the entity management UI (the `EntityList` of Angular / React / Vue) shows or hides. Permission declarations live in the `@aiao/rxdb` core package, so there is nothing extra to install.
 
@@ -15,7 +16,7 @@ Permission checks are only placed at the public write entry points (the `Reposit
 
 Before the permission model, system tables could only stay read-only through per-field `readonly` and the `isSystemEntity()` special case: per-field flags cannot stop creates and deletes, and one unmarked new field leaves the table exposed. The permission model collapses "can this entity be touched" into a single declaration on the entity:
 
-- The 14 system tables (4 core + 10 contributed by the working-tree plugin) explicitly declare all three operations as `'system'`, making the whole table read-only to users
+- The 15 system tables (5 core + 10 contributed by the working-tree plugin) explicitly declare all three operations as `'system'`, making the whole table read-only to users
 - Entities written only by sync or migrations (such as an exchange rate table) can tighten just `create`; the UI then hides "+ New"
 - All three framework UIs derive their entry points from the same declaration instead of each maintaining its own special cases
 
@@ -27,7 +28,11 @@ The permission types come from `@aiao/rxdb`:
 
 ```ts
 type EntityOperation = 'create' | 'update' | 'delete';
-type EntityOperationPermission = 'both' | 'system';
+type EntityOperationPermission = 'both' | 'system' | EntityOperationRule;
+
+interface EntityOperationRule {
+  requires: string; // The required member permission, see "Scoped member permissions"
+}
 
 interface EntityPermissionOptions {
   create?: EntityOperationPermission;
@@ -78,16 +83,17 @@ The Junction entity generated for a many-to-many relation is created by `SchemaM
 
 ## System tables
 
-The system tables are "14 tables, each explicitly declared": 4 core tables plus 10 contributed by the working-tree plugin, and each one writes `permissions: SYSTEM_ENTITY_PERMISSIONS` (all three operations `'system'`) on its own `@Entity`.
+The system tables are "15 tables, each explicitly declared": 5 core tables plus 10 contributed by the working-tree plugin, and each one writes `permissions: SYSTEM_ENTITY_PERMISSIONS` (all three operations `'system'`) on its own `@Entity`.
 
-The 4 core tables (`packages/rxdb/src/system/`):
+The 5 core tables (`packages/rxdb/src/system/`, `packages/rxdb/src/grants/`):
 
-| Entity          | Description              |
-| --------------- | ------------------------ |
-| `RxDBBranch`    | Branch table             |
-| `RxDBChange`    | Change log table         |
-| `RxDBMigration` | Migration registry table |
-| `RxDBSync`      | Sync watermark table     |
+| Entity           | Description                                                    |
+| ---------------- | -------------------------------------------------------------- |
+| `RxDBBranch`     | Branch table                                                   |
+| `RxDBChange`     | Change log table                                               |
+| `RxDBMigration`  | Migration registry table                                       |
+| `RxDBSync`       | Sync watermark table                                           |
+| `RxDBGrantState` | Grant snapshot (a single row, see "Scoped member permissions") |
 
 The 10 tables contributed by working-tree (`@aiao/rxdb-plugin-working-tree`):
 
@@ -154,6 +160,8 @@ try {
 
 A single entry point rejection yields exactly one item in the list. A rejection never changes data: a rejected create leaves no new row, a rejected update leaves the row as it was, and a rejected remove leaves the row in place.
 
+When a rule is what rejected the write, the list item is the extended `PermissionRuleViolation`, which also carries the row id, the scope, the required permission, and the reason; tell them apart with `isPermissionRuleViolation()`. Items for `'system'` keep the three fields above; see [Violation list](#violation-list).
+
 ### Unchecked paths
 
 The writes below belong to the adapter / executor layer (the system write channel) and are not permission-checked:
@@ -175,7 +183,10 @@ Entry point visibility in the entity management UI is uniformly derived from met
 import { getEntityMetadata } from '@aiao/rxdb';
 import { deriveEntityCapabilities } from '@aiao/rxdb-model';
 
-const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice));
+const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice), {
+  readOnly: rxdb.readOnly,
+  grants: rxdb.grants.snapshot
+});
 ```
 
 | Capability  | Value               | What the UI shows when false                                                                                                                        |
@@ -184,7 +195,9 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 | `canEdit`   | `update === 'both'` | Rows carry `_readonly`: cells, paste, drag, and keyboard switching are all non-writable; "View" opens the detail in view mode (no save entry point) |
 | `canDelete` | `delete === 'both'` | The action column has no "Delete"; "View" remains                                                                                                   |
 
-Delete capability and row read-only are **decoupled**: an entity with `update: 'system'` has read-only rows but can still be deleted when `delete: 'both'`; an entity with `delete: 'system'` has editable rows but no delete button. The action column's `actionsColumn()` takes a per-row predicate `(record) => boolean` as its third argument, which `buildEditableColumns()` derives from `canDelete` - applications that call `actionsColumn()` directly must pass it themselves; see [Action columns](/migration/actions-column-can-delete.md) (in Chinese).
+On a read-only instance (`readOnly: true`, such as a read-only checkout) all three are closed. Operations declared with a rule are derived from the grant snapshot: at the entity level, the question is whether some scope with the entity's prefix has the required permission; which rows can be edited or deleted is covered in [Per-row UI derivation](#per-row-ui-derivation).
+
+Delete capability and row read-only are **decoupled**: an entity with `update: 'system'` has read-only rows but can still be deleted when `delete: 'both'`; an entity with `delete: 'system'` has editable rows but no delete button. The action column's `actionsColumn()` takes a per-row predicate `(record) => boolean` as its third argument, which `buildEditableColumns()` derives per row (for a rule, from the row's scope) - applications that call `actionsColumn()` directly must pass it themselves; see [Action columns](/migration/actions-column-can-delete.md) (in Chinese).
 
 The `EntityList` of all three frameworks follows the same derivation path:
 
@@ -199,6 +212,155 @@ The Relations tab of the detail dialog embeds `EntityList` itself; the associate
 - **System writes are unchecked, so sync is unaffected.** Sync pushes and pulls, migration registration, undo/redo, and working-tree commits all go through the adapter / executor layer. An entity with `create: 'system'` (such as an exchange rate table) can still be written by sync pulls; declaring system tables user-unwritable does not interfere with sync, undo, or branch deletion.
 - **QueryCache batches are prechecked as a whole before any write goes out.** The `mutations()` precheck completes before any write is issued, and QueryCache batches are then checked again item by item through the facade with the same results - there is no half-written batch where "the first N-1 items were already written and only the Nth was rejected".
 - **Many-to-many Junctions default to `'both'`**: linking to a read-only entity only writes join-table rows, and is let through.
+
+## Scoped member permissions
+
+`'both'` / `'system'` cannot tell people apart. In a multi-tenant, multi-member application the same person can be an admin in one tenant and staff in another: staff can see the tenant's data but not create, update, or delete it. The rule form turns this into a declaration on the entity - which scope a row belongs to, and which member permission each write operation requires - checked per row at the public write entry points, instead of every application writing its own "check before write" and then keeping it in line with the server's RLS.
+
+### Declaring the scope and the required permission
+
+```ts
+import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
+
+@Entity({
+  name: 'CatalogItem',
+  properties: [
+    { name: 'name', type: PropertyType.string },
+    { name: 'tenantId', type: PropertyType.string }
+  ],
+  access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
+  permissions: {
+    create: { requires: 'edit' },
+    update: { requires: 'edit' },
+    delete: { requires: 'edit' }
+  }
+})
+export class CatalogItem extends EntityBase {}
+```
+
+- **Scope key = `prefix` + property value**: in the example, rows of tenant `xinghe` belong to `tenant:xinghe`. `prefix` defaults to the empty string.
+- **The scope property** must be a plain property declared on the entity (inherited ones count): `string` or `uuid`, not nullable, not encrypted, not a computed property, and not a foreign key column generated by a relation. The audit fields `createdBy` / `updatedBy` cannot be scopes: they are nullable, and a push overwrites them with the identity of that moment.
+- **Permission names** are only checked to be non-empty strings; there is no registry, and their meaning belongs to the application. The Supabase reference implementation uses six: `read`, `edit` (create / update / delete), `comment`, `review`, `merge`, and `manage` (change member permissions).
+- **"Owner only" is a special case of a scope**: take the owner property as the scope with the prefix `user:`; handing a row to someone else changes its scope and is rejected by the same rule.
+- The rule form requires `access.scope`; both `access` and the rules inherit from the nearest ancestor, and `access` is taken as a whole (a subclass that declares it replaces it entirely).
+- Only a local primary is supported: if the effective sync configuration of the entity is remote-only or `SyncType.QueryCache`, initialization fails - the check reads the persisted pre-image inside a local transaction. The graph plugin's `@GraphEntity` is not supported either (`addEdge()` does not go through the facade write entry points).
+
+Declaration mistakes (a missing, nullable, or wrongly typed property; a rule without `access`; an empty `requires`; unknown keys...) fail in `RxDB.init()`, naming the entity, the key, and the reason.
+
+### How writes are checked
+
+The checks sit at the same public write entry points as `'system'`; system writes such as sync merges, undo / redo, foreign key cascades, and migrations are not checked.
+
+| Operation | Which row's scope                                                                 | Allowed when                                                           |
+| --------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| create    | The new row                                                                       | The snapshot has `requires` on that scope                              |
+| update    | The persisted pre-image; when the scope property changes, the written row as well | Both scopes have `requires`: moving to another tenant needs both sides |
+| delete    | The persisted pre-image                                                           | The snapshot has `requires` on that scope                              |
+
+- **The persisted pre-image**: update / delete read the row as it is in the database now, not the in-memory instance that was edited. The pre-image is read inside the same transaction of the local primary adapter as the write, once per entity (`WHERE id IN (…)`), and batches over 100 rows miss nothing.
+- **Atomic batches**: if any row of `saveMany()` / `removeMany()` / `mutations()` is rejected, the whole call is rejected and nothing is written.
+- **Unknown grants reject everything**: before a snapshot exists, every write governed by a rule is rejected, with the reason "grants unknown".
+
+#### Violation list
+
+A rule violation is a `PermissionRuleViolation`:
+
+```ts
+interface PermissionRuleViolation extends PermissionViolation {
+  id: string | number | bigint; // The rejected row
+  scope: string | null; // The row's scope key; null when the scope property has no value
+  requires: string; // The required member permission
+  reason: 'missing-permission' | 'grants-unknown'; // Missing permission / no snapshot yet
+}
+```
+
+```ts
+import { isPermissionRuleViolation, PermissionDeniedError } from '@aiao/rxdb';
+
+try {
+  await item.save();
+} catch (error) {
+  if (!(error instanceof PermissionDeniedError)) throw error;
+  for (const violation of error.violations.filter(isPermissionRuleViolation)) {
+    console.warn(`${violation.entity}#${violation.id}: no ${violation.requires} on ${violation.scope}`);
+  }
+}
+```
+
+There is one item per row per scope: an update that changes the scope and lacks the permission on both sides yields two.
+
+### The grant snapshot
+
+Which permissions the caller has on each scope is described by the instance's grant snapshot, `rxdb.grants`:
+
+```ts
+const snapshot = rxdb.grants.snapshot; // RxDBGrantSnapshot
+snapshot.status; // 'unknown' (not obtained yet) | 'known'
+snapshot.has('tenant:xinghe', 'edit'); // always false while unknown
+rxdb.grants.snapshot$.subscribe(render); // emits the current value on subscribe, then only when the content changes
+```
+
+The snapshot has two possible sources, and an instance accepts only one:
+
+| Source         | When                                                                                                       | How it is updated                                                                                                           |
+| -------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Remote         | Some entity declares a scope and the remote adapter reports grants (Supabase reads `rxdb_caller_grants()`) | The remote is asked when it connects, at the start of every sync round, and on `rxdb.grants.refresh()`; `set()` is rejected |
+| Set by the app | Otherwise: no remote, or a remote that does not report grants                                              | `await rxdb.grants.set([{ scope: 'tenant:a', permissions: ['read', 'edit'] }])`                                             |
+
+Before asking the remote, the caller identity is verified (when `RxDBOptions.identity` is declared): the grants are data that land in this identity's database. When no entity declares a scope, the remote is never asked, so older servers without the grant function keep working.
+
+The snapshot is stored in the system table `rxdb_grant_state` of the local database: local databases are split per identity, switching identity means switching databases, and snapshots never cross databases; after closing and reopening offline, `connect()` reads the last snapshot back and checks writes with it. If the remote connects before the local database, that one refresh is published without being stored; the next refresh stores it. Each instance owns its snapshot; a refresh in one tab is not pushed to other tabs.
+
+### Per-row UI derivation
+
+The `EntityList` of all three frameworks subscribes to `rxdb.grants.snapshot$`, and the entry points for rule-form operations are recomputed whenever the snapshot changes, without reloading the page:
+
+| Entry point     | When it is offered                                                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "+ New"         | Some scope **with the entity's prefix** has the permission `create` requires: an `edit` on the caller's own `user:` scope does not offer "+ New" on a `tenant:` entity |
+| Editable row    | The row's scope has the permission `update` requires; otherwise the row carries `_readonly` and "View" opens in view mode                                              |
+| Row "Delete"    | The row's scope has the permission `delete` requires                                                                                                                   |
+| Drag reordering | For a manually ordered entity, a single read-only row turns dragging off for the whole table                                                                           |
+
+While the snapshot is unknown, every rule-form entry point is closed and the list says why at the top ("Permissions not loaded yet"); a read-only instance is explained the same way.
+
+Build your own UI on the same derivation:
+
+```ts
+import { deriveCreateCapability, deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
+
+const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
+const { canEdit, canDelete, editReason } = deriveRowCapabilities(metadata, row, context);
+// why not: 'read-only-instance' | 'system' | 'grants-unknown' | 'missing-permission'
+const blocked = deriveWriteBlockedReason(metadata, context); // 'read-only-instance' | 'grants-unknown' | undefined
+// scope picker in a create form: list only the tenants a new row can be created in, as the create check does
+const tenants = allTenants.filter(t => deriveCreateCapability(metadata, { tenantId: t.id }, context).canCreate);
+```
+
+- Omitting `grants` is the same as an unknown snapshot: rule-form operations are closed. Applications that call `buildEditableColumns()` directly must pass `grants` and rebuild the columns when the snapshot changes; otherwise rule-form rows never offer "Delete".
+- Per-row derivation looks at the row's **current** values, while the write entry points check the persisted pre-image; the two agree once the row is saved. The UI is only quick feedback; the write entry point has the final say (`PermissionDeniedError`, see [Violation list](#violation-list)).
+- `EntityList` has no batch delete; for the all-or-nothing rejection of `removeMany()` / `mutations()` see [How writes are checked](#how-writes-are-checked).
+
+### Offline and the downgrade window
+
+Local checks use **the last snapshot obtained**:
+
+- **Offline**: if the remote cannot be reached when it connects, the last snapshot is kept and the connection completes; a configuration error such as a server without the grant function fails the connection instead (Supabase reports `SupabaseConfigError`, naming the function and the deployment docs).
+- **The downgrade window**: right after the server demotes someone from admin to staff, the local instance still allows writes by the old snapshot until the next refresh (the next sync round, or `refresh()` from the app). Changes written in that window are rejected by the server when pushed and the local data is realigned from the per-entity receipts (see the [sync plugin](/plugins/rxdb-plugin-sync/README.md)); once a sync refreshes the snapshot, local writes are rejected on the spot.
+
+:::warning Fast failure, not a security boundary
+Local checks only make an unauthorized write fail on the spot, without leaving a pending change that is bound to be rejected. They do not stop direct edits to the local database or writes through the adapter / executor layer; the real boundary is the server's RLS.
+:::
+
+### Keeping it in line with RLS
+
+Local checks and the server's decision must say the same thing, so three things have to line up:
+
+1. **The same scope key**: the key built from the entity's `access.scope` (`property: 'tenantId', prefix: 'tenant:'`) is the same string as `'tenant:' || tenant_id` in the write policies and the `scope` returned by `rxdb_caller_grants()`.
+2. **The same required permission**: the rule's `requires: 'edit'` is the permission the write policies check (in the Supabase reference implementation: `= ANY((SELECT public.rxdb_caller_scopes('edit'))::text[])`).
+3. **The same grants**: the snapshot comes from `rxdb_caller_grants()`, and the write policies read it through `rxdb_caller_scopes()`; change the member table and both sides change on the next request.
+
+For the Supabase reference SQL, write policies, and upgrade steps, see the [Supabase adapter](/adapters/supabase.md) and the [member permissions migration](/migration/supabase-member-permissions.md) (in Chinese).
 
 ## Continue reading
 

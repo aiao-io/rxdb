@@ -117,7 +117,7 @@ export interface BuildCommitRowsInput {
   /** 变更单元，有序；`sequence` 按此顺序发放 */
   readonly units: readonly CommitChangeUnitContent[];
   /**
-   * 远端给定的创建时间；只有导入远端提交（US-316）传，本地提交不传
+   * 远端给定的创建时间；只有导入远端提交（US-319）传，本地提交不传
    *
    * @remarks
    * 可选不是「缺省取个默认值」：两种取值是两种来源。本地提交的时间由写入那一刻给（见 {@link buildCommitRows}），
@@ -205,7 +205,7 @@ export type CommitHeadCasTarget = Pick<WriteCommitInput, 'branchId' | 'branchGen
  * @returns 单条 UPDATE 语句，全字面量、无占位符
  *
  * @remarks
- * 导出给导入远端提交（US-316）复用：HEAD 只能有一条推进语句，另写一条「导入专用」的 UPDATE，`generation` /
+ * 导出给导入远端提交（US-319）复用：HEAD 只能有一条推进语句，另写一条「导入专用」的 UPDATE，`generation` /
  * `status` 两个条件迟早会在那条路上被悄悄放宽（与 `branch-commit-rows.ts` 的 `anchorBranchBaseline` 同一条理由）。
  */
 export const buildAdvanceHeadCas = (tableRef: string, input: CommitHeadCasTarget, commitId: string): string => {
@@ -301,7 +301,7 @@ const clonePatch = (patch: Record<string, unknown> | null): Record<string, unkno
  * 原样采用入参，才能让 `commit-graph-guard.ts` 用同一份入参重算出同一个指纹。
  *
  * **本地提交的 `createdAt` 不赋值。** 它由写入那一刻给（FR-010）；构造期写一个本机时间进去，
- * 等于把客户端时钟漂移写进不可变历史。导入的提交（US-316）带 {@link BuildCommitRowsInput.createdAt}，
+ * 等于把客户端时钟漂移写进不可变历史。导入的提交（US-319）带 {@link BuildCommitRowsInput.createdAt}，
  * 原样写进去：那是它在服务端那一份身份里的时间。
  *
  * **`contentFingerprint` 由 `computeCommitContentFingerprint()` 合成，不在这里另算一遍**——

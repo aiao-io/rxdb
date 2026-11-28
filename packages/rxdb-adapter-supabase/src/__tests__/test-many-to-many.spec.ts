@@ -9,6 +9,7 @@ import { Category, ENTITIES, Order, OrderItem, User } from '@aiao/rxdb-test/shop
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseRepository } from '../SupabaseRepository.js';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
@@ -47,8 +48,7 @@ describe('MANY_TO_MANY 关系测试 (Supabase)', () => {
       'supabase',
       db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

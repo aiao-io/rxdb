@@ -36,7 +36,7 @@
 来自当前仓库真实示例的简化版：
 
 ```ts
-import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, EntityBase, OnDeleteAction, PropertyType, RelationKind } from '@aiao/rxdb';
 
 @Entity({
   name: 'User',
@@ -49,7 +49,9 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
       kind: RelationKind.ONE_TO_ONE,
       mappedEntity: 'IdCard',
       mappedProperty: 'owner',
-      nullable: true
+      nullable: true,
+      // 删掉身份证只把用户的引用置空；一对一默认是 CASCADE，会连用户一起删
+      onDelete: OnDeleteAction.SET_NULL
     }
   ]
 })
@@ -86,7 +88,15 @@ export class IdCard extends EntityBase {}
 - `nullable`
 - `unique`
 - `columnName`
-- `onDelete` / `onUpdate`
+- `onDelete` / `onUpdate`（一对一默认 `onDelete: CASCADE`，可空也一样）
+
+### 双向一对一
+
+上面两侧都声明了 `ONE_TO_ONE`，所以两侧各有一列外键：`User.idCardId` 指向身份证，`IdCard.ownerId` 指向用户，两张表互相引用。
+
+- **本地写入**：本地外键都延迟到事务提交时才检查。在同一个事务里新建这一对（`entityManager.saveMany([user, card])`）没有先后之分。
+- **同步**：两侧至少要有一侧可空，这里是 `User.idCard`。同步层在可空的一侧断环：推送时这一列先写空，在同一个请求里再补写。两侧都非空时排不出写入顺序，推送会以 `unbreakable` 失败，见[外键成环](../collaboration/sync.md#外键成环)。
+- **删除**：`onDelete` 要与远端外键一致。shop 的远端是 `ON DELETE SET NULL`（删身份证、留用户）和 `ON DELETE CASCADE`（删用户、连身份证一起删），所以 `User.idCard` 要显式写 `SET_NULL`。不写的话，本地删身份证会按默认的 `CASCADE` 把用户也删掉，与远端对不上。
 
 ## 一对多 / 多对一
 
@@ -191,6 +201,29 @@ export class Category extends EntityBase {}
 - 命名空间：两个命名空间去重后按字母序拼接
 
 如果你确实需要自定义连接实体，也可以用 `junctionEntityType` 指定。
+
+### 关联行的 id
+
+`add()` 新建的连接行 id 由两端 id 确定性派生（uuid v5，US-228），与从哪一端调用、在哪个客户端调用无关：
+
+```ts
+import { junctionEntityId } from '@aiao/rxdb';
+
+// 与 orderItem.categories$.add(category) 新建的那一行同 id
+junctionEntityId({ namespace: 'shop', name: 'Category_OrderItem' }, [
+  { foreignKey: 'categoriesId', id: category.id, uuid: true },
+  { foreignKey: 'orderItemsId', id: orderItem.id, uuid: true }
+]);
+```
+
+- 名字是 `rxdb-junction:v1:<namespace>.<连接实体名>|<外键>=<主键>|<外键>=<主键>`，外键按属性名排序，uuid 主键转小写；命名空间是固定的协议常量 `JUNCTION_ID_NAMESPACE`。
+- 主键里的 `%` 与 `|` 先转义成 `%25`、`%7C`：不转义时 `('a|orderItemsId=b', 'c')` 与 `('a', 'b|orderItemsId=c')` 拼出同一段名字，两对不同的数据会得到同一个 id。uuid、数字主键不含这两个字符，名字不受影响。
+- 取消关联之后重新关联，还是同一个 id，本地只有一行。
+- 关联已经在库里、只是没有加载进内存（例如刚从远端拉到）时，再 `add()` 并保存不报主键冲突：本地适配器保留库里那一行，保存之后由这个实例接管，之后照常能取消关联。
+- 内存里已经有这一对的连接实例时，`add()` 复用它，不另造一个同 id 的实例。
+- 缺任一端的 id 时 `add()` 直接抛错：先给两端定好主键再关联。
+
+两个客户端并发关联同一对数据，推到远端只落成一行，见 [Supabase 适配器的多对多中间表](../adapters/supabase.md#多对多中间表)。
 
 ## 关系访问 API
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-316 导入的前像核对：哪些列参与比对、两侧的值怎么放到同一个刻度上。
+ * @fileoverview US-319 导入的前像核对：哪些列参与比对、两侧的值怎么放到同一个刻度上。
  *
  * @remarks
  * 实现目标是 `src/working-tree/import-precondition.ts`。命令体怎么用它（插入时不存在、修改与删除时存在且对得上、

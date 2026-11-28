@@ -36,6 +36,17 @@ actionsColumn('Actions', 'Delete', 'View');
 actionsColumn('Actions', 'Delete', () => canDelete, 'View');
 ```
 
+For an entity whose `delete` is declared with a rule (`{ requires }`, US-029), derive it per row, matching `EntityList`:
+
+```typescript
+import { actionsColumn, deriveRowCapabilities } from '@aiao/rxdb-model';
+
+const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
+actionsColumn('Actions', 'Delete', record => deriveRowCapabilities(metadata, record, context).canDelete, 'View');
+```
+
+Rebuild the columns when the grant snapshot changes (`rxdb.grants.snapshot$`).
+
 `canDelete` is called per row; when you really need per-row decisions, read the record:
 
 ```typescript

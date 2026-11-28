@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { EntityMetadata } from '@aiao/rxdb';
-import { PropertyType, RelationKind } from '@aiao/rxdb';
+import { PropertyType, RelationKind, RxDBGrantSnapshot } from '@aiao/rxdb';
 import type { StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types/index.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -444,6 +444,29 @@ describe('buildEditableColumns', () => {
     const iconFn = (columns.at(-1) as Record<string, unknown>)['icon'] as (a: StylePropertyFunctionArg) => unknown[];
     const names = (iconFn(makeArgs({ id: '1', _readonly: true })) as Array<{ name?: string }>).map(i => i.name);
     expect(names).toEqual(expected);
+  });
+
+  describe('规则形式的删除按行与授权快照派生（US-029）', () => {
+    const meta = makeMeta({
+      access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
+      permissions: { create: { requires: 'edit' }, update: { requires: 'edit' }, delete: { requires: 'edit' } }
+    });
+    const grants = RxDBGrantSnapshot.known([{ scope: 'tenant:a', permissions: ['read', 'edit'] }], 'app', new Date(0));
+    const iconNames = (columns: ReturnType<typeof buildEditableColumns>, record: Record<string, unknown>) => {
+      const iconFn = (columns.at(-1) as Record<string, unknown>)['icon'] as (a: StylePropertyFunctionArg) => unknown[];
+      return (iconFn(makeArgs(record)) as Array<{ name?: string }>).map(i => i.name);
+    };
+
+    it('a 的行出删除，b 的行只剩查看', () => {
+      const columns = buildEditableColumns(meta, { grants });
+
+      expect(iconNames(columns, { id: '1', tenantId: 'a' })).toEqual(['view-action', 'delete-action', 'delete-action']);
+      expect(iconNames(columns, { id: '2', tenantId: 'b' })).toEqual(['view-action']);
+    });
+
+    it('没传快照：规则形式的行一律不出删除', () => {
+      expect(iconNames(buildEditableColumns(meta), { id: '1', tenantId: 'a' })).toEqual(['view-action']);
+    });
   });
 
   it('只读实例（只读检出位，US-313）：属性列与外键列都不可编辑，操作列只剩查看', () => {

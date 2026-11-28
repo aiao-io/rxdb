@@ -6,8 +6,8 @@
  * - Push（子->父）: 确保子实体先同步，避免外键约束错误
  */
 
-import { RxDBError } from '@aiao/rxdb';
-import type { DependencyGraph, RepositoryIdentifier } from './dependency-graph.js';
+import { repositoryKey, RxDBError } from '@aiao/rxdb';
+import type { DependencyCycle, DependencyGraph, RepositoryIdentifier } from './dependency-graph.js';
 
 /**
  * 排序方向
@@ -86,40 +86,45 @@ export function topologicalSort(graph: DependencyGraph, direction: SortDirection
   const visited = new Set<string>();
   const tempMarked = new Set<string>();
 
+  // 外键成环的仓库当作一个单元（US-038）：先走完整个环对外的邻居，再把成员连续排出来；
+  // 不在环上的仓库就是只有自己的单元，排序与从前逐字相同
   function visit(key: string): void {
-    if (visited.has(key)) return;
+    const unit = unitOf(graph, key);
+    const unitId = unit[0];
+    if (visited.has(unitId)) return;
 
-    if (tempMarked.has(key)) {
+    if (tempMarked.has(unitId)) {
       throw new RxDBError(`Circular dependency detected at ${key}`);
     }
 
-    tempMarked.add(key);
+    tempMarked.add(unitId);
 
-    const dep = graph.get(key);
-    if (!dep) {
-      throw new RxDBError(`Repository ${key} not found in dependency graph`);
+    for (const memberKey of unit) {
+      const dep = graph.get(memberKey);
+      if (!dep) {
+        throw new RxDBError(`Repository ${memberKey} not found in dependency graph`);
+      }
+
+      // 根据方向选择遍历的邻居（边的选择集中在 dependencyEdgeOf，闸门那一侧读同一份）
+      for (const neighbor of dep[dependencyEdgeOf(direction)]) {
+        const neighborKey = `${neighbor.namespace}:${neighbor.entity}`;
+        // 跳过自引用（树形结构）与环内的边（环内顺序由成员顺序给出）
+        if (neighborKey === memberKey || unit.includes(neighborKey)) continue;
+        // 跳过悬挂依赖：关系可以指向没被注册进 config.entities 的实体（跨 namespace
+        // 部分注册、按需加载模块）。buildDependencyGraph 反向填充 requiredBy 时同样
+        // 是宽容的，这里不跳过就会让整个 pull/push 链路因一条无关关系而不可用。
+        if (!graph.has(neighborKey)) continue;
+        visit(neighborKey);
+      }
     }
 
-    // 根据方向选择遍历的邻居（边的选择集中在 dependencyEdgeOf，闸门那一侧读同一份）
-    const neighbors = dep[dependencyEdgeOf(direction)];
+    tempMarked.delete(unitId);
+    visited.add(unitId);
 
-    for (const neighbor of neighbors) {
-      const neighborKey = `${neighbor.namespace}:${neighbor.entity}`;
-      // 跳过自引用（树形结构）
-      if (neighborKey === key) continue;
-      // 跳过悬挂依赖：关系可以指向没被注册进 config.entities 的实体（跨 namespace
-      // 部分注册、按需加载模块）。buildDependencyGraph 反向填充 requiredBy 时同样
-      // 是宽容的，这里不跳过就会让整个 pull/push 链路因一条无关关系而不可用。
-      if (!graph.has(neighborKey)) continue;
-      visit(neighborKey);
-    }
-
-    tempMarked.delete(key);
-    visited.add(key);
-
-    // Pull: 父实体先访问，后添加 -> 父在前
-    // Push: 子实体先访问，后添加 -> 子在前
-    result.push(dep.repository);
+    // Pull: 父实体先访问，后添加 -> 父在前；环内成员按断环之后父在前
+    // Push: 子实体先访问，后添加 -> 子在前；环内成员倒过来
+    const ordered = direction === 'pull' ? unit : [...unit].reverse();
+    for (const memberKey of ordered) result.push(graph.get(memberKey)!.repository);
   }
 
   // 遍历所有节点
@@ -128,6 +133,12 @@ export function topologicalSort(graph: DependencyGraph, direction: SortDirection
   }
 
   return result;
+}
+
+/** 排序的单元：环上的仓库是整个环（成员顺序），其余是自己 */
+function unitOf(graph: DependencyGraph, key: string): readonly string[] {
+  const cycle = graph.get(key)?.cycle;
+  return cycle ? cycle.members.map(repositoryKey) : [key];
 }
 
 /**
@@ -238,9 +249,32 @@ export function filterAndSort(
     subGraph.set(key, {
       repository: dep.repository,
       dependsOn: filteredDependsOn,
-      requiredBy: filteredRequiredBy
+      requiredBy: filteredRequiredBy,
+      ...(dep.foreignKeys ? { foreignKeys: dep.foreignKeys } : {}),
+      ...cycleWithin(dep.cycle, keys)
     });
   }
 
   return topologicalSort(subGraph, direction);
+}
+
+/**
+ * 子图里的环：只留选中的成员；选中的不足两个时就不再是环
+ *
+ * @remarks
+ * 同一个环的成员共用同一个对象，这里按原对象记忆，子图里同一个环的成员同样共用一份。
+ */
+const subCycles = new WeakMap<DependencyCycle, Map<string, DependencyCycle>>();
+function cycleWithin(cycle: DependencyCycle | undefined, keys: ReadonlySet<string>): { cycle?: DependencyCycle } {
+  if (!cycle) return {};
+  const members = cycle.members.filter(member => keys.has(repositoryKey(member)));
+  if (members.length < 2) return {};
+  const signature = members.map(repositoryKey).join('|');
+  const byMembers = subCycles.get(cycle) ?? new Map<string, DependencyCycle>();
+  subCycles.set(cycle, byMembers);
+  const existing = byMembers.get(signature);
+  if (existing) return { cycle: existing };
+  const sub: DependencyCycle = { ...cycle, members };
+  byMembers.set(signature, sub);
+  return { cycle: sub };
 }

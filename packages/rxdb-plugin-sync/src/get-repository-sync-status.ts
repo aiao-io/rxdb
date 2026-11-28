@@ -5,6 +5,8 @@
  */
 
 import {
+  countRxDBChangeRecords,
+  type EntityMetadata,
   getEntityMetadata,
   getSyncCapability,
   getSyncType,
@@ -71,7 +73,7 @@ export interface RepositorySyncStatus {
   lastPullRemoteChangeId: number | null;
 
   /**
-   * 待推送的变更数量
+   * 待推送的记录数：一个事务一条，不在事务里的变更各一条（与操作历史同口径）
    */
   pushableCount: number;
 
@@ -82,7 +84,7 @@ export interface RepositorySyncStatus {
 }
 
 /**
- * 计算仓库的待推送变更数量
+ * 计算仓库的待推送记录数
  *
  * 逻辑：
  * - 统计 RxDBChange 记录，满足以下条件：
@@ -91,13 +93,14 @@ export interface RepositorySyncStatus {
  *   3. 不是远端产生的（remoteId 为 null）
  *   4. 未被撤销（revertChangeId 为 null）
  *   5. 比 lastPushedChangeId 新（如果存在）
+ * - 同一事务的变更算一条记录（{@link countRxDBChangeRecords}）
  *
  * @param sm - 调用方持有的同步管理器实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param branchId - 当前分支 ID
  * @param lastPushedChangeId - 最后一次推送的 changeId（若未推送则为 null）
- * @returns 待推送的变更数量
+ * @returns 待推送的记录数
  */
 async function calculatePushableCount(
   sm: SyncManager,
@@ -126,14 +129,7 @@ async function calculatePushableCount(
     rules.push({ field: 'id', operator: '>', value: lastPushedChangeId });
   }
 
-  const result = await changeRepo.find({
-    where: {
-      combinator: 'and',
-      rules
-    }
-  });
-
-  return result.length;
+  return countRxDBChangeRecords(options => changeRepo.count(options), { combinator: 'and', rules });
 }
 
 /**
@@ -181,7 +177,31 @@ export async function getRepositorySyncStatus(
     throw new Error(`Entity not found: ${namespace}.${entity}`);
   }
 
-  const metadata = getEntityMetadata(EntityClass);
+  return repositorySyncStatusOf(rxdb, getEntityMetadata(EntityClass), () =>
+    calculatePullableCount(rxdb, namespace, entity)
+  );
+}
+
+/**
+ * 按实体元数据算一个仓库的同步状态
+ *
+ * @param rxdb - RxDB 实例
+ * @param metadata - 仓库的实体元数据
+ * @param pullableCount - 数这个仓库的待拉数；只在仓库能拉取时调用
+ * @returns 仓库同步状态
+ *
+ * @remarks
+ * 单仓查询交进来的是逐仓的 `checkRepositoryUpdates`；整库查询交进来的是一轮数清的结果（US-236）。
+ *
+ * @internal
+ */
+export async function repositorySyncStatusOf(
+  rxdb: RxDB,
+  metadata: EntityMetadata,
+  pullableCount: () => Promise<number>
+): Promise<RepositorySyncStatus> {
+  const namespace = metadata.namespace;
+  const entity = metadata.name;
   const syncType = getSyncType(metadata, rxdb.entitySync);
   const syncCapability = getSyncCapability(syncType);
 
@@ -208,7 +228,7 @@ export async function getRepositorySyncStatus(
 
   // 4. 计算 pushableCount 和 pullableCount
   let pushableCount = 0;
-  let pullableCount = 0;
+  let pullable = 0;
 
   // 推拉能力取开头那一次解析的结果：中间隔着几个 await，重新解析可能与返回的 syncType 不一致
   if (syncCapability.push) {
@@ -216,7 +236,7 @@ export async function getRepositorySyncStatus(
   }
 
   if (syncCapability.pull) {
-    pullableCount = await calculatePullableCount(rxdb, namespace, entity);
+    pullable = await pullableCount();
   }
 
   // 5. 构建并返回状态
@@ -232,6 +252,6 @@ export async function getRepositorySyncStatus(
     lastPulledAt: repoSync?.lastPulledAt ?? null,
     lastPullRemoteChangeId: repoSync?.lastPullRemoteChangeId ?? null,
     pushableCount,
-    pullableCount
+    pullableCount: pullable
   };
 }

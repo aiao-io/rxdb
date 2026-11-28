@@ -881,6 +881,70 @@ describe('query_merge_update_cache', () => {
       expect(emissions).toEqual([1, 0]);
     });
 
+    describe('groupBy 分组计数', () => {
+      /** 数 status = active 的行按 transactionId 分成几组 */
+      const createGroupedCountTask = (counts: number[]): QueryTask<TestEntityType, number> => {
+        let call = 0;
+        return createMockQueryTask<number>({
+          type: 'count',
+          options: {
+            where: { combinator: 'and', rules: [{ field: 'status', operator: '=', value: 'active' }] },
+            groupBy: ['transactionId']
+          },
+          runner: () => of(counts[Math.min(call++, counts.length - 1)])
+        });
+      };
+
+      it('一直匹配的实体换了分组字段的值应该触发 SQL 重数', () => {
+        // 分组计数数的是组数：行一直在 where 里，换到另一组同样可能让组数变化
+        const task = createGroupedCountTask([2, 3]);
+        const refresh = vi.spyOn(task, 'refresh');
+        const emissions = collectEmissions(task);
+
+        query_merge_update_cache(task, [
+          createMockUpdateEvent(
+            { id: '1', status: 'active', transactionId: 'tx-2' },
+            { id: '1', status: 'active', transactionId: 'tx-1' }
+          )
+        ]);
+
+        expect(refresh).toHaveBeenCalledTimes(1);
+        expect(emissions).toEqual([2, 3]);
+      });
+
+      it('一直匹配、分组字段与 where 都没变的实体不应触发 SQL 重数', () => {
+        const task = createGroupedCountTask([2, 3]);
+        const refresh = vi.spyOn(task, 'refresh');
+        const emissions = collectEmissions(task);
+
+        query_merge_update_cache(task, [
+          createMockUpdateEvent(
+            { id: '1', title: 'B', status: 'active', transactionId: 'tx-1' },
+            { id: '1', title: 'A', status: 'active', transactionId: 'tx-1' }
+          )
+        ]);
+
+        expect(refresh).not.toHaveBeenCalled();
+        expect(emissions).toEqual([2]);
+      });
+
+      it('前后都不匹配 where 的实体换分组不应触发 SQL 重数', () => {
+        const task = createGroupedCountTask([2, 3]);
+        const refresh = vi.spyOn(task, 'refresh');
+        const emissions = collectEmissions(task);
+
+        query_merge_update_cache(task, [
+          createMockUpdateEvent(
+            { id: '1', status: 'inactive', transactionId: 'tx-2' },
+            { id: '1', status: 'inactive', transactionId: 'tx-1' }
+          )
+        ]);
+
+        expect(refresh).not.toHaveBeenCalled();
+        expect(emissions).toEqual([2]);
+      });
+    });
+
     it('一直匹配、只改了无关字段的实体不应触发 SQL 重数', () => {
       // 重数要给回与首个结果不同的值：同值会被去重，停在 [8] 分不出「没刷新」与「刷新了但数没变」，
       // 把 count 门控退回批次级的 match_where（merge_update.ts count 分支要避免的那种）也照样绿。

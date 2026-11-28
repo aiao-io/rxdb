@@ -33,7 +33,7 @@
 
 ## 协作后端收敛与上线
 
-方向见 [D-09](decisions.md#d-09协作后端收敛方向)，切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)，统一归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。差量提交、Supabase 原生读取与实时、团队任务草稿落在工作树（ADMIN-US-218 / 219 / 221）已交付，平台前置 US-316、US-317 同样已交付。剩余两条：
+方向见 [D-09](decisions.md#d-09协作后端收敛方向)，切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)，统一归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。差量提交、Supabase 原生读取与实时、团队任务草稿落在工作树（ADMIN-US-218 / 219 / 221）已交付，平台前置 US-319、US-320 同样已交付。剩余两条：
 
 1. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase：还差在全新的真实 Supabase 项目上部署并跑三端（AC#1）。
 2. [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) staging / production 部署、真实邮箱证据、部署后三端协作验收与运维护栏；它同时提供 ADMIN-US-201 与 ADMIN-US-220 所缺的真实环境证据。

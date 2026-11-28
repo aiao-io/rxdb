@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-317 红测试：`restore()` 把所选提交的数据写进业务表，差异计为未提交改动。
+ * @fileoverview US-320 红测试：`restore()` 把所选提交的数据写进业务表，差异计为未提交改动。
  *
  * @remarks
  * 实现目标是 `src/working-tree/restore-command.ts` 的物化与回写两段。
@@ -17,7 +17,7 @@
  *    迟早在「改过又改回」「删了又重建」这种边角上一份对、一份错，而 discard 读的是条目那一份。
  * 3. **完整差异为空就是 no-op。** 路径上改过又改回的字段、新建又删掉的行都不算差异；簿记字段
  *    （`remoteId` / 审计时间）不进版本控制，也不算。US-307 US1-AC7 的「物化内容与 HEAD 完全相同」由此成立。
- * 4. **回写是登记表 #14 那一次受信写**：执行器上的 `mergeChanges`，入口是投影重写（回写不再被捕获成单元），
+ * 4. **回写是登记表 #16 那一次受信写**：执行器上的 `mergeChanges`，入口是投影重写（回写不再被捕获成单元），
  *    触发器照开（回写进变更日志，切分支、同步与撤销栈才和业务表一致），排在 CAS 之后、落条目之前。
  */
 
@@ -186,7 +186,7 @@ const crossEntityHistory = (): readonly CommitSeed[] => [
   }
 ];
 
-describe('条目就是 HEAD → 目标的差异（US-317 AC3）', () => {
+describe('条目就是 HEAD → 目标的差异（US-320 AC3）', () => {
   it('跨实体的插入、修改与删除：inversePatch 是 HEAD 上的值，始终没动的行不留条目', async () => {
     const scene = sceneWithHistory(crossEntityHistory());
 
@@ -226,7 +226,7 @@ describe('条目就是 HEAD → 目标的差异（US-317 AC3）', () => {
   });
 });
 
-describe('业务表回写的就是这同一份差异（US-317 AC3）', () => {
+describe('业务表回写的就是这同一份差异（US-320 AC3）', () => {
   it('一次 mergeChanges：把条目叠到 HEAD 上，触发器照开', async () => {
     const scene = sceneWithHistory(crossEntityHistory());
 
@@ -252,7 +252,7 @@ describe('业务表回写的就是这同一份差异（US-317 AC3）', () => {
     expect({ localChanges, disableTriggers }).toEqual({ localChanges: undefined, disableTriggers: false });
   });
 
-  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #14，入口是投影重写', async () => {
+  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #16，入口是投影重写', async () => {
     const scene = sceneWithHistory(crossEntityHistory());
     const executor = scene.probe.executor;
     let declared: ReturnType<typeof takeDeclaredWrite>;

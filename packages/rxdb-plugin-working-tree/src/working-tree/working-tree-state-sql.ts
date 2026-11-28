@@ -1,5 +1,5 @@
 /**
- * @fileoverview `rxdb_working_tree_state` 的四种状态转移语句（data-model.md §2.6、§5；导入那一条是 US-316 加的）。
+ * @fileoverview `rxdb_working_tree_state` 的四种状态转移语句（data-model.md §2.6、§5；导入那一条是 US-319 加的）。
  *
  * @remarks
  * 两件事在这里被钉死：
@@ -109,7 +109,7 @@ export const buildWorkingTreeDiscardTransitionSql = (
   );
 };
 
-/** 一次导入远端提交收尾要写进状态行的值（US-316）。 */
+/** 一次导入远端提交收尾要写进状态行的值（US-319）。 */
 export interface WorkingTreeImportTransition {
   /** 目标分支 */
   readonly branchId: string;

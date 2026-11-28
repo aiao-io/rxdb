@@ -73,6 +73,26 @@ import { BranchManager } from './branch-manager';
           display: block;
         }
       }
+
+      /* 窄屏：收起时不占宽度，展开时是盖在页面上的抽屉（相对 #layout-main 定位，与 dev-rxdb-angular 同口径） */
+      @media (max-width: 767.98px) {
+        :host {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          z-index: 100;
+          width: 0;
+          border-right: none;
+          background: var(--color-base-100);
+        }
+
+        :has(.left-menu-pinned) :host {
+          width: min(80vw, 280px);
+          border-right: 1px solid color-mix(in oklch, var(--color-base-content), transparent 90%);
+          box-shadow: 2px 0 8px rgb(0 0 0 / 0.15);
+        }
+      }
     `
   ],
   changeDetection: ChangeDetectionStrategy.OnPush

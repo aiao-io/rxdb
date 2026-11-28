@@ -79,7 +79,13 @@ export interface SyncRejection extends SyncRejectionReport {
 export interface SyncState {
   /** 远端当前是否可达 */
   online: boolean;
-  /** 两条推送路径合计仍未推到远端的变更数 */
+  /**
+   * 两条推送路径合计仍未推到远端的记录数
+   *
+   * @remarks
+   * changelog 推送按事务计：同一事务的变更算一条（一次 `saveMany()` 是 1），不在事务里的变更各算一条；
+   * QueryCache 出站队列逐行重放，一行一条。
+   */
   pendingCount: number;
   /** 是否有一轮回推正在进行 */
   syncing: boolean;

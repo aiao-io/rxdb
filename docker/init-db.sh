@@ -52,6 +52,28 @@ psql_file 04-rxdb-utils-functions.sql 'Loading utility functions...'
 # dev-rxdb-p2p 的设备登记与清单表（p2p schema）。PGRST_DB_SCHEMAS 含 p2p，schema 不存在时
 # PostgREST 加载不了 schema 缓存（PGRST002）；表结构归 demo 所有，这里只负责在初始化链里建好。
 psql_file ../../apps/dev-rxdb-p2p/supabase/p2p-schema.sql 'Loading dev-rxdb-p2p schema...'
+# dev-rxdb-supabase 的按身份同步演示（epic-015）：租户、成员、按成员关系扩展的 caller buckets 与演示商品。
+# 依赖 03 的 catalog_items 夹具；归 demo 所有，这里只负责在初始化链里建好，生产权限脚本之前加载。
+psql_file ../../apps/dev-rxdb-supabase/supabase/catalog-demo.sql 'Loading dev-rxdb-supabase catalog demo...'
+# dev-rxdb-supabase 的关系数据演示（US-227）：客户、订单与订单项三张有外键的表。同样归 demo 所有，生产权限脚本之前加载。
+psql_file ../../apps/dev-rxdb-supabase/supabase/orders-demo.sql 'Loading dev-rxdb-supabase orders demo...'
+
+# 生产权限脚本要在 realtime.messages 上建通知频道的接收策略（US-225）。realtime.messages 与
+# realtime.send 由 Realtime 服务启动后自己建：全新的栈上 Realtime 往往比本脚本慢，直接加载会报
+# `relation "realtime.messages" does not exist`。先等它就绪，超时就失败，不跳过——跳过会让策略静默缺失。
+realtime_wait_seconds="${SUPABASE_REALTIME_WAIT_SECONDS:-120}"
+realtime_deadline=$((SECONDS + realtime_wait_seconds))
+echo "📦 Waiting for the Realtime schema (realtime.messages, realtime.send)..."
+until [ "$(compose exec -T db psql -U postgres -d postgres -tAc \
+  "SELECT pg_catalog.to_regclass('realtime.messages') IS NOT NULL
+      AND pg_catalog.to_regprocedure('realtime.send(jsonb,text,text,boolean)') IS NOT NULL" 2>/dev/null)" = 't' ]; do
+  if [ "$SECONDS" -ge "$realtime_deadline" ]; then
+    echo "🔴 Realtime 在 ${realtime_wait_seconds} 秒内没有建好 realtime.messages / realtime.send" >&2
+    exit 1
+  fi
+  sleep 2
+done
+
 # 生产权限脚本必须最后加载：01 / 03 的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把
 # rxdb_change 的写权限放宽回去，排在它们之后收紧才作数。开发库因此与生产同口径，
 # 测试对 rxdb_change 的预置与清理走 service_role（见 rxdb-adapter-supabase 的 test-utils.ts）。

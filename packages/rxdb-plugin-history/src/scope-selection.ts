@@ -20,9 +20,13 @@
  * `history()`（database 作用域）就能完整撤销这个事务。
  */
 
-import { HistoryItem, HistoryScope, RxDBChange, RxDBError } from '@aiao/rxdb';
+import { HistoryItem, HistoryScope, RepositoryIdentifier, RxDBChange, RxDBError } from '@aiao/rxdb';
 /** 判定作用域归属只需要这三个字段 */
 type ScopedChange = Pick<RxDBChange, 'entity' | 'entityId' | 'namespace'>;
+
+/** 同一个仓库：namespace 与 entity 都相同 */
+const isSameRepository = (a: RepositoryIdentifier, b: RepositoryIdentifier): boolean =>
+  a.namespace === b.namespace && a.entity === b.entity;
 
 /**
  * 单条变更是否落在作用域内
@@ -33,8 +37,45 @@ type ScopedChange = Pick<RxDBChange, 'entity' | 'entityId' | 'namespace'>;
  */
 export function isChangeInScope(change: ScopedChange, scope: HistoryScope): boolean {
   if (scope.type === 'database') return true;
-  if (change.namespace !== scope.namespace || change.entity !== scope.entity) return false;
+  if (scope.type === 'repositories') return scope.repositories.some(repository => isSameRepository(change, repository));
+  if (!isSameRepository(change, scope)) return false;
   return scope.type === 'repository' || change.entityId === scope.entityId;
+}
+
+/** 一张多对多中间表与它的两端（{@link repositoriesScopeOf} 的输入） */
+export interface JunctionEndpoints {
+  /** 中间表 */
+  readonly junction: RepositoryIdentifier;
+  /** 它的两端 */
+  readonly endpoints: readonly RepositoryIdentifier[];
+}
+
+/**
+ * 几个仓库合起来的作用域（US-316）
+ *
+ * @param listed - 调用方列出的仓库，顺序保留
+ * @param junctions - 实例里的多对多中间表与它们的两端
+ * @returns `repositories` 作用域：列出的仓库在前，两端都在其中的中间表随后
+ * @throws {@link RxDBError} `listed` 为空时：空列表不是整库作用域，要整库请用不带参数的 `history()`
+ *
+ * @remarks
+ * 中间表跟随两端（与 US-228「中间表的同步配置跟随两端」同口径）：给订单项挂分类只写中间表一行，
+ * 不把它算进来，这一步在「订单项 + 分类」的作用域里既看不见也撤不到。
+ */
+export function repositoriesScopeOf(
+  listed: readonly RepositoryIdentifier[],
+  junctions: readonly JunctionEndpoints[]
+): HistoryScope {
+  if (listed.length === 0) {
+    throw new RxDBError(
+      'history([]) needs at least one entity; call history() without arguments for the database scope'
+    );
+  }
+  const covered = (repository: RepositoryIdentifier) => listed.some(item => isSameRepository(item, repository));
+  const followers = junctions
+    .filter(({ junction, endpoints }) => !covered(junction) && endpoints.every(covered))
+    .map(({ junction }) => junction);
+  return { type: 'repositories', repositories: [...listed, ...followers] };
 }
 
 /** 历史项是否**至少有一条**变更落在作用域内（决定它是否出现在该作用域的历史里） */
@@ -88,6 +129,9 @@ export function selectScopedHistories(
 
 const describeScope = (scope: HistoryScope): string => {
   if (scope.type === 'database') return 'database';
+  if (scope.type === 'repositories') {
+    return scope.repositories.map(repository => `${repository.namespace}:${repository.entity}`).join(' + ');
+  }
   if (scope.type === 'repository') return `${scope.namespace}:${scope.entity}`;
   return `${scope.namespace}:${scope.entity}#${String(scope.entityId)}`;
 };

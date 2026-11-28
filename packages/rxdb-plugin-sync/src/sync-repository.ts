@@ -67,8 +67,10 @@ export interface SyncRepositoryResult extends SyncProgress {
 
 /**
  * 跳过拉取时的占位结果（未发生任何拉取，进度两项都为 false）
+ *
+ * @internal
  */
-function emptyPullResult(namespace: string, entity: string): PullRepositoryResult {
+export function emptyPullResult(namespace: string, entity: string): PullRepositoryResult {
   return {
     repository: { namespace, entity },
     pulled: 0,
@@ -85,8 +87,10 @@ function emptyPullResult(namespace: string, entity: string): PullRepositoryResul
 
 /**
  * 跳过推送时的占位结果
+ *
+ * @internal
  */
-function emptyPushResult(namespace: string, entity: string): PushRepositoryResult {
+export function emptyPushResult(namespace: string, entity: string): PushRepositoryResult {
   return {
     repository: { namespace, entity },
     pushed: 0,

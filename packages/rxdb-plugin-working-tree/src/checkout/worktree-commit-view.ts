@@ -5,7 +5,7 @@
  * 视图要的是「那次提交刚完成时」的数据，而业务表里只有现在的：只能从现在往回推——先把 active 分支的
  * 工作树条目整体反向（回到 HEAD），再从 HEAD 沿 restore 选定的可达路径往回，逐个提交反向应用它的变更单元。
  * 全部单元按时间编号，交给切分支同一份折叠（`get_switch_version_actions` 的逆向一支），叠到当前分支的快照上。
- * US-317 之后 restore 也把目标的数据写进业务表，但那是一次写；视图不动主库，照旧只读着往回推。
+ * US-320 之后 restore 也把目标的数据写进业务表，但那是一次写；视图不动主库，照旧只读着往回推。
  *
  * 只动已跟踪实体：未跟踪的表（查询缓存、关闭变更日志的实体）没有单元，保持现值。
  * 可达性、兼容性预检与 restore 同一口径（`resolveFirstParentReplayPath` / `findFirstReplayIncompatibility`），
@@ -49,7 +49,7 @@ export interface WorktreeCommitViewPlan {
  * @returns 往回推的路
  * @throws {@link WorktreeUnavailableError} `restoring_working_tree`：有进行中的恢复会话；
  * `unreachable_target`：目标不在 HEAD 的可达父链上；`side_branch_target`：目标只在合并进来的侧枝上，沿第一父链推不到
- * （US-316）；`incompatible_schema`：路径上有本客户端认不出的实体
+ * （US-319）；`incompatible_schema`：路径上有本客户端认不出的实体
  * @throws CommitGraphCorruptedError 当前分支的提交图已损坏
  */
 export const planCommitView = async (

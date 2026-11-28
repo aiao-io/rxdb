@@ -10,12 +10,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'error',
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/incompatible-library': 'error',
-      'react-hooks/unsupported-syntax': 'error',
-      // flat/react 里这几条规则与本项目的 React 用法不兼容，禁用
-      'react/no-direct-mutation-state': 'off',
-      'react/no-typos': 'off',
-      'react/require-render-return': 'off',
-      'react/jsx-no-useless-fragment': 'off'
+      'react-hooks/unsupported-syntax': 'error'
     }
   }
 ];

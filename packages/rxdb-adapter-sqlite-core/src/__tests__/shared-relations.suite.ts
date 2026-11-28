@@ -1,8 +1,10 @@
 import {
   Entity,
   EntityBase,
+  type EntityType,
   getEntityMetadata,
   getEntityStatus,
+  junctionEntityId,
   PropertyType,
   type RelationEntitiesObservable,
   type RelationEntityObservable,
@@ -156,6 +158,90 @@ export function relationIntegrationSuite(factory: AdapterFactory) {
             );
           });
           expect(check2.results[0].rows.length).toBe(1);
+        });
+      });
+
+      describe('确定性关联行 id（US-228）', () => {
+        const junctionOf = (): EntityType => {
+          const relation = getEntityMetadata(OrderItem).relationMap.get('categories');
+          if (relation?.kind !== RelationKind.MANY_TO_MANY) throw new Error('OrderItem.categories 不是多对多');
+          return relation.junctionEntityType;
+        };
+        const derivedId = (category: Category, orderItem: OrderItem) =>
+          junctionEntityId(getEntityMetadata(junctionOf()), [
+            { foreignKey: 'categoriesId', id: category.id, uuid: true },
+            { foreignKey: 'orderItemsId', id: orderItem.id, uuid: true }
+          ]);
+        const rowsOf = async (category: Category, orderItem: OrderItem) => {
+          const result = await adapter.transaction(client =>
+            client.execute(`SELECT id FROM "shop$Category_OrderItem" WHERE categoriesId = ? AND orderItemsId = ?`, [
+              category.id,
+              orderItem.id
+            ])
+          );
+          return result.results[0].rows;
+        };
+        const newPair = async (name: string) => {
+          const category = new Category();
+          category.name = name;
+          await category.save();
+          const orderItem = new OrderItem();
+          orderItem.productName = name;
+          orderItem.quantity = 1;
+          orderItem.price = 1;
+          orderItem.order$.set(order);
+          await orderItem.save();
+          return { category, orderItem };
+        };
+
+        it('AC#1 从两端各关联一次：中间表只有一行，id 由两端 id 派生', async () => {
+          const { category, orderItem } = await newPair('US-228 两端');
+
+          await orderItem.categories$.add(category);
+          await orderItem.save();
+          await category.orderItems$.add(orderItem);
+          await category.save();
+
+          expect(await rowsOf(category, orderItem)).toEqual([[derivedId(category, orderItem)]]);
+        });
+
+        it('AC#2 取消关联后重新关联：还是同一个 id，只有一行；重新关联的那一行照样删得掉', async () => {
+          const { category, orderItem } = await newPair('US-228 重新关联');
+          await orderItem.categories$.add(category);
+          await orderItem.save();
+          await orderItem.categories$.remove(category);
+          await orderItem.save();
+          expect(await rowsOf(category, orderItem)).toEqual([]);
+
+          await orderItem.categories$.add(category);
+          await orderItem.save();
+          expect(await rowsOf(category, orderItem)).toEqual([[derivedId(category, orderItem)]]);
+
+          await orderItem.categories$.remove(category);
+          await orderItem.save();
+          expect(await rowsOf(category, orderItem)).toEqual([]);
+        });
+
+        it('AC#3 这一对已在本地库里、没有加载进内存：再关联并保存不报主键冲突，仍只有一行', async () => {
+          const { category, orderItem } = await newPair('US-228 已在库里');
+          const Junction = junctionOf() as unknown as new (data: object) => EntityBase;
+          const stored = new Junction({
+            id: derivedId(category, orderItem),
+            categoriesId: category.id,
+            orderItemsId: orderItem.id
+          });
+          await stored.save();
+          // 内存里不再有这一行：例如别的设备推上来、本机刚拉到，还没被任何查询加载
+          adapter.rxdb.entityManager.removeEntityCache(stored);
+
+          await orderItem.categories$.add(category);
+          await orderItem.save();
+          expect(await rowsOf(category, orderItem)).toEqual([[derivedId(category, orderItem)]]);
+
+          // 保存之后实例接管了库里那一行：解绑删得掉
+          await orderItem.categories$.remove(category);
+          await orderItem.save();
+          expect(await rowsOf(category, orderItem)).toEqual([]);
         });
       });
 

@@ -3,7 +3,7 @@ import { useAction, useFindAll } from '@aiao/rxdb-angular';
 import { Todo, TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { nextMacroTask } from '@aiao/utils';
 import { ScrollDispatcher, ScrollingModule } from '@angular/cdk/scrolling';
-import { AsyncPipe, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -21,23 +21,26 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideArrowDown as ArrowDown,
   LucideArrowUp as ArrowUp,
-  LucideHistory as History,
   LucideDynamicIcon,
   LucidePen as Pen,
   LucidePlus as Plus,
-  LucideRedo2 as Redo2,
-  LucideUndo2 as Undo2,
   LucideX as X
 } from '@lucide/angular';
-import { HistorySidebarComponent } from '@modules/angular';
+import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
+import { historyActions } from '../history-actions';
+import { registerPageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
-import { SyncRejectionsPanel } from '../sync-rejections-panel';
+import { SyncCommands } from '../sync-commands';
+import { Toasts } from '../toasts';
 import { createTodoBatchTitles, persistCompleted, persistCompletedBatch } from '../todo-interactions';
+
+/** 列表筛选：全部、进行中、已完成 */
+type TodoTab = 'all' | 'active' | 'completed';
 
 @Component({
   selector: 'app-todo-page',
-  imports: [AsyncPipe, FormsModule, LucideDynamicIcon, ScrollingModule, HistorySidebarComponent, SyncRejectionsPanel],
+  imports: [FormsModule, LucideDynamicIcon, ScrollingModule],
   templateUrl: './todo.page.html',
   styleUrls: ['./todo.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -46,33 +49,34 @@ export default class TodoPage implements AfterViewInit {
   readonly #rxdb = inject(RxDB);
   readonly #scrollDispatcher = inject(ScrollDispatcher);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #toasts = inject(Toasts);
   readonly #editingTodoId = signal<Todo['id'] | null>(null);
 
-  /** P1-2：远端是否真的连上；纯本地模式下 pull / push 必须不可点。 */
+  /** 远端是否真的连上：访客提示只在远端模式下给 */
   readonly remoteSync = inject(RemoteSyncState);
+  /** 当前身份：Todo 走未分区的日志同步，只对登录身份开放（US-225），访客的 Todo 只存本地 */
+  readonly session = inject(DemoSession);
   readonly itemSize = 48;
-  readonly history = this.#rxdb.versionManager.history(Todo);
-  readonly pushableCount$ = this.#rxdb.versionManager.pushableCount$;
-  readonly pullableCount$ = this.#rxdb.versionManager.pullableCount$;
 
   // 图标
-  readonly Undo2 = Undo2;
-  readonly Redo2 = Redo2;
   readonly Pen = Pen;
   readonly X = X;
   readonly Plus = Plus;
   readonly ArrowUp = ArrowUp;
   readonly ArrowDown = ArrowDown;
-  readonly History = History;
+
+  readonly tabs: readonly { key: TodoTab; label: string }[] = [
+    { key: 'all', label: '全部' },
+    { key: 'active', label: '进行中' },
+    { key: 'completed', label: '已完成' }
+  ];
+  /** 批量添加的档位 */
+  readonly batchSizes = [1, 10, 100, 1000, 10000] as const;
 
   readonly title = signal<string>('');
-  readonly $current_tab = signal<string>('all');
+  readonly $current_tab = signal<TodoTab>('all');
   readonly $completed_sort = signal<'asc' | 'desc'>('asc');
-  readonly $show_history = signal(true);
   readonly $show_sticky_header = signal(false);
-  readonly $syncError = signal<string | null>(null);
-  readonly $syncPending = signal(false);
-  readonly $crudError = signal<string | null>(null);
 
   // 查询条件
   readonly $todo_query_options = computed<TodoStaticTypes['findAllOptions']>(() => {
@@ -119,14 +123,23 @@ export default class TodoPage implements AfterViewInit {
   readonly $disabled_toggle_all_btn = computed(() => this.todo_resource.value().length === 0);
 
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  readonly add_1 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_2 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_3 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_4 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_5 = useAction<number>(options => this.add_many_todo(options));
+  /** 批量添加：一批在写时其余档位都不可点，菜单按钮显示进度 */
+  readonly add_many = useAction<number>(total => this.add_many_todo(total));
 
   fullHeaderRef = viewChild<ElementRef<HTMLElement>>('fullHeader');
   mainContainerRef = viewChild<ElementRef<HTMLElement>>('mainContainer');
+
+  constructor() {
+    // 撤销、重做与操作历史只作用于 Todo（无参 history() 是整库作用域，会撤到商品与订单）；推拉是整机的（epic-016）
+    const history = this.#rxdb.versionManager.history(Todo);
+    registerPageWorkbench({
+      title: 'Todo',
+      scopeLabel: '本页：Todo',
+      ...historyActions(history, signal(null)),
+      history,
+      ...inject(SyncCommands).forPage()
+    });
+  }
 
   trackByFn = (_index: number, todo: Todo) => todo.id;
 
@@ -162,7 +175,6 @@ export default class TodoPage implements AfterViewInit {
     event.preventDefault();
     event.stopImmediatePropagation();
     this.#editingTodoId.set(todo.id);
-    this.$crudError.set(null);
     nextMacroTask(() => liEle.querySelector<HTMLInputElement>('input.todo-input')?.focus());
   }
 
@@ -170,20 +182,18 @@ export default class TodoPage implements AfterViewInit {
     event.preventDefault();
     event.stopImmediatePropagation();
     if (!this.is_todo_editing(todo)) return;
-    this.$crudError.set(null);
     try {
       await todo.save();
       this.#editingTodoId.set(null);
       input.blur();
     } catch (error) {
-      this.$crudError.set(`保存任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`保存任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   todo_cancel_edit(todo: Todo) {
     if (!this.is_todo_editing(todo)) return;
     this.#editingTodoId.set(null);
-    this.$crudError.set(null);
     todo.reset();
   }
 
@@ -194,35 +204,32 @@ export default class TodoPage implements AfterViewInit {
   async todo_remove(event: Event, todo: Todo) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    this.$crudError.set(null);
     try {
       await todo.remove();
       if (this.is_todo_editing(todo)) this.#editingTodoId.set(null);
     } catch (error) {
       todo.reset();
-      this.$crudError.set(`删除任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`删除任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async clear_completed() {
     const completedTodos = this.$completed_todos();
-    this.$crudError.set(null);
     try {
       await this.#rxdb.entityManager.removeMany(completedTodos);
     } catch (error) {
       completedTodos.forEach(todo => todo.reset());
-      this.$crudError.set(`清理已完成任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`清理已完成任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async toggle_all() {
     const completed = !this.$is_all_completed();
     const todos = this.todo_resource.value().filter(todo => todo.completed !== completed);
-    this.$crudError.set(null);
     try {
       await persistCompletedBatch(todos, completed, entities => this.#rxdb.entityManager.saveMany(entities));
     } catch (error) {
-      this.$crudError.set(`批量更新任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`批量更新任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
@@ -230,12 +237,14 @@ export default class TodoPage implements AfterViewInit {
     this.$completed_sort.update(sort => (sort === 'asc' ? 'desc' : 'asc'));
   }
 
-  toggle_history() {
-    this.$show_history.update(show => !show);
+  set_current_tab(tab: TodoTab) {
+    this.$current_tab.set(tab);
   }
 
-  set_current_tab(tab: string) {
-    this.$current_tab.set(tab);
+  /** 焦点离开批量添加菜单（点了别处）就收起 */
+  close_on_focus_out(event: FocusEvent, dropdown: HTMLDetailsElement) {
+    if (dropdown.contains(event.relatedTarget as Node | null)) return;
+    dropdown.removeAttribute('open');
   }
 
   /**
@@ -251,7 +260,7 @@ export default class TodoPage implements AfterViewInit {
    * `scrollTimeout` 原先声明为 `let scrollTimeout: number;` 且首次就 `clearTimeout(undefined)` ——
    * 无害但说明这段没人验证过。
    */
-  sticky_tab_click(tab: string) {
+  sticky_tab_click(tab: TodoTab) {
     const mainContainer = this.mainContainerRef();
     if (!mainContainer) return;
 
@@ -287,61 +296,35 @@ export default class TodoPage implements AfterViewInit {
     event.preventDefault();
     const titleValue = this.title();
     if (!titleValue) return;
-    this.$crudError.set(null);
     try {
       await new Todo({ title: titleValue }).save();
       this.title.set('');
     } catch (error) {
-      this.$crudError.set(`新增任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`新增任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async toggle_todo_completed(event: Event, todo: Todo) {
     if (this.is_todo_editing(todo)) return;
-    this.$crudError.set(null);
     try {
       await persistCompleted(todo, (event.target as HTMLInputElement).checked);
     } catch (error) {
-      this.$crudError.set(`更新任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`更新任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async add_many_todo(total: number) {
     const titles = createTodoBatchTitles(total, crypto.randomUUID());
     const todos = titles.map(title => new Todo({ title }));
-    this.$crudError.set(null);
     try {
       await this.#rxdb.entityManager.saveMany(todos);
     } catch (error) {
-      this.$crudError.set(`批量新增任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`批量新增任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
-  undo() {
-    void this.#rxdb.versionManager.history().undo();
-  }
-
-  redo() {
-    void this.#rxdb.versionManager.history().redo();
-  }
-
-  async pull(): Promise<void> {
-    await this.#sync(() => this.#rxdb.syncManager.pull());
-  }
-
-  async push(): Promise<void> {
-    await this.#sync(() => this.#rxdb.syncManager.push());
-  }
-
-  async #sync(operation: () => Promise<unknown>): Promise<void> {
-    this.$syncPending.set(true);
-    this.$syncError.set(null);
-    try {
-      await operation();
-    } catch (error) {
-      this.$syncError.set(`同步失败：${getErrorMessage(error, '未知错误')}`);
-    } finally {
-      this.$syncPending.set(false);
-    }
+  /** 写入失败弹一条错误消息，留到用户关掉 */
+  #fail(message: string): void {
+    this.#toasts.show({ kind: 'error', message });
   }
 }

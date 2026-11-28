@@ -316,7 +316,7 @@ export class TeamTasks {
     });
   }
   /**
-   * 放弃草稿：工作树整体退回任务头，业务表逐行一起退回（US-317），列表与表单随即读到任务头的数据。
+   * 放弃草稿：工作树整体退回任务头，业务表逐行一起退回（US-320），列表与表单随即读到任务头的数据。
    * @returns 丢掉的条目数。
    */
   discard(context: Context): Promise<number> {
@@ -329,7 +329,7 @@ export class TeamTasks {
       return result.discardedCount;
     });
   }
-  /** 把业务表恢复成一个历史提交的数据，差异成为新的未提交改动；HEAD 不动、历史不删（US-317）。被拒成因原样交回。 */
+  /** 把业务表恢复成一个历史提交的数据，差异成为新的未提交改动；HEAD 不动、历史不删（US-320）。被拒成因原样交回。 */
   restore(context: Context, commitId: string): Promise<WorkingTreeRestoreResult> {
     this.assert(context);
     return this.exclusive(async () => {

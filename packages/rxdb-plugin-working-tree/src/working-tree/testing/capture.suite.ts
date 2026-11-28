@@ -48,6 +48,7 @@ import {
   isSystemEntity,
   RxDBBranch,
   RxDBChange,
+  RxDBGrantState,
   RxDBMigration,
   RxDBMixedVersionedCacheTransactionError,
   RxDBSync,
@@ -641,15 +642,26 @@ const identityOf = (EntityClass: EntityType): string => {
   return `${namespace}:${name}`;
 };
 
-/** epic-006 之前就有的 4 张系统表；只用来给 §1.5 的双向相等留出差集。 */
-const PRE_EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
+/**
+ * 核心自带的 5 张系统表：epic-006 之前的 4 张，加 US-029 的授权快照；只用来给 §1.5 的双向相等留出差集。
+ *
+ * @remarks
+ * 与下面的清单同一个理由手写：核心再加一张系统表，这里先失败，逼着加表的人确认它不该过 §1.5 的契约。
+ */
+const CORE_OWNED_SYSTEM_ENTITIES: readonly EntityType[] = [
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBSync,
+  RxDBGrantState
+];
 
 /**
  * epic-006 新增的 12 张系统表
  *
  * @remarks
  * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313），第 12 张是提交的分叉点（US-314），
- * 与 {@link SYSTEM_ENTITIES} 里那一段一致。
+ * 与 {@link SYSTEM_ENTITIES} 中工作树插件贡献的那一段一致；其他插件贡献的系统表由调用点显式传入。
  *
  * **这份清单是故意手写的**，不从 `SYSTEM_ENTITIES` 里算差集：算出来的话，新增一张系统表会被
  * 自动收编进来，而 §1.5 的三条断言（登记、`log === false`、不引用 `rxdb_change`）恰恰是
@@ -677,6 +689,8 @@ const EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [
  * @returns 无；直接向当前 `describe` 作用域注册用例
  */
 export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConformanceSuiteContext): void => {
+  const expectedSystemEntities = [...EPIC_006_SYSTEM_ENTITIES, ...(context.additionalSystemEntities ?? [])];
+
   describe(`[${context.name}] 工作树捕获一致性`, () => {
     let database: RxDB;
 
@@ -771,7 +785,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database);
       });
 
-      it('discard 回写（登记表 #13）不产生单元：工作树清空，冷重放以回写之后的业务表为 HEAD 成立', async () => {
+      it('discard 回写（登记表 #15）不产生单元：工作树清空，冷重放以回写之后的业务表为 HEAD 成立', async () => {
         // HEAD 投影是两行物化出来的笔记（不进工作树）。审计主体与本库的 `context.userId` 相同：UPDATE 回写
         // 与撤销、切分支同一条适配器路径，`updatedBy` 在那条路径上是只读列、写不回去——用同一个主体，
         // 这条用例比的就只剩回写本身（多主体的边界写在 discard-command.ts 的 @remarks 里）。
@@ -1623,16 +1637,16 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
     });
 
     describe('§1.5 存储契约静态断言', () => {
-      it('全部 epic-006 系统表都登记在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真', async () => {
+      it('全部已登记系统表都在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真', async () => {
         // 双向相等，不是单向包含：正向漏登记会让库自己的簿记写被当成用户编辑落进工作树，
         // 反向（`SYSTEM_ENTITIES` 里多出一张这里没列的表）说明有人加了系统表却没走 §1.5 的契约。
         // 两边都按 `isSystemEntity()` 用的那把身份键（`namespace:name`）比，而不是按类引用——
         // 判定本身就不是按类引用做的，按类比会让「同名不同类」这种形态漏网。
         expect(SYSTEM_ENTITIES.map(identityOf).sort()).toEqual(
-          [...PRE_EPIC_006_SYSTEM_ENTITIES, ...EPIC_006_SYSTEM_ENTITIES].map(identityOf).sort()
+          [...CORE_OWNED_SYSTEM_ENTITIES, ...expectedSystemEntities].map(identityOf).sort()
         );
 
-        for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
+        for (const EntityClass of expectedSystemEntities) {
           expect(isSystemEntity(EntityClass), `${identityOf(EntityClass)} 没被认成系统表`).toBe(true);
         }
         // 对照组：业务实体不能被认成系统表，否则捕获会把用户编辑整批短路成 `system`。
@@ -1642,8 +1656,8 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         await expectColdReplayIntact(database);
       });
 
-      it('全部 epic-006 系统表 log === false：库自己的簿记不进变更日志', async () => {
-        for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
+      it('全部已登记系统表 log === false：库自己的簿记不进变更日志', async () => {
+        for (const EntityClass of expectedSystemEntities) {
           expect(getEntityMetadata(EntityClass).log, `${identityOf(EntityClass)} 会往变更日志里写`).toBe(false);
         }
         // `log` 缺省是「记」，所以这里必须逐张断言 `=== false` 而不是 `!== true`：
@@ -1661,9 +1675,9 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         expect(getEntityMetadata(WorkingTreeEntry).tableName).toBe('rxdb_working_tree_entry');
         expect(getEntityMetadata(CommitChangeSet).tableName).toBe('rxdb_commit_change_set');
 
-        // 十二张一起断言而不是只断言点名的两张：另外十张现在也确实不引用它，把范围收窄到两张
-        // 等于给「下一张新表引用 rxdb_change」留门，而那正是这条契约要堵死的形态。
-        for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
+        // 所有已登记系统表一起断言，而不是只断言点名的两张：新增系统表也必须经过同一条关系约束。
+        // 这样不会给「下一张新表引用 rxdb_change」留下未覆盖的入口。
+        for (const EntityClass of expectedSystemEntities) {
           const mapped = getEntityMetadata(EntityClass).relations.map(relation => relation.mappedEntity);
           expect(mapped, `${identityOf(EntityClass)} 的 relations 引用了 ${changeEntityName}`).not.toContain(
             changeEntityName

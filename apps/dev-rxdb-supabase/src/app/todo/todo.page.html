@@ -1,56 +1,29 @@
-@let undo_count = (history.undoCount$ | async) ?? 0;
-@let redo_count = (history.redoCount$ | async) ?? 0;
-@let pushable_count = (pushableCount$ | async) ?? 0;
-@let pullable_count = (pullableCount$ | async) ?? 0;
-@let undo_disabled = undo_count === 0;
-@let redo_disabled = redo_count === 0;
-@let push_disabled = pushable_count === 0;
 @let current_tab = $current_tab();
+<!-- 撤销、重做、操作历史与推拉在顶栏（页面登记，epic-016）；页面只留 Todo 自己的操作 -->
 <div class="flex h-full">
-  <!-- History Sidebar -->
-  <ao-history-sidebar
-    [borderSide]="'left'"
-    [histories]="(history.histories$ | async) ?? []"
-    [scopeType]="history.type"
-    [show]="$show_history()"
-    (closeClick)="toggle_history()"
-  />
-
   <main class="h-full min-w-0 flex-1 overflow-auto" #mainContainer cdkVirtualScrollingElement>
     <!-- Sticky Header (简化版) -->
     @if ($show_sticky_header()) {
       <div class="border-base-300 bg-base-100 sticky top-0 z-10 border-b px-4 py-2 shadow-sm">
-        <div class="mx-auto flex max-w-4xl items-center justify-between">
+        <div class="mx-auto flex max-w-5xl items-center justify-between">
           <div class="flex items-center gap-3">
             <!-- P2-3：与 :64 的 <h1> 同名同文案，e2e 只能靠 `.first()` 区分。补 testid 让两者可辨。 -->
             <h2 class="text-lg font-semibold" data-testid="todo-sticky-title">Todos</h2>
             <div class="badge badge-primary badge-sm">{{ $todo_count_left() }} 待办</div>
           </div>
-          <div class="tabs tabs-boxed tabs-xs" role="tablist">
-            <button
-              class="tab"
-              [class.tab-active]="current_tab === 'all'"
-              (click)="sticky_tab_click('all')"
-              type="button"
-            >
-              全部
-            </button>
-            <button
-              class="tab"
-              [class.tab-active]="current_tab === 'active'"
-              (click)="sticky_tab_click('active')"
-              type="button"
-            >
-              进行中
-            </button>
-            <button
-              class="tab"
-              [class.tab-active]="current_tab === 'completed'"
-              (click)="sticky_tab_click('completed')"
-              type="button"
-            >
-              已完成
-            </button>
+          <div class="tabs tabs-box tabs-xs" aria-label="按完成状态筛选" role="tablist">
+            @for (tab of tabs; track tab.key) {
+              <button
+                class="tab"
+                [attr.aria-selected]="current_tab === tab.key"
+                [class.tab-active]="current_tab === tab.key"
+                (click)="sticky_tab_click(tab.key)"
+                role="tab"
+                type="button"
+              >
+                {{ tab.label }}
+              </button>
+            }
           </div>
         </div>
       </div>
@@ -58,145 +31,83 @@
 
     <!-- Full Header -->
     <div class="border-base-300 flex-none border-b p-4" #fullHeader>
-      <div class="mx-auto flex max-w-4xl flex-col gap-3">
+      <div class="mx-auto flex max-w-5xl flex-col gap-3">
+        @if (remoteSync.$connected() && !session.canSyncTodo) {
+          <div class="alert alert-info" data-testid="todo-visitor-notice" role="status">
+            <span>
+              访客的 Todo 只存在本机。Todo
+              演示的是日志同步与推送，只对登录身份开放；匿名登录之后就能在多个浏览器之间同步。
+            </span>
+            <button
+              class="btn btn-sm btn-primary"
+              [disabled]="session.$switching()"
+              (click)="session.switchTo('anonymous')"
+              type="button"
+            >
+              匿名登录
+            </button>
+          </div>
+        }
         <!-- Title Bar -->
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-3">
             <h1 class="text-2xl font-bold" data-testid="todo-title">Todos</h1>
             <div class="badge badge-primary">{{ $todo_count_left() }} 待办</div>
 
-            <!-- Batch Add Dropdown -->
-            <div class="dropdown dropdown-end">
-              <button class="btn btn-circle btn-sm" aria-label="批量添加" tabindex="0">
-                <svg [lucideIcon]="Plus" size="16"></svg>
-              </button>
-              <ul class="menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow">
-                <li>
-                  <button [disabled]="add_1.isPending()" (click)="add_1.execute(1)">
-                    @if (add_1.isPending()) {
-                      <span class="loading loading-spinner loading-xs"></span>
-                    }
-                    添加 1 条
-                  </button>
-                </li>
-                <li>
-                  <button [disabled]="add_2.isPending()" (click)="add_2.execute(10)">
-                    @if (add_2.isPending()) {
-                      <span class="loading loading-spinner loading-xs"></span>
-                    }
-                    添加 10 条
-                  </button>
-                </li>
-                <li>
-                  <button [disabled]="add_3.isPending()" (click)="add_3.execute(100)">
-                    @if (add_3.isPending()) {
-                      <span class="loading loading-spinner loading-xs"></span>
-                    }
-                    添加 100 条
-                  </button>
-                </li>
-                <li>
-                  <button [disabled]="add_4.isPending()" (click)="add_4.execute(1000)">
-                    @if (add_4.isPending()) {
-                      <span class="loading loading-spinner loading-xs"></span>
-                    }
-                    添加 1000 条
-                  </button>
-                </li>
-                <li>
-                  <button [disabled]="add_5.isPending()" (click)="add_5.execute(10000)">
-                    @if (add_5.isPending()) {
-                      <span class="loading loading-spinner loading-xs"></span>
-                    }
-                    添加 10000 条
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <!-- Undo/Redo -->
-            <div class="join">
-              <button
-                class="btn btn-sm join-item"
-                [disabled]="!remoteSync.$connected() || $syncPending()"
-                [title]="remoteSync.$connected() ? 'Pull' : '未连接远端（纯本地模式）'"
-                (click)="pull()"
-                aria-label="Pull"
-              >
-                <svg [lucideIcon]="ArrowDown" size="16"></svg>
-                @if (pullable_count) {
-                  <span class="badge badge-xs">{{ pullable_count }}</span>
-                } @else {
-                  <span class="badge badge-xs">pull</span>
-                }
-              </button>
-              <button
-                class="btn btn-sm join-item"
-                [disabled]="!remoteSync.$connected() || push_disabled || $syncPending()"
-                [title]="remoteSync.$connected() ? 'Push' : '未连接远端（纯本地模式）'"
-                (click)="push()"
-                aria-label="Push"
-              >
-                <svg [lucideIcon]="ArrowUp" size="16"></svg>
-                @if (pushable_count) {
-                  <span class="badge badge-xs">{{ pushable_count }}</span>
-                } @else {
-                  <span class="badge badge-xs">push</span>
-                }
-              </button>
-              <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" aria-label="Undo">
-                <svg [lucideIcon]="Undo2" size="16"></svg>
-                @if (undo_count) {
-                  <span class="badge badge-xs">{{ undo_count }}</span>
-                }
-              </button>
-              <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" aria-label="Redo">
-                <svg [lucideIcon]="Redo2" size="16"></svg>
-                @if (redo_count) {
-                  <span class="badge badge-xs">{{ redo_count }}</span>
-                }
-              </button>
-            </div>
-
-            <!-- History Toggle -->
-            <button
-              class="btn btn-sm"
-              [class.btn-primary]="$show_history()"
-              (click)="toggle_history()"
-              aria-label="历史记录"
+            <!-- 批量添加：details/summary 原生开合（触屏 tap 不产生 :focus，靠焦点开合的下拉在移动端打不开）；
+                 选完一项、或焦点移到别处就收起 -->
+            <details
+              class="dropdown dropdown-end"
+              #batchDropdown
+              (focusout)="close_on_focus_out($event, batchDropdown)"
+              data-testid="todo-batch-dropdown"
             >
-              <svg [lucideIcon]="History" size="16"></svg>
-            </button>
+              <summary
+                class="btn btn-circle btn-sm"
+                [attr.aria-busy]="add_many.isPending()"
+                aria-label="批量添加"
+                data-testid="todo-batch-add"
+              >
+                @if (add_many.isPending()) {
+                  <span class="loading loading-spinner loading-xs"></span>
+                } @else {
+                  <svg [lucideIcon]="Plus" size="16"></svg>
+                }
+              </summary>
+              <ul class="menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow">
+                @for (size of batchSizes; track size) {
+                  <li>
+                    <button
+                      [attr.data-testid]="'todo-batch-option-' + size"
+                      [disabled]="add_many.isPending()"
+                      (click)="add_many.execute(size); batchDropdown.removeAttribute('open')"
+                      type="button"
+                    >
+                      添加 {{ size }} 条
+                    </button>
+                  </li>
+                }
+              </ul>
+            </details>
           </div>
-          @if ($syncError()) {
-            <div class="alert alert-error py-2 text-sm" role="alert">{{ $syncError() }}</div>
-          }
         </div>
 
         <!-- Tabs and Action Buttons -->
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="tabs tabs-boxed tabs-sm" role="tablist">
-            <button class="tab" [class.tab-active]="current_tab === 'all'" (click)="set_current_tab('all')" role="tab">
-              全部
-            </button>
-            <button
-              class="tab"
-              [class.tab-active]="current_tab === 'active'"
-              (click)="set_current_tab('active')"
-              role="tab"
-            >
-              进行中
-            </button>
-            <button
-              class="tab"
-              [class.tab-active]="current_tab === 'completed'"
-              (click)="set_current_tab('completed')"
-              role="tab"
-            >
-              已完成
-            </button>
+          <div class="tabs tabs-box tabs-sm" aria-label="按完成状态筛选" role="tablist">
+            @for (tab of tabs; track tab.key) {
+              <button
+                class="tab"
+                [attr.aria-selected]="current_tab === tab.key"
+                [attr.data-testid]="'todo-tab-' + tab.key"
+                [class.tab-active]="current_tab === tab.key"
+                (click)="set_current_tab(tab.key)"
+                role="tab"
+                type="button"
+              >
+                {{ tab.label }}
+              </button>
+            }
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
@@ -241,17 +152,10 @@
       </div>
     </div>
 
-    @if ($crudError()) {
-      <div class="alert alert-error mx-auto mb-3 max-w-4xl py-2 text-sm">{{ $crudError() }}</div>
-    }
-
-    <!-- US-218 AC#16：最近一轮被远端拒绝的推送 -->
-    <app-sync-rejections-panel />
-
     <!-- Todo List -->
     <!-- P2-3：原先 e2e 只能写 `cdk-virtual-scroll-viewport li`（拿 CDK 的实现细节当选择器）
          和 `input.todo-input`（页面级、不限定行）。补上 viewport 与行级 testid。 -->
-    <cdk-virtual-scroll-viewport class="mx-auto min-h-60 max-w-4xl" [itemSize]="itemSize" data-testid="todo-viewport">
+    <cdk-virtual-scroll-viewport class="mx-auto min-h-60 max-w-5xl" [itemSize]="itemSize" data-testid="todo-viewport">
       @if (todo_resource.isEmpty()) {
         <div class="hero min-h-60">
           <div class="hero-content text-center">
@@ -301,6 +205,7 @@
             } @else {
               <input
                 class="checkbox"
+                [attr.aria-label]="'完成 ' + todo.title"
                 [checked]="todo.completed"
                 (change)="toggle_todo_completed($event, todo)"
                 type="checkbox"
@@ -310,10 +215,14 @@
                 [class.line-through]="todo.completed"
                 [class.opacity-50]="todo.completed"
                 (dblclick)="todo_edit($event, liEle, todo)"
+                title="双击编辑"
               >
                 {{ todo.title }}
               </div>
-              <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <!-- 悬停才显示；键盘聚焦、窄屏与触屏（没有悬停）上常显 -->
+              <div
+                class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+              >
                 <button class="btn btn-ghost btn-xs" (click)="todo_edit($event, liEle, todo)" aria-label="编辑">
                   <svg [lucideIcon]="Pen" size="14"></svg>
                 </button>

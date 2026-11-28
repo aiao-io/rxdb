@@ -29,7 +29,7 @@ vi.mock('../../commit/list-commits.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../commit/list-commits.js')>()),
   readCommitBranchRef: vi.fn()
 }));
-// US-316：从提交建分支的可达性走全部父链（侧枝提交有分叉点时也能建），不再借 restore 的第一父链路径
+// US-319：从提交建分支的可达性走全部父链（侧枝提交有分叉点时也能建），不再借 restore 的第一父链路径
 vi.mock('../../commit/commit-ancestry.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../commit/commit-ancestry.js')>()),
   isCommitReachable: vi.fn()

@@ -116,12 +116,12 @@ export interface WorkingTreeCommands {
     branchId: string,
     commitId: string
   ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
-  /** 导入一段远端提交并快进分支头；被拒走返回值，不是异常。无论结果都重读一次 status（US-316） */
+  /** 导入一段远端提交并快进分支头；被拒走返回值，不是异常。无论结果都重读一次 status（US-319） */
   readonly importCommits: (
     commits: readonly CommitExchangeRecord[],
     options: CommitImportOptions
   ) => Promise<CommitImportResult>;
-  /** 列出某个提交之后的提交供上传；那之后没有新提交是 `empty` 相位（US-316） */
+  /** 列出某个提交之后的提交供上传；那之后没有新提交是 `empty` 相位（US-319） */
   readonly exportCommits: (options?: CommitExportOptions) => Promise<CommitExportPage>;
 }
 

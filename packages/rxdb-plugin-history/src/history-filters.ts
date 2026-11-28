@@ -21,7 +21,7 @@ import {
 } from '@aiao/rxdb';
 import type { ObservedValueOf } from 'rxjs';
 import { generateHistoryDescription } from './history-item-builder.js';
-import { historyTouchesScope } from './scope-selection.js';
+import { historyTouchesScope, isChangeInScope } from './scope-selection.js';
 /**
  * 生成 repository 的缓存键（纯函数）
  *
@@ -106,15 +106,8 @@ export function filterHistoriesByScope(histories: HistoryItem[], scope: HistoryS
 
   return histories
     .map(history => {
-      const filtered_changes = history.changes.filter(change => {
-        if (scope.type === 'repository') {
-          return change.namespace === scope.namespace && change.entity === scope.entity;
-        }
-        // 实体作用域
-        return (
-          change.namespace === scope.namespace && change.entity === scope.entity && change.entityId === scope.entityId
-        );
-      });
+      // 与选择、执行同一个判定：展示裁切另写一份，迟早「列表里有、点下去越界」
+      const filtered_changes = history.changes.filter(change => isChangeInScope(change, scope));
 
       if (filtered_changes.length === 0) return null;
 
@@ -354,13 +347,17 @@ export function splitRedoableHistories(
  * 生成作用域缓存键（纯函数）
  *
  * @param scope - 作用域配置
- * @returns 缓存键字符串：'database' | 'namespace:entity' | 'namespace:entity:id'
+ * @returns 缓存键字符串：'database' | 'repositories:ns:a,ns:b'（排过序）| 'namespace:entity' | 'namespace:entity:id'
  *
  * @internal 供 HistoryManager 和单元测试使用
  */
 export function getScopeKey(scope: HistoryScope): string {
   if (scope.type === 'database') {
     return 'database';
+  }
+  if (scope.type === 'repositories') {
+    // 与列出的顺序无关：同一组仓库拿到同一个作用域实例
+    return `repositories:${scope.repositories.map(getRepositoryKey).sort().join(',')}`;
   }
   if (scope.type === 'repository') {
     return `${scope.namespace}:${scope.entity}`;

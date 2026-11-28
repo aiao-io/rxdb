@@ -129,11 +129,11 @@ export interface TeamWorkingTree {
   status(): Promise<TreeStatus>;
   /** 把工作树的全部条目提交成一个普通提交。 */
   commit(message: string, options: CommitOptions): Promise<CommitResult>;
-  /** 工作树整体退回 HEAD，业务表逐行一起退回（US-317）。 */
+  /** 工作树整体退回 HEAD，业务表逐行一起退回（US-320）。 */
   discard(options: WorkingTreeDiscardOptions): Promise<WorkingTreeDiscardResult>;
-  /** 把业务表恢复成一个历史提交的数据，差异作为未提交改动（US-317）。 */
+  /** 把业务表恢复成一个历史提交的数据，差异作为未提交改动（US-320）。 */
   restore(target: WorkingTreeRestoreTarget, options: WorkingTreeRestoreOptions): Promise<WorkingTreeRestoreResult>;
-  /** 把服务端下发的一段提交原样导入当前分支并快进（US-316）。 */
+  /** 把服务端下发的一段提交原样导入当前分支并快进（US-319）。 */
   importCommits(commits: readonly CommitExchangeRecord[], options: CommitImportOptions): Promise<CommitImportResult>;
   /** 当前分支某个提交之后的提交（父先于子），交换记录形态。 */
   exportCommits(options: CommitExportOptions): Promise<Pick<CommitExportPage, 'headCommitId' | 'commits'>>;

@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-316：`importCommits()` 的命令体——把服务端下发的一段提交原样写进当前分支，分支头快进到最后一个。
+ * @fileoverview US-319：`importCommits()` 的命令体——把服务端下发的一段提交原样写进当前分支，分支头快进到最后一个。
  *
  * @remarks
  * 实现目标是 `src/working-tree/import-command.ts`（批次形状在 `import-batch.ts`）。底层是 `createCommitGraphProbe()` 那个替身：
@@ -12,7 +12,7 @@
  *    每一种都在第一条写语句之前返回，一条 `saveMany` / `query` / `mergeChanges` 都没发（AC#3 / AC#4 / AC#5）。
  * 2. **提交身份原样**：id、父链、种类、消息、作者、时间、内容指纹逐字落库（AC#1）。
  * 3. **只叠第一父链**：合并提交以 `merge` 入库、可以有多个父；侧枝提交只作为节点入库，它的 ChangeSet 不落业务表（AC#6）。
- * 4. **登记表 #15**：每个新到的第一父链提交一次 `mergeChanges`，触发器开着，入口是投影重写。
+ * 4. **登记表 #17**：每个新到的第一父链提交一次 `mergeChanges`，触发器开着，入口是投影重写。
  * 5. **幂等**：同一批再导入一次、新头已在历史里，都是一个字节都不写的成功（AC#5）。
  * 6. **空分支起步**：HEAD 为空或是系统根节点、且受版本控制的业务表一行都没有时，链可以从另一个根开始（AC#1）。
  * 7. **前像核对**：叠业务表之前，第一父链上每个单元写之前的那一行都要与叠到它时的业务行对得上（插入时不存在、
@@ -820,7 +820,7 @@ describe('导入一段提交链：身份原样、分支头快进（AC#1 / AC#2�
     ]);
   });
 
-  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #15，入口是投影重写', async () => {
+  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #17，入口是投影重写', async () => {
     const scene = sceneAtH();
     const executor = scene.probe.executor;
     const declared: unknown[] = [];

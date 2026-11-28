@@ -34,7 +34,7 @@ tags: [domain, board, supabase, sync, collaboration]
   （RLS 推送完整性、UPDATE 落库语义、逐实体回执均已 Done）
 - **身份与单团队写权限**：接入登录 / 退出状态、服务端确认的单团队成员资格及本地离线会话；
   应用服务在每个看板写入口校验身份、成员资格与会话有效期。US-027 仅区分公开 / 系统写入口，
-  不提供用户身份或成员授权；通用角色与所有权写授权（US-029）不是前置
+  不提供用户身份或成员授权；按作用域的成员写权限（US-029）不是前置
 - **远端写入边界**：部署与该团队对应的 Supabase RLS，按服务端身份和成员记录校验业务写入；
   沿用 US-218 的日志表写入收口，客户端声明的作者 / 团队 ID 不能替代服务端授权
 - **离线并发合并规则**：离线双端移动同一任务 / 编辑同一任务回网后的合并——[US-535](US-535-cross-column-move-ordering.md)
@@ -47,7 +47,7 @@ tags: [domain, board, supabase, sync, collaboration]
 
 ### Out of Scope
 
-- 多租户、通用角色 / 所有权写授权（US-029 价值待证）、板级角色与按成员区分的行级读隔离；本故事只承诺单团队共享数据集，
+- 多租户、按作用域的成员写权限（US-029）、板级角色与按成员区分的行级读隔离；本故事只承诺单团队共享数据集，
   不得将它部署为包含非公开数据的多团队混合全量同步库
 - 评论 / @ 提醒 / 实时协作（引擎外通道，epic 非目标）
 - 跨板全局搜索的工作区版本（[US-538](US-538-board-task-search.md) 只承诺板内；本故事立项时
@@ -119,6 +119,6 @@ tags: [domain, board, supabase, sync, collaboration]
 - [US-535 跨列移动与本列排序的领域语义](US-535-cross-column-move-ordering.md) — 单人语义（冲突规则的设计输入）
 - [US-218](../adapter/US-218-supabase-rls-push-integrity.md) / [US-220](../adapter/US-220-supabase-update-push-semantics.md) — 前置：Supabase RLS 推送完整性（✅）
 - [US-027 实体操作权限模型](../core/US-027-entity-permission-model.md) — 已有：公开 / 系统入口声明（✅），不提供身份授权
-- [US-029 RBAC](../core/US-029-rbac-owner-role-permission.md) — 价值待证，非本故事前置
+- [US-029 按作用域的成员写权限](../core/US-029-rbac-owner-role-permission.md) — 非本故事前置
 - [epic-006 工作树与提交历史](../../epics/epic-006-working-tree-commits.md) — 本地优先冲突底座（✅，身份另做）
 - [domain-research 任务看板](../../domain-research/task-board.md) — 入场条件与「团队版另有身份和远端策略」

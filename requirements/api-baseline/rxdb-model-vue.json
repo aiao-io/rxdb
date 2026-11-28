@@ -86,6 +86,10 @@
         "kind": "value"
       },
       {
+        "name": "CapabilityDeniedReason",
+        "kind": "type"
+      },
+      {
         "name": "CellChangeEvent",
         "kind": "type"
       },
@@ -132,6 +136,10 @@
       {
         "name": "computeTooltipPosition",
         "kind": "value"
+      },
+      {
+        "name": "CreateCapability",
+        "kind": "type"
       },
       {
         "name": "createDefaultFormData",
@@ -270,7 +278,19 @@
         "kind": "value"
       },
       {
+        "name": "deriveCreateCapability",
+        "kind": "value"
+      },
+      {
         "name": "deriveEntityCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "deriveRowCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "deriveWriteBlockedReason",
         "kind": "value"
       },
       {
@@ -464,6 +484,10 @@
       {
         "name": "entityToFormData",
         "kind": "value"
+      },
+      {
+        "name": "EntityWriteBlockedReason",
+        "kind": "type"
       },
       {
         "name": "EnumEditor",
@@ -1056,6 +1080,10 @@
       {
         "name": "ROW_SERIES_COL_OFFSET",
         "kind": "value"
+      },
+      {
+        "name": "RowCapabilities",
+        "kind": "type"
       },
       {
         "name": "RowDeleteEvent",

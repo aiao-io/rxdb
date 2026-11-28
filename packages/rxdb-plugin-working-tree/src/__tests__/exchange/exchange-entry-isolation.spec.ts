@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-316 补充交付：只导入 `@aiao/rxdb-plugin-working-tree/exchange`，加载到的本包模块恰好是那四个纯模块——
+ * @fileoverview US-319 补充交付：只导入 `@aiao/rxdb-plugin-working-tree/exchange`，加载到的本包模块恰好是那四个纯模块——
  * 没有实体类，没有插件类，没有捕获运行时。
  *
  * @remarks

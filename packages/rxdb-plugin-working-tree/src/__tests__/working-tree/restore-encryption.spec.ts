@@ -18,7 +18,7 @@
  *
  * 1. **物化时顺手 decode 了加密列。** `change-codec.ts` 对 `encrypted === true` 的列
  *    **一律跳过**编解码，而 restore 的重放链路是「读重放路径上的 ChangeSet → decode → 逐个撤销、
- *    折成相对 HEAD 的差异 → encode 写条目」（US-317：条目是 HEAD → 目标的差异，取自路径上那些节点的
+ *    折成相对 HEAD 的差异 → encode 写条目」（US-320：条目是 HEAD → 目标的差异，取自路径上那些节点的
  *    反向补丁），中间任何一环把加密列当成普通 `binary` 处理，都会把信封字符串按 hex 解一遍。
  *    单看加密列分不出「codec 正确跳过了它」和「codec 压根没跑」——两种实现给出同一个观测。
  *    所以 {@link SceneSecret} 上另有一列 `thumbnail`：**同为 `binary`、只差 `encrypted`**。
@@ -243,7 +243,7 @@ describe('物化保持加密 envelope（FR-043 前半）', () => {
 
     // 「反向数据泄漏与正向数据泄漏是同一件事」（commit-codec.ts）。只守正向的实现
     // 会在下一次 discard 重放时以同样的方式坏掉，而那条路径没有第二个守卫。
-    // inversePatch 是 HEAD 上的值：discard 拿它把业务表退回 HEAD（US-317）。
+    // inversePatch 是 HEAD 上的值：discard 拿它把业务表退回 HEAD（US-320）。
     expect({ secret: inverse['secret'], thumbnail: inverse['thumbnail'], label: inverse['label'] }).toEqual({
       secret: SECRET_AFTER,
       thumbnail: binaryEnvelope(THUMB_AFTER_HEX),

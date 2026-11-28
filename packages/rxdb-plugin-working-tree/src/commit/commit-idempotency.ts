@@ -102,7 +102,7 @@ export const deriveCommitOperationId = (key: CommitIdempotencyKey): string =>
 const IMPORT_IDEMPOTENCY_DOMAIN = 'rxdb.commit.import.v1';
 
 /**
- * 给一个导入的提交派生它在本库里的 `operationId`（US-316）。
+ * 给一个导入的提交派生它在本库里的 `operationId`（US-319）。
  *
  * @param commitId - 远端提交 id，导入后原样作为本地 id
  * @returns 36 字符小写 uuid 形状字符串；同一个提交 id 恒得同一个值

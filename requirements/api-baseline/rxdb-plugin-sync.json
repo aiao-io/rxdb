@@ -10,6 +10,10 @@
         "kind": "type"
       },
       {
+        "name": "canonicalize",
+        "kind": "value"
+      },
+      {
         "name": "CheckRepositoryUpdatesResult",
         "kind": "type"
       },
@@ -26,8 +30,20 @@
         "kind": "value"
       },
       {
+        "name": "DependencyCycle",
+        "kind": "type"
+      },
+      {
+        "name": "DependencyForeignKey",
+        "kind": "type"
+      },
+      {
         "name": "DependencyGraph",
         "kind": "type"
+      },
+      {
+        "name": "filterFingerprint",
+        "kind": "value"
       },
       {
         "name": "flushQueryCacheOutbox",
@@ -35,6 +51,22 @@
       },
       {
         "name": "GetAllRepositorySyncStatusFilter",
+        "kind": "type"
+      },
+      {
+        "name": "identityFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "IdentityMismatchError",
+        "kind": "both"
+      },
+      {
+        "name": "PendingChangeCountAdapter",
+        "kind": "type"
+      },
+      {
+        "name": "PendingChangeProbe",
         "kind": "type"
       },
       {
@@ -66,6 +98,18 @@
         "kind": "type"
       },
       {
+        "name": "RxDBBucketCleanupBlockedError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBForeignKeyCycleError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBForeignKeyCycleReason",
+        "kind": "type"
+      },
+      {
         "name": "rxDBPluginSync",
         "kind": "value"
       },
@@ -75,6 +119,46 @@
       },
       {
         "name": "RxDBPluginSyncOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBSyncBucketProgress",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBSyncBucketRow",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBSyncIdentityBinding",
+        "kind": "both"
+      },
+      {
+        "name": "scopedDatabaseName",
+        "kind": "value"
+      },
+      {
+        "name": "ScopedEntitySyncInfo",
+        "kind": "type"
+      },
+      {
+        "name": "scopedIdentityKind",
+        "kind": "value"
+      },
+      {
+        "name": "ScopedIdentityKind",
+        "kind": "type"
+      },
+      {
+        "name": "ScopedSyncAdapter",
+        "kind": "type"
+      },
+      {
+        "name": "ScopedSyncIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "ScopedSyncIdentitySource",
         "kind": "type"
       },
       {

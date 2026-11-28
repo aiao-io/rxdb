@@ -44,7 +44,7 @@
         "command": "bash src/__tests__/run-supabase-sql-security-regressions.sh"
       },
       "metadata": {
-        "description": "Run the reference-SQL security regression suite (40 cases, one psql each, then all cases once more in a single transaction) against the running Supabase stack. Local: run test-env first (checkout-isolated container, name resolved via docker/supabase-ci-identity.sh + state file). CI: the supabase action starts the stack with the compose default container name supabase-db. The script resolves the container name from SUPABASE_DB_CONTAINER or falls back accordingly.",
+        "description": "Run the reference-SQL security regression suite (53 cases, one psql each, then all cases once more in a single transaction, then the production upgrade command with an injected failure to prove it rolls back as one transaction) against the running Supabase stack. The runner copies docker/sql into the database container so the suite can load the reference SQL files in deployment order. Local: run test-env first (checkout-isolated container, name resolved via docker/supabase-ci-identity.sh + state file). CI: the supabase action starts the stack with the compose default container name supabase-db. The script resolves the container name from SUPABASE_DB_CONTAINER or falls back accordingly.",
         "help": {
           "command": "bash packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh"
         }
@@ -64,7 +64,7 @@
       "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-supabase"],
       "options": {
         "cwd": "packages/rxdb-adapter-supabase",
-        "command": "VITE_SUPABASE_URL=$(../../docker/supabase-ci-url.sh) VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') VITE_SUPABASE_SERVICE_ROLE_KEY=$(grep 'SUPABASE_SERVICE_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_SERVICE_KEY:[[:space:]]*//') vitest"
+        "command": "VITE_SUPABASE_URL=$(../../docker/supabase-ci-url.sh) VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') VITE_SUPABASE_SERVICE_ROLE_KEY=$(grep 'SUPABASE_SERVICE_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_SERVICE_KEY:[[:space:]]*//') VITE_SUPABASE_JWT_SECRET=$(grep -E '^[[:space:]]+JWT_SECRET:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*JWT_SECRET:[[:space:]]*//') vitest"
       },
       "metadata": {
         "technologies": ["vite", "vitest", "supabase"],

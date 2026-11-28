@@ -2,6 +2,7 @@ import type { EntityMetadata, EntityType, IEntity, IQueryContext, WorktreeTableS
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
   EncryptionContext,
+  get_primary_key_column,
   normalizeCreateEntity,
   quote_sql_identifier,
   transformEntityValueToSql
@@ -17,6 +18,18 @@ import { get_table_name_by_metadata } from '../table-name-resolver.js';
 export const get_insert_column_count = (metadata: EntityMetadata): number =>
   metadata.propertyMap.size + Array.from(metadata.foreignKeyColumnNames || metadata.foreignKeyNames || []).length;
 
+/** 批量新建的选项 */
+export interface InsertsSqlOptions {
+  /**
+   * 主键已经存在时保留库里那一行、什么都不改（`ON CONFLICT DO NOTHING`），默认照常报主键冲突
+   *
+   * @remarks
+   * 给多对多中间表用：行 id 由两端确定性派生（US-228），同 id 就是同一对，库里已有这一对时新建退化成空操作，
+   * 不报错、也不多记一条变更。
+   */
+  readonly ignoreExisting?: boolean;
+}
+
 /**
  * 生成批量创建实体的参数化 SQL
  */
@@ -25,7 +38,8 @@ export const generate_entity_inserts_sql = async <T extends EntityType>(
   tableSet: WorktreeTableSet,
   entities: InstanceType<T>[],
   context?: IQueryContext,
-  encryption?: EncryptionContext
+  encryption?: EncryptionContext,
+  options: InsertsSqlOptions = {}
 ): Promise<{ sql: string; params: SQLiteCompatibleType[] }> => {
   const tableName = get_table_name_by_metadata(metadata, tableSet);
   if (entities.length === 0) return { sql: '', params: [] };
@@ -72,6 +86,8 @@ export const generate_entity_inserts_sql = async <T extends EntityType>(
     placeholders[i] = rowPlaceholder;
   }
 
-  const sql = `INSERT INTO ${quote_sql_identifier(tableName)} (${setColumns.map(quote_sql_identifier).join(',')}) VALUES ${placeholders.join(',')};`;
+  const onConflict =
+    options.ignoreExisting ? ` ON CONFLICT (${quote_sql_identifier(get_primary_key_column(metadata))}) DO NOTHING` : '';
+  const sql = `INSERT INTO ${quote_sql_identifier(tableName)} (${setColumns.map(quote_sql_identifier).join(',')}) VALUES ${placeholders.join(',')}${onConflict};`;
   return { sql, params };
 };

@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-316 补充交付：`@aiao/rxdb-plugin-working-tree/exchange` 子路径——交换的另一端照着用的那几个纯函数。
+ * @fileoverview US-319 补充交付：`@aiao/rxdb-plugin-working-tree/exchange` 子路径——交换的另一端照着用的那几个纯函数。
  *
  * @remarks
  * 首个使用方是 Admin 的服务端：校验上传批次的形状、复算单元指纹与提交指纹、给自己合成的合并提交算指纹，收发都走 JSON，

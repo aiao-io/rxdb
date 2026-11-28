@@ -8,7 +8,7 @@ created: 2026-11-17
 updated: 2026-11-19
 tags: [admin, collaboration, working-tree, rxdb, model-driven]
 dependsOn: [ADMIN-US-218]
-capabilities: [rxdb:US-316, rxdb:US-317]
+capabilities: [rxdb:US-319, rxdb:US-320]
 ---
 
 # 用户故事：团队任务草稿落在 RxDB 工作树
@@ -37,8 +37,8 @@ capabilities: [rxdb:US-316, rxdb:US-317]
 
 以下能力是平台 epic-006 的非目标，已在根 requirements 以 [epic-014](../../../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 交付，本故事建立在它们之上：
 
-1. 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交；合并类（多父）提交可以导入——[US-316](../../../../requirements/stories/collaboration/US-316-remote-commit-import.md)。
-2. `discard()` / `restore()` 同步回写业务表，放弃的编辑不再被查询读到——[US-317](../../../../requirements/stories/collaboration/US-317-discard-restore-projection.md)。
+1. 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交；合并类（多父）提交可以导入——[US-319](../../../../requirements/stories/collaboration/US-319-remote-commit-import.md)。
+2. `discard()` / `restore()` 同步回写业务表，放弃的编辑不再被查询读到——[US-320](../../../../requirements/stories/collaboration/US-320-discard-restore-projection.md)。
 
 ## 验收标准
 

@@ -6,6 +6,7 @@ import {
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
+  entityAccessRulesSuite,
   joinSqlSuite,
   menuIntegrationSuite,
   querySqlSuite,
@@ -45,6 +46,7 @@ customPrimaryKeySuite(sqliteOfficialFactory);
 relationIntegrationSuite(sqliteOfficialFactory);
 menuIntegrationSuite(sqliteOfficialFactory);
 cascadeMutationSuite(sqliteOfficialFactory);
+entityAccessRulesSuite(sqliteOfficialFactory);
 treeIntegrationSuite(sqliteOfficialFactory);
 
 versionBranchSuite(sqliteOfficialFactory);

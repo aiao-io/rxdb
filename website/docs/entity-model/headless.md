@@ -124,7 +124,7 @@ const operators = getDefaultOperatorRegistry().getForField(fields[0]);
 const kind = getInputType(field.type, rule.operator, field.enum); // 'string' | 'number' | 'enum' | 'none' …
 ```
 
-规则的 `value` 按控件传入的值原样记录，数值字段请把输入框文本转成 number 再写入。能力约束同样来自这里的 `deriveEntityCapabilities(metadata, { readOnly })`，传给列表的 `capabilities`。
+规则的 `value` 按控件传入的值原样记录，数值字段请把输入框文本转成 number 再写入。能力约束同样来自这里的 `deriveEntityCapabilities(metadata, { readOnly, grants })`（`grants` 取 `rxdb.grants.snapshot`，快照变化时重新传），传给列表的 `capabilities`；声明了规则形式的实体按行能不能改、能不能删用 `deriveRowCapabilities()`，见[界面按行派生](../model-definition/permissions.md#界面按行派生)。
 
 ### 新建表单的基线
 

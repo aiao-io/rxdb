@@ -1,5 +1,5 @@
 /**
- * @fileoverview 交换记录的 JSON 编解码（US-316）：纯函数，不读库。
+ * @fileoverview 交换记录的 JSON 编解码（US-319）：纯函数，不读库。
  *
  * @remarks
  * 交换记录在两端之间走 JSON：客户端把 `exportCommits()` 的记录上传，服务端把它认可（或自己合成）的记录下发，

@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-316：门面上的 `importCommits()` / `exportCommits()`——受管事务、导入环境的接线、`commits$` 与损坏守卫。
+ * @fileoverview US-319：门面上的 `importCommits()` / `exportCommits()`——受管事务、导入环境的接线、`commits$` 与损坏守卫。
  *
  * @remarks
  * 命令体本身的判定在 `import-commits.spec.ts` 与 `commit-graph-merge.spec.ts`，这里只守门面那一层：
@@ -77,7 +77,7 @@ const credentialsOf = (scene: WorkingTreeScene) => ({
   expectedWorkingTreeRevision: stateRowOf(scene).workingTreeRevision
 });
 
-describe('importCommits()：门面（US-316）', () => {
+describe('importCommits()：门面（US-319）', () => {
   it('在一笔受管事务里跑，导入环境从宿主现取：快进到批次的最后一个提交', async () => {
     const scene = sceneAtHead();
     const openTransaction = scene.adapter.transaction;
@@ -99,7 +99,7 @@ describe('importCommits()：门面（US-316）', () => {
   });
 });
 
-describe('exportCommits()：门面（US-316）', () => {
+describe('exportCommits()：门面（US-319）', () => {
   it('读当前 active 分支：某个提交之后的那一段，父先于子', async () => {
     const scene = sceneAtHead();
 

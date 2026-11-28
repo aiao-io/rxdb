@@ -325,7 +325,7 @@ describe('三端共用的初始状态', () => {
     >();
   });
 
-  // US-316：导入被拒的十种成因与 no-op 都是**结果**，走命令状态；导出的空页是「那个提交之后没有新提交」，走查询状态
+  // US-319：导入被拒的十种成因与 no-op 都是**结果**，走命令状态；导出的空页是「那个提交之后没有新提交」，走查询状态
   it('导入走命令状态、导出走查询状态', () => {
     expectTypeOf<WorkingTreeAsyncStates['importCommitsState']>().toEqualTypeOf<
       WorkingTreeCommandState<CommitImportResult>

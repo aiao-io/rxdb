@@ -1,6 +1,14 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { LucideHouse as House, LucideListTodo as ListTodo, LucideDynamicIcon, type LucideIcon } from '@lucide/angular';
+import {
+  LucideHouse as House,
+  LucideListTodo as ListTodo,
+  LucideDynamicIcon,
+  LucideReceipt as Receipt,
+  LucideStore as Store,
+  type LucideIcon
+} from '@lucide/angular';
+import { AppService } from './app.service';
 
 interface LinkMenuItem {
   type: 'link';
@@ -28,7 +36,7 @@ type MenuItem = LinkMenuItem | DividerMenuItem;
           </li>
         } @else {
           <li>
-            <a [routerLink]="item.path" routerLinkActive="menu-active">
+            <a [routerLink]="item.path" (click)="app.closeOverlaySidebar()" routerLinkActive="menu-active">
               <svg [lucideIcon]="item.icon" size="16"></svg>
               <span class="rxdb-menu-item">{{ item.title }}</span>
             </a>
@@ -68,6 +76,7 @@ type MenuItem = LinkMenuItem | DividerMenuItem;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppMenu {
+  readonly app = inject(AppService);
   readonly menus = [
     {
       type: 'link',
@@ -81,15 +90,29 @@ export class AppMenu {
     },
     {
       type: 'link',
-      title: 'Todo (findAll)',
+      title: 'Todo',
       path: '/todo',
       icon: ListTodo
     },
     {
+      type: 'divider',
+      title: 'Identity-scoped Sync'
+    },
+    {
       type: 'link',
-      title: 'Todo (cursor)',
-      path: '/todo-cursor',
-      icon: ListTodo
+      title: '商品目录（按身份同步）',
+      path: '/catalog',
+      icon: Store
+    },
+    {
+      type: 'divider',
+      title: 'Relational Sync'
+    },
+    {
+      type: 'link',
+      title: '订单（关系数据同步）',
+      path: '/orders',
+      icon: Receipt
     }
   ] satisfies readonly MenuItem[];
 }

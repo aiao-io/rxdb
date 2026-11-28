@@ -37,6 +37,17 @@ actionsColumn('操作', '删除', '查看');
 actionsColumn('操作', '删除', () => canDelete, '查看');
 ```
 
+`delete` 声明为规则形式（`{ requires }`，US-029）的实体按行派生，与 `EntityList` 一致：
+
+```typescript
+import { actionsColumn, deriveRowCapabilities } from '@aiao/rxdb-model';
+
+const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
+actionsColumn('操作', '删除', record => deriveRowCapabilities(metadata, record, context).canDelete, '查看');
+```
+
+授权快照变化时（`rxdb.grants.snapshot$`）重建列。
+
 `canDelete` 逐行调用，确实需要按行区分时直接读记录：
 
 ```typescript

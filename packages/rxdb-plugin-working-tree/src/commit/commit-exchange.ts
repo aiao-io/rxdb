@@ -1,5 +1,5 @@
 /**
- * @fileoverview 提交交换记录：导入远端提交与导出本地提交共用的那一种形状（US-316）。
+ * @fileoverview 提交交换记录：导入远端提交与导出本地提交共用的那一种形状（US-319）。
  *
  * @remarks
  * 一条记录就是一个提交在服务端那一份身份：id、父链、种类、消息、作者、时间、内容指纹，外加它的全部变更单元。
@@ -26,7 +26,7 @@ import type { Commit, CommitKind } from './commit.entity.js';
 import { listReachableCommits, loadCommitsByIds, readCommitBranchRef } from './list-commits.js';
 
 /**
- * 一个提交的交换记录：导入的入参、导出的产物（US-316）。
+ * 一个提交的交换记录：导入的入参、导出的产物（US-319）。
  *
  * @remarks
  * 字段与 `Commit` 实体的列一一对应，少两列：`operationId`（本地幂等键，每台设备各自派生）与 `changeSetCount`

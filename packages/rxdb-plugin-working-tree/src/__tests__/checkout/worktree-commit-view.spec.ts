@@ -41,7 +41,7 @@ vi.mock('../../working-tree/restore-precheck.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../working-tree/restore-precheck.js')>()),
   findFirstReplayIncompatibility: vi.fn()
 }));
-// US-316：往回推的路走第一父链，侧枝上的目标与不可达的目标是两个结论
+// US-319：往回推的路走第一父链，侧枝上的目标与不可达的目标是两个结论
 vi.mock('../../commit/commit-ancestry.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../commit/commit-ancestry.js')>()),
   resolveFirstParentReplayPath: vi.fn()
@@ -102,7 +102,7 @@ describe('planCommitView', () => {
     expect(await reasonOf(planCommitView(executorWith([], []), codec, 'elsewhere'))).toBe('unreachable_target');
   });
 
-  it('只在合并进来的侧枝上：side_branch_target，不读兼容性（US-316）', async () => {
+  it('只在合并进来的侧枝上：side_branch_target，不读兼容性（US-319）', async () => {
     // 侧枝提交的 ChangeSet 从没直接落到本分支的业务表上，沿第一父链往回推不到它；与「不在历史里」分开报
     vi.mocked(resolveFirstParentReplayPath).mockResolvedValue({ kind: 'side_branch' });
     expect(await reasonOf(planCommitView(executorWith([], []), codec, 'side'))).toBe('side_branch_target');

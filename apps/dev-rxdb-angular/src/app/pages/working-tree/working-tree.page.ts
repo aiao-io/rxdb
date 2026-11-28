@@ -82,7 +82,7 @@ const ASIDE_WIDTH_MAX = 560;
 /** 下拉面板的最小宽度：跟触发按钮同宽，但窄到读不了时保底一整列的宽度。 */
 const MIN_DROPDOWN_WIDTH = 320;
 
-/** `restore()` 的五个被拒成因 → 用户能看懂的提示（`side_branch_target` 随导入远端提交的合并提交而来，US-316）。 */
+/** `restore()` 的五个被拒成因 → 用户能看懂的提示（`side_branch_target` 随导入远端提交的合并提交而来，US-319）。 */
 const RESTORE_REJECTION_TEXT: Record<WorkingTreeRestoreFailureReason, string> = {
   conflict: 'Concurrent conflict: the working tree changed. Retry.',
   dirty_working_tree: 'The working tree has uncommitted changes. Commit or discard them before restoring.',

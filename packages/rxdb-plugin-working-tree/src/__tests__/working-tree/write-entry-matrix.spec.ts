@@ -273,7 +273,7 @@ describe('行 6 — branch switch / baseline 物化 / restore·discard 回写 / 
 
   matrixCase(
     MATRIX_ROW.projectionRewrite,
-    'restore / discard 回写与远端提交导入的三种操作都放行且不落单元（US-317 / US-316）',
+    'restore / discard 回写与远端提交导入的三种操作都放行且不落单元（US-320 / US-319）',
     () => {
       // 回写恰好覆盖三种操作：discard 把插入撤成删除、把删除撤成插入，restore 反之。任何一种落成单元，
       // 命令自己写下的条目旁边就多出一份同一改动的副本——entryCount 翻倍、revision 一次推两格，

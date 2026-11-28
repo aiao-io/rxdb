@@ -10,8 +10,25 @@ describe('runtime config', () => {
       })
     ).toEqual({
       url: 'https://example.supabase.co',
-      key: 'sb_publishable_example'
+      key: 'sb_publishable_example',
+      scope: 'https://example.supabase.co'
     });
+  });
+
+  it('declares the identity scope in the same origin form the adapter reports', () => {
+    // 适配器的 callerIdentity() 按 new URL(url).origin 报告 scope，身份核对是严格相等：尾斜杠、路径段都会被判成换了身份
+    for (const url of [
+      'https://example.supabase.co/',
+      'https://example.supabase.co/rest/v1',
+      'HTTPS://Example.supabase.co'
+    ]) {
+      expect(readSupabaseConfig({ VITE_SUPABASE_URL: url, VITE_SUPABASE_KEY: 'sb_publishable_example' }).scope).toBe(
+        'https://example.supabase.co'
+      );
+    }
+    expect(() =>
+      readSupabaseConfig({ VITE_SUPABASE_URL: 'example.supabase.co', VITE_SUPABASE_KEY: 'sb_publishable_example' })
+    ).toThrow('VITE_SUPABASE_URL');
   });
 
   it('rejects browser-visible secret and service-role keys', () => {

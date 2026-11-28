@@ -1,7 +1,7 @@
 /**
  * @fileoverview `restore(target, options)` —— 把业务表恢复成一个**可达**历史 commit 的数据，与 HEAD 的差异
  * 作为新的未提交变更写进当前工作树；HEAD 不动、历史不改、产物就是普通条目
- * （FR-013/014/015/033/034/042/043/050/051、US-317，contracts/core-api.md §5）。
+ * （FR-013/014/015/033/034/042/043/050/051、US-320，contracts/core-api.md §5）。
  *
  * @remarks
  * 七件事在这里被钉死，每一件都对应一种会安静退化的写法：
@@ -25,11 +25,11 @@
  *    （`checkout/worktree-commit-view.ts` 的 `planCommitView`）同一口径。
  * 5. **CAS 的那条 UPDATE 排在任何写之前。** 反过来的话，`rowsAffected = 0` 时业务表、条目与会话已经落库，
  *    而「那就回滚」只在一个真的会回滚的事务里成立——此处的顺序本身就是保证（conformance-suites.md §2.4、FR-034）。
- * 6. **业务表与工作树写的是同一份差异（US-317）。** v1 只把目标节点自己的单元抄进工作树、业务表一行不动：
+ * 6. **业务表与工作树写的是同一份差异（US-320）。** v1 只把目标节点自己的单元抄进工作树、业务表一行不动：
  *    列表读到的仍是 HEAD，而那批条目既不是「HEAD → 目标」的差异（`inversePatch` 不是 HEAD 上的值，恢复之后
  *    再 discard 会退到别处），也重放不回目标——恢复到 `HEAD~2` 时 `HEAD~1` 改过的行根本不在里面。现在从 HEAD
  *    沿路径逐个撤销单元，按捕获同一份折叠规则折成差异（`projection-actions.ts` 的 `foldRestoreDelta`），条目落
- *    这一份，业务表回写也由这一份推出来（登记表 #14，{@link rewriteProjectionToTarget}）：两份各算的话，迟早在
+ *    这一份，业务表回写也由这一份推出来（登记表 #16，{@link rewriteProjectionToTarget}）：两份各算的话，迟早在
  *    「删了又重建」这种边角上一份对、一份错，而 discard 读的是条目那一份。
  * 7. **诊断里不出现内容。** 失败出口只带 `reason` 与身份/枚举值，会话行只记「来自哪个 commit、
  *    当时两个 revision 是多少」。多一个承载 patch 的字段就等于把加密列的密文复制进一张没人拿它
@@ -105,7 +105,7 @@ export type WorkingTreeRestoreFailureReason =
   /** 目标不在当前分支 HEAD 的可达父链上（FR-033） */
   | 'unreachable_target'
   /**
-   * 目标在历史里，但只经由某个合并提交的**非第一父**可达（US-316）
+   * 目标在历史里，但只经由某个合并提交的**非第一父**可达（US-319）
    *
    * @remarks
    * 与 `unreachable_target` 分开：这个提交在 `listCommits()` 里看得见、点得到，只是从这条分支的数据退不到它——
@@ -165,7 +165,7 @@ export type WorkingTreeRestoreResult =
       readonly reason: 'unreachable_target';
     }
   | {
-      /** 目标只在合并提交带进来的侧枝上，沿第一父链退不到；持久状态零变化（US-316） */
+      /** 目标只在合并提交带进来的侧枝上，沿第一父链退不到；持久状态零变化（US-319） */
       readonly ok: false;
       /** 判别位 */
       readonly reason: 'side_branch_target';
@@ -234,10 +234,10 @@ const restoreUnitOf = (context: CommitWriteContext, row: CommitChangeSet): Worki
  * 读重放路径上的全部单元，按**撤销顺序**排好：HEAD 那个提交在前，提交内按 `sequence` 倒序。
  *
  * @remarks
- * 路径是 HEAD 沿**第一父链**回溯到目标之前的那些提交（`resolveFirstParentReplayPath()`，US-316），它的次序就是撤销次序：
+ * 路径是 HEAD 沿**第一父链**回溯到目标之前的那些提交（`resolveFirstParentReplayPath()`，US-319），它的次序就是撤销次序：
  * 每个提交的 ChangeSet 是相对第一父的增量，撤掉 HEAD 那一份业务表就等于第一父的数据，再撤下一份，依此类推。
  * 合并提交在这条路上与普通提交没有区别——撤掉它就回到它的第一父；它带进来的侧枝不在路上，侧枝的 ChangeSet
- * 从没直接落到本分支的业务表上，撤它们就是把合并那份增量里已经撤过的东西再撤一遍。US-317 那条「引入多父提交后
+ * 从没直接落到本分支的业务表上，撤它们就是把合并那份增量里已经撤过的东西再撤一遍。US-320 那条「引入多父提交后
  * 要重看」的顺延到这里落地：顺序问题不存在了，因为这条路上每个节点恰好一个前驱。
  *
  * 提交内今天每个身份至多一条单元（本地提交取的是工作树条目），倒着走 `sequence` 让「一个提交里同一行写了
@@ -398,13 +398,13 @@ const newRestoreSession = (
 };
 
 /**
- * 把业务表回写成目标的数据：受信调用点登记表 #14。
+ * 把业务表回写成目标的数据：受信调用点登记表 #16。
  *
  * @param executor - 调用方那个写事务的执行器；声明挂在它上面，由挂载点 2 当场取走
  * @param actions - {@link planRestore} 由条目推出的增删改
  *
  * @remarks
- * 声明绑执行器、入口是投影重写、触发器开着，三条理由与 discard 那一处（登记表 #13）相同，写在
+ * 声明绑执行器、入口是投影重写、触发器开着，三条理由与 discard 那一处（登记表 #15）相同，写在
  * `discard-command.ts` 的「回写的三个裁决」里。不判空：条目非空时增删改必然非空（每条 UPDATE 差异
  * 至少留着一个 tracked 字段），判了也是一条走不到的分支。
  */
@@ -474,7 +474,7 @@ const noopRestore = (state: WorkingTreeState): WorkingTreeRestoreResult => ({
 });
 
 /**
- * 把业务表恢复成目标 commit 的数据，与 HEAD 的差异作为新的未提交变更写进工作树（FR-013、US-317）。
+ * 把业务表恢复成目标 commit 的数据，与 HEAD 的差异作为新的未提交变更写进工作树（FR-013、US-320）。
  *
  * @param executor - 调用方那个写事务的执行器；本函数**不自己开事务**
  * @param context - 见 {@link CommitWriteContext}：造条目行的实体管理器与 codec 解析上下文

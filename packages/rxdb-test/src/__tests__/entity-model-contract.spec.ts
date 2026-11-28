@@ -3,10 +3,17 @@
  * 既不进 vitest 的 include，也不进 coverage acceptance 的分母（RXT-030）——
  * 模型层的约束缺失因此长期没有任何用例守着。本文件直接对**源实体**断言元数据契约。
  */
-import { getEntityMetadata, PropertyType } from '@aiao/rxdb';
+import {
+  getEntityAccessScope,
+  getEntityMetadata,
+  getEntityPermission,
+  PropertyType,
+  validateEntityMetadata
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 
 import { Article } from '../../entities/Article.js';
+import { CatalogItem } from '../../entities/CatalogItem.js';
 import { FileLarge } from '../../entities/FileLarge.js';
 import { FileNode } from '../../entities/FileNode.js';
 import { MenuLarge } from '../../entities/MenuLarge.js';
@@ -141,5 +148,22 @@ describe('published entity model contract', () => {
       mappedNamespace: 'shop',
       mappedProperties: ['id', 'ownerId']
     });
+  });
+});
+
+describe('CatalogItem：按作用域的成员写权限（US-234 阶段 B）', () => {
+  const metadata = getEntityMetadata(CatalogItem);
+
+  it('一行属于 tenant:<tenantId>，增删改都要 edit：与 catalog-demo.sql 的写策略同口径', () => {
+    expect(getEntityAccessScope(metadata)).toEqual({ property: 'tenantId', prefix: 'tenant:' });
+    expect(
+      (['create', 'update', 'delete'] as const).map(operation => getEntityPermission(metadata, operation))
+    ).toEqual([{ requires: 'edit' }, { requires: 'edit' }, { requires: 'edit' }]);
+  });
+
+  it('声明通过注册期校验：作用域属性是不可空的 string', () => {
+    expect(metadata.propertyMap.get('tenantId')).toMatchObject({ type: PropertyType.string });
+    expect(metadata.propertyMap.get('tenantId')?.nullable).toBeFalsy();
+    expect(validateEntityMetadata(metadata)).toEqual([]);
   });
 });

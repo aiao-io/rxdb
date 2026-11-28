@@ -49,8 +49,8 @@
         "production": {
           "budgets": [
             {
-              "maximumError": "2mb",
-              "maximumWarning": "1mb",
+              "maximumError": "2.1mb",
+              "maximumWarning": "1.8mb",
               "type": "initial"
             },
             {
@@ -131,6 +131,88 @@
       "options": {
         "command": "node apps/dev-rxdb-supabase/scripts/serve.mjs remote"
       }
+    },
+    "dev": {
+      "continuous": true,
+      "cache": false,
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "target": "dev-serve",
+          "waitFor": "ready"
+        },
+        {
+          "target": "dev-dashboard",
+          "waitFor": "ready"
+        }
+      ],
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/dev/supervise.mjs node apps/dev-rxdb-supabase/scripts/dev/open-dashboard.mjs"
+      },
+      "metadata": {
+        "description": "一键本地开发：起本 checkout 的隔离 Supabase 栈与 Studio，应用连上它热更新运行，全部就绪后打开测试起始页 http://127.0.0.1:4204/（AIAO_DEV_OPEN=false 不自动打开）"
+      }
+    },
+    "dev-ports": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/dev/check-ports.mjs"
+      }
+    },
+    "dev-studio": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["rxdb-adapter-supabase"],
+          "target": "test-env"
+        }
+      ],
+      "options": {
+        "command": "docker/supabase-ci-compose.sh up -d --no-deps --wait --wait-timeout 180 meta studio"
+      }
+    },
+    "dev-serve": {
+      "continuous": true,
+      "cache": false,
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "dev-ports",
+        {
+          "projects": ["rxdb-adapter-supabase"],
+          "target": "test-env"
+        }
+      ],
+      "readyWhen": {
+        "url": "http://127.0.0.1:4203/"
+      },
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/dev/supervise.mjs node apps/dev-rxdb-supabase/scripts/serve.mjs stack"
+      }
+    },
+    "dev-dashboard": {
+      "continuous": true,
+      "cache": false,
+      "executor": "nx:run-commands",
+      "dependsOn": ["dev-ports", "dev-studio"],
+      "readyWhen": {
+        "url": "http://127.0.0.1:4204/"
+      },
+      "options": {
+        "command": "node apps/dev-rxdb-supabase/scripts/dev/supervise.mjs node apps/dev-rxdb-supabase/scripts/dev/dashboard.mjs"
+      }
+    },
+    "dev-test": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "inputs": ["{projectRoot}/scripts/**/*", "{projectRoot}/project.json"],
+      "options": {
+        "command": "node --test \"apps/dev-rxdb-supabase/scripts/dev/*.spec.mjs\""
+      }
+    },
+    "test": {
+      "dependsOn": ["^build", "dev-test"]
     }
   }
 }

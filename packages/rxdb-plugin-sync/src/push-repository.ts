@@ -19,6 +19,7 @@ import {
   type PushRepositoryResult,
   type RemoteChangeRejection,
   type RemoteChangeResult,
+  type RemoteMergeOptions,
   repositoryKey,
   RepositorySyncBeginEvent,
   RepositorySyncCompleteEvent,
@@ -42,7 +43,15 @@ import type { PushInFlightSession } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
-import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
+import {
+  buildDependencyGraph,
+  collectConnectedRepositories,
+  type DependencyCycle,
+  type DependencyGraph,
+  type RepositoryIdentifier
+} from './dependency-graph.js';
+import { RxDBForeignKeyCycleError } from './foreign-key-cycle-error.js';
+import { planCycleBatches } from './push-cycle.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
@@ -61,9 +70,9 @@ export interface PushRepositoryOptions {
    * 是否包含相关实体（级联同步）
    *
    * 当为 true 时：
-   * - 自动推送所有子实体（引用当前实体的实体）
-   * - 遵循反向拓扑顺序：子 -> 父
-   * - 示例：推送 User 时会自动推送 Post
+   * - 连同目标所在的连通分量一起推：它引用的父实体、引用它的子实体，以及沿外键能连到的其余实体
+   * - 跨仓顺序只由外键决定：删除子先父后，新建与修改父先子后
+   * - 示例：推送 Post 时会先推它引用的 User，推送 User 时会一并推引用它的 Post
    *
    * 当为 false 时：
    * - 仅同步指定仓库
@@ -167,7 +176,7 @@ function throwPushFailure(result: PushRepositoryResult): never {
  *   includeRelated: false
  * });
  *
- * // 推送 Todo 以及所有依赖它的实体（如 Comment）
+ * // 推送 Todo 所在的连通分量：它引用的 User 先推，引用它的 Comment 后推
  * const result = await pushRepository(sm, 'public', 'Todo', {
  *   includeRelated: true
  * });
@@ -180,11 +189,7 @@ export async function pushRepository(
   options?: PushRepositoryOptions,
   rejectionSink?: SyncRejection[]
 ): Promise<PushRepositoryResult> {
-  const opts: Required<PushRepositoryOptions> = {
-    batchSize: options?.batchSize === undefined ? DEFAULT_PUSH_REPOSITORY_OPTIONS.batchSize : options.batchSize,
-    includeRelated:
-      options?.includeRelated === undefined ? DEFAULT_PUSH_REPOSITORY_OPTIONS.includeRelated : options.includeRelated
-  };
+  const opts = resolvePushRepositoryOptions(options);
   const rxdb = sm.rxdb;
 
   // 触发开始事件
@@ -275,7 +280,131 @@ async function _pushRepositoryImpl(
 }
 
 /**
- * 级联推送（包含依赖）
+ * 级联推送：推目标所在的连通分量
+ *
+ * @remarks
+ * 取整个连通分量（{@link collectConnectedRepositories}），不是只收子仓：子仓的新建要等父仓的新建先到远端；
+ * 带进来的父仓若有待推删除，它的其他子仓又得先删。顺序与落库见 {@link runCascade}。
+ *
+ * @internal
+ */
+async function pushWithCascade(
+  sm: SyncManager,
+  namespace: string,
+  entity: string,
+  options: Required<PushRepositoryOptions>,
+  inFlight: PushInFlightSession,
+  rejections: SyncRejection[]
+): Promise<PushRepositoryResult> {
+  const graph = buildDependencyGraph(sm.rxdb.config.entities.map(e => getEntityMetadata(e)));
+  const targetKey = `${namespace}:${entity}`;
+  if (!graph.has(targetKey)) {
+    throw new RxDBError(`Repository ${namespace}:${entity} not found in dependency graph`);
+  }
+
+  const results = await runCascade(
+    sm,
+    graph,
+    collectConnectedRepositories(graph, [targetKey]),
+    options,
+    inFlight,
+    rejections
+  );
+
+  // 返回目标仓库结果，并附带相关仓库的结果
+  const targetResult = results.find(result => repositoryKey(result.repository) === targetKey);
+  if (!targetResult) {
+    throw new RxDBError(`Internal error: target repository result not found`);
+  }
+
+  targetResult.relatedResults = results.filter(r => r !== targetResult);
+  // 目标仓的 `failures` 是整次级联的聚合（含目标仓自身）；
+  // `relatedResults` 里每一项的 `failures` 只覆盖它自己那一次子调用
+  targetResult.failures = cascadeFailures(results);
+
+  // 如果目标失败，则抛出。关联仓失败但目标仓推送成功时不抛：
+  // 已经发到远端的变更不会因为抛错而回滚，调用方重试只会重复推送；
+  // 失败清单通过 `failures` 交出去。
+  if (!targetResult.success) throwPushFailure(targetResult);
+
+  return targetResult;
+}
+
+/**
+ * 一次推完一组仓库：一张依赖图、两个相位、回执同一个本地事务落库
+ *
+ * @param sm - SyncManager 实例
+ * @param repositories - 点名推送的仓库，调用方已确认它们有推送资格
+ * @param options - 推送选项；`includeRelated`（默认 `true`）时连同它们所在的连通分量一起推
+ * @param rejectionSink - 被拒清单收集器，只追加、不上报，语义同 {@link pushRepository} 的同名参数
+ * @returns 每个仓库一条结果：点名的在前（按点名顺序），带进来的关联仓在后（按父先子后）
+ *
+ * @remarks
+ * 整库推送（`push()` / `bulkSync` 的 `'push'`）走这里，而不是逐仓各起一次级联：逐仓级联的顺序取决于
+ * `config.entities` 的书写顺序，子仓声明在前时它那次级联里没有父仓，子行先到远端撞外键，被当成终态拒绝、
+ * 本地行随之删除；级联顺带推上去的仓库也不进汇总。合成一次级联后，跨仓顺序只由依赖图决定，
+ * 每个仓库只规划、只认领、只提交一次。
+ *
+ * 推送失败不抛：失败落在各自那条结果的 `error` 上，由调用方逐仓收口。
+ *
+ * @internal
+ */
+export async function pushRepositories(
+  sm: SyncManager,
+  repositories: readonly RepositoryIdentifier[],
+  options: PushRepositoryOptions | undefined,
+  rejectionSink: SyncRejection[]
+): Promise<PushRepositoryResult[]> {
+  if (repositories.length === 0) return [];
+
+  const opts = resolvePushRepositoryOptions(options);
+  assertBatchSize(opts.batchSize);
+  const graph = buildDependencyGraph(sm.rxdb.config.entities.map(e => getEntityMetadata(e)));
+  const requested = repositories.map(repositoryKey);
+  const repoKeys = opts.includeRelated ? collectConnectedRepositories(graph, requested) : new Set(requested);
+
+  const inFlight = sm.pushInFlight.session();
+  try {
+    const results = await runCascade(sm, graph, repoKeys, opts, inFlight, rejectionSink);
+    const rank = (result: PushRepositoryResult): number => {
+      const index = requested.indexOf(repositoryKey(result.repository));
+      return index === -1 ? requested.length : index;
+    };
+    // 稳定排序：点名的按点名顺序在前，关联仓保持 INSERT 拓扑序
+    return results.sort((left, right) => rank(left) - rank(right));
+  } finally {
+    inFlight.release();
+  }
+}
+
+/** 缺省项补齐后的推送选项 */
+function resolvePushRepositoryOptions(options: PushRepositoryOptions | undefined): Required<PushRepositoryOptions> {
+  return {
+    batchSize: options?.batchSize === undefined ? DEFAULT_PUSH_REPOSITORY_OPTIONS.batchSize : options.batchSize,
+    includeRelated:
+      options?.includeRelated === undefined ? DEFAULT_PUSH_REPOSITORY_OPTIONS.includeRelated : options.includeRelated
+  };
+}
+
+/**
+ * 一次级联里失败的仓库，按执行顺序；按策略跳过（`skipped` 且 `success`）不算失败
+ *
+ * @internal
+ */
+function cascadeFailures(results: readonly PushRepositoryResult[]): SyncFailure[] {
+  return results.flatMap(result => (result.error ? [{ repository: result.repository, error: result.error }] : []));
+}
+
+/**
+ * 按两个相位推完一组仓库，全部相位跑完后统一提交
+ *
+ * @param sm - SyncManager 实例
+ * @param graph - 依赖图，排序与依赖闸门都读它
+ * @param repoKeys - 本次推送的仓库键（`namespace:entity`）
+ * @param options - 推送选项
+ * @param inFlight - 本次推送的在飞认领
+ * @param rejections - 落库成功后追加被拒清单的收集器
+ * @returns 每个仓库一条结果，按 INSERT 拓扑序（父先子后）
  *
  * @remarks
  * 这里**按相位**扫两遍仓库，而不是按单一拓扑序扫一遍。
@@ -289,52 +418,35 @@ async function _pushRepositoryImpl(
  *
  * @internal
  */
-async function pushWithCascade(
+async function runCascade(
   sm: SyncManager,
-  namespace: string,
-  entity: string,
+  graph: DependencyGraph,
+  repoKeys: ReadonlySet<string>,
   options: Required<PushRepositoryOptions>,
   inFlight: PushInFlightSession,
   rejections: SyncRejection[]
-): Promise<PushRepositoryResult> {
-  // 构建依赖图
-  const entities = sm.rxdb.config.entities.map(e => getEntityMetadata(e));
-  const graph = buildDependencyGraph(entities);
-
-  // 查找目标仓库及其依赖项
-  const targetKey = `${namespace}:${entity}`;
-  const dep = graph.get(targetKey);
-
-  if (!dep) {
-    throw new RxDBError(`Repository ${namespace}:${entity} not found in dependency graph`);
-  }
-
-  // 收集所有需要推送的仓库（目标 + 其依赖）
-  const reposToPush = new Set<string>([targetKey]);
-  const collectDependents = (key: string): void => {
-    const d = graph.get(key);
-    if (!d) return;
-
-    for (const child of d.requiredBy) {
-      const childKey = `${child.namespace}:${child.entity}`;
-      if (!reposToPush.has(childKey)) {
-        reposToPush.add(childKey);
-        collectDependents(childKey);
-      }
-    }
-  };
-
-  collectDependents(targetKey);
-
+): Promise<PushRepositoryResult[]> {
   const orderRepos = (action: SortActionKind): RepositoryIdentifier[] =>
-    topologicalSortForAction(graph, action).filter(repo => reposToPush.has(repositoryKey(repo)));
+    topologicalSortForAction(graph, action).filter(repo => repoKeys.has(repositoryKey(repo)));
 
   const nodes = new Map<string, CascadeNode>();
   const failedRepos = new Map<string, Error>();
 
   for (const phase of PUSH_PHASES) {
-    for (const repo of orderRepos(phase.action)) {
-      await runCascadePhase(sm, graph, repo, phase, options, nodes, failedRepos, inFlight);
+    const ordered = orderRepos(phase.action);
+    for (let index = 0; index < ordered.length;) {
+      // 外键成环的仓库在排序里连续排列，整个环一起走这个相位（US-038）
+      const cycle = graph.get(repositoryKey(ordered[index]))?.cycle;
+      if (!cycle) {
+        await runCascadePhase(sm, graph, ordered[index], phase, options, nodes, failedRepos, inFlight);
+        index += 1;
+        continue;
+      }
+      let end = index + 1;
+      while (end < ordered.length && graph.get(repositoryKey(ordered[end]))?.cycle === cycle) end += 1;
+      const unit: CycleUnit = { graph, cycle, members: ordered.slice(index, end) };
+      await runCyclePhase(sm, unit, phase, options, nodes, failedRepos, inFlight);
+      index = end;
     }
   }
 
@@ -352,37 +464,11 @@ async function pushWithCascade(
     rejections
   );
 
-  const results: PushRepositoryResult[] = [];
-  const failures: SyncFailure[] = [];
-  for (const node of insertOrder) {
-    const repo = node.repo;
+  return insertOrder.map(node => {
     const result = node.result ?? committed.get(node.plan!);
-    if (!result) throw new RxDBError(`Internal error: push result missing for ${repositoryKey(repo)}`);
-    results.push(result);
-
-    // 按策略跳过（`skipped` 且 `success`）不算失败，不进失败清单
-    if (result.error) {
-      failures.push({ repository: repo, error: result.error });
-    }
-  }
-
-  // 返回目标仓库结果，并附带相关仓库的结果
-  const targetResult = results.find(r => r.repository.namespace === namespace && r.repository.entity === entity);
-  if (!targetResult) {
-    throw new RxDBError(`Internal error: target repository result not found`);
-  }
-
-  targetResult.relatedResults = results.filter(r => r !== targetResult);
-  // 目标仓的 `failures` 是整次级联的聚合（含目标仓自身）；
-  // `relatedResults` 里每一项的 `failures` 只覆盖它自己那一次子调用
-  targetResult.failures = failures;
-
-  // 如果目标失败，则抛出。关联仓失败但目标仓推送成功时不抛：
-  // 已经发到远端的变更不会因为抛错而回滚，调用方重试只会重复推送；
-  // 失败清单通过 `failures` 交出去。
-  if (!targetResult.success) throwPushFailure(targetResult);
-
-  return targetResult;
+    if (!result) throw new RxDBError(`Internal error: push result missing for ${repositoryKey(node.repo)}`);
+    return result;
+  });
 }
 
 /**
@@ -414,69 +500,272 @@ async function runCascadePhase(
   failedRepos: Map<string, Error>,
   inFlight: PushInFlightSession
 ): Promise<void> {
-  const repoKey = repositoryKey(repo);
-  let node = nodes.get(repoKey);
-  if (!node) {
-    node = { repo };
-    nodes.set(repoKey, node);
-  }
+  const node = cascadeNodeOf(nodes, repo);
 
   // 上一个相位已经定案（跳过 / 无变更 / 推失败），不再往下推
   if (node.result) return;
 
   // 阻断边随相位翻转：DELETE 相位子先父后（被 requiredBy 阻断），
   // INSERT 相位父先子后（被 dependsOn 阻断）。理由见 findBlockingDependency 的 @remarks。
-  const blocked = findBlockingDependency(graph, repoKey, failedRepos, dependencyEdgeForAction(phase.action));
+  const blocked = findBlockingDependency(
+    graph,
+    repositoryKey(repo),
+    failedRepos,
+    dependencyEdgeForAction(phase.action)
+  );
   if (blocked) {
-    const error = new RxDBDependencyFailedError(repo, blocked.dependency, blocked.cause);
-    node.result = {
-      ...blockedPushProgress(node.plan),
-      repository: repo,
-      success: false,
-      skipped: `dependency ${repositoryKey(blocked.dependency)} failed`,
-      error
-    };
-    failedRepos.set(repoKey, error);
+    settleBlocked(node, blocked.dependency, blocked.cause, failedRepos);
     return;
   }
 
-  if (!node.plan) {
-    // 级联节点必须走和单仓路径同一份资格校验，否则 `remote` / `local` / `none`
-    // 的关联仓会被无差别推去远端
-    const ineligible = await cascadeNodeIneligibility(sm, repo);
-    if (ineligible) {
-      node.result = { ...emptyPushProgress(), repository: repo, success: true, skipped: ineligible };
-      return;
-    }
+  const plan = await prepareCascadeNode(sm, node, inFlight, failedRepos);
+  if (!plan) return;
 
+  await pushPlanEntries(sm, plan, phase.kinds, options.batchSize);
+  settleFailedPlan(node, failedRepos);
+}
+
+/** 取（或建）一个仓库的级联节点 */
+function cascadeNodeOf(nodes: Map<string, CascadeNode>, repo: RepositoryIdentifier): CascadeNode {
+  const repoKey = repositoryKey(repo);
+  let node = nodes.get(repoKey);
+  if (!node) {
+    node = { repo };
+    nodes.set(repoKey, node);
+  }
+  return node;
+}
+
+/** 依赖失败：这个仓库整个不推，并把失败传导给依赖它的仓库 */
+function settleBlocked(
+  node: CascadeNode,
+  dependency: RepositoryIdentifier,
+  cause: Error,
+  failedRepos: Map<string, Error>
+): void {
+  const error = new RxDBDependencyFailedError(node.repo, dependency, cause);
+  node.result = {
+    ...blockedPushProgress(node.plan),
+    repository: node.repo,
+    success: false,
+    skipped: `dependency ${repositoryKey(dependency)} failed`,
+    error
+  };
+  failedRepos.set(repositoryKey(node.repo), error);
+}
+
+/**
+ * 过资格闸门并规划一次（后续相位复用同一份计划）
+ *
+ * @returns 可以推的计划；没有资格、无变更或规划失败时为 `undefined`，`node.result` 已定案
+ */
+async function prepareCascadeNode(
+  sm: SyncManager,
+  node: CascadeNode,
+  inFlight: PushInFlightSession,
+  failedRepos: Map<string, Error>
+): Promise<RepositoryPushPlan | undefined> {
+  if (node.plan) return node.plan;
+  const repo = node.repo;
+  // 级联节点必须走和单仓路径同一份资格校验，否则 `remote` / `local` / `none`
+  // 的关联仓会被无差别推去远端
+  const ineligible = await cascadeNodeIneligibility(sm, repo);
+  if (ineligible) {
+    node.result = { ...emptyPushProgress(), repository: repo, success: true, skipped: ineligible };
+    return undefined;
+  }
+
+  try {
+    const planned = await planRepositoryPush(sm, repo.namespace, repo.entity, inFlight);
+    if ('emptyResult' in planned) {
+      node.result = { ...planned.emptyResult, success: planned.emptyResult.success ?? true };
+      return undefined;
+    }
+    node.plan = planned;
+    return planned;
+  } catch (error) {
+    const normalized = error instanceof Error ? error : new Error(String(error));
+    node.result = {
+      ...emptyPushProgress(),
+      repository: repo,
+      success: false,
+      error: normalized,
+      failures: [{ repository: repo, error: normalized }]
+    };
+    failedRepos.set(repositoryKey(repo), normalized);
+    return undefined;
+  }
+}
+
+/** 本相位推失败：立刻定案，后续相位不再推，并把失败传导给依赖它的仓库 */
+function settleFailedPlan(node: CascadeNode, failedRepos: Map<string, Error>): void {
+  const plan = node.plan;
+  if (!plan?.error) return;
+  // 有条目没拿到回执：什么都不落，被拒也不算，下一轮整批重推
+  node.result = pushRepositoryResult(plan, plan.pushed, 0, plan.error);
+  failedRepos.set(repositoryKey(node.repo), plan.error);
+}
+
+/** 一个环在当前相位里要一起走的仓库 */
+interface CycleUnit {
+  readonly graph: DependencyGraph;
+  readonly cycle: DependencyCycle;
+  /** 环上本次要推的仓库，按本相位的顺序 */
+  readonly members: readonly RepositoryIdentifier[];
+}
+
+/**
+ * 让外键成环的一组仓库一起走一个相位（US-038）
+ *
+ * @remarks
+ * - 环外的依赖失败时整个环被阻断；环内任一仓库规划失败，其余成员按依赖失败定案。
+ * - 断不开的环（{@link DependencyCycle.breakEdges} 为 `null`）只要有待推变更，环上的仓库都以
+ *   `unbreakable` 失败，下游照常被依赖闸门挡下，环外的仓库照常推。
+ * - 断得开时，环上各仓库这一相位的条目合起来切批（{@link planCycleBatches}），互相引用的行放进同一次
+ *   `mergeChanges` 并带上延迟外键；远端不支持延迟外键时整个环以 `remote-unsupported` 失败，不发请求、不动本地。
+ */
+async function runCyclePhase(
+  sm: SyncManager,
+  unit: CycleUnit,
+  phase: PushPhase,
+  options: Required<PushRepositoryOptions>,
+  nodes: Map<string, CascadeNode>,
+  failedRepos: Map<string, Error>,
+  inFlight: PushInFlightSession
+): Promise<void> {
+  const memberKeys = new Set(unit.members.map(repositoryKey));
+  const active = unit.members.map(repo => cascadeNodeOf(nodes, repo)).filter(node => !node.result);
+  if (active.length === 0) return;
+
+  const edge = dependencyEdgeForAction(phase.action);
+  const blocked = active
+    .map(node => findBlockingDependency(unit.graph, repositoryKey(node.repo), failedRepos, edge))
+    .find(block => block !== undefined && !memberKeys.has(repositoryKey(block.dependency)));
+  if (blocked) {
+    for (const node of active) settleBlocked(node, blocked.dependency, blocked.cause, failedRepos);
+    return;
+  }
+
+  for (const node of active) await prepareCascadeNode(sm, node, inFlight, failedRepos);
+  const failedMember = active.find(node => node.result?.error);
+  const planned = active.filter(node => node.plan && !node.result);
+  if (failedMember?.result?.error) {
+    for (const node of planned) settleBlocked(node, failedMember.repo, failedMember.result.error, failedRepos);
+    return;
+  }
+  if (planned.length === 0) return;
+
+  if (unit.cycle.breakEdges === null) {
+    // 断不开：环上有资格推的仓库都失败（包括这一轮恰好没有变更的成员），下游由依赖闸门挡下
+    for (const node of active) {
+      if (node.result?.skipped !== undefined && node.result.success) continue;
+      failCycleNode(node, new RxDBForeignKeyCycleError(node.repo, unit.cycle, 'unbreakable'), failedRepos);
+    }
+    return;
+  }
+
+  await pushCyclePlans(sm, unit, planned, phase, options.batchSize);
+  for (const node of planned) settleFailedPlan(node, failedRepos);
+}
+
+/** 环上的一个仓库以环的原因失败：已规划的按计划交出进度，没有计划的计数全为 0 */
+function failCycleNode(node: CascadeNode, error: RxDBForeignKeyCycleError, failedRepos: Map<string, Error>): void {
+  node.result =
+    node.plan ?
+      pushRepositoryResult(node.plan, node.plan.pushed, 0, error)
+    : {
+        ...emptyPushProgress(),
+        repository: node.repo,
+        success: false,
+        error,
+        failures: [{ repository: node.repo, error }]
+      };
+  failedRepos.set(repositoryKey(node.repo), error);
+}
+
+/**
+ * 把环上各仓库这一相位的条目合起来推，回执分发回各自的计划
+ *
+ * @remarks
+ * 任一批失败（远端抛错、回执不全）时环上所有计划都记失败：同一批里有它们各自的行，哪一个都不能单独落库。
+ */
+async function pushCyclePlans(
+  sm: SyncManager,
+  unit: CycleUnit,
+  planned: readonly CascadeNode[],
+  phase: PushPhase,
+  batchSize: number
+): Promise<void> {
+  const owners = new Map<CompactedPushEntry, RepositoryPushPlan>();
+  for (const node of planned) {
+    for (const entry of node.plan!.entries) if (phase.kinds.has(entry.actionKind)) owners.set(entry, node.plan!);
+  }
+  if (owners.size === 0) return;
+
+  const memberKeys = new Set(unit.cycle.members.map(repositoryKey));
+  const cycleEdges = unit.cycle.members.flatMap(member =>
+    (unit.graph.get(repositoryKey(member))?.foreignKeys ?? []).filter(edge => memberKeys.has(repositoryKey(edge.to)))
+  );
+  const batches = planCycleBatches(
+    [...owners].map(([entry, plan]) => ({
+      entry,
+      repository: plan.repository,
+      // 条目键里的 id 段是编码过的身份键，外键值是原始 id：取源变更上的原始 id
+      entityId: String(entry.sourceChanges[0].entityId),
+      branchId: entry.branchId,
+      values: entry.action.patch as Record<string, unknown> | null
+    })),
+    cycleEdges,
+    unit.cycle.breakEdges ?? [],
+    batchSize
+  );
+
+  const remoteAdapter = planned[0].plan!.remoteAdapter;
+  const deferredNeeded = batches.flatMap(batch => batch.deferredForeignKeys);
+  if (deferredNeeded.length > 0 && !remoteAdapter.supportsDeferredForeignKeys) {
+    const detail = `needs ${[...new Set(deferredNeeded.map(key => `${key.namespace}.${key.entity}.${key.property}`))].join(', ')}`;
+    for (const node of planned) {
+      node.plan!.error = new RxDBForeignKeyCycleError(node.repo, unit.cycle, 'remote-unsupported', detail);
+    }
+    return;
+  }
+
+  for (const batch of batches) {
+    const entries = batch.entries.map(item => item.entry);
     try {
-      const planned = await planRepositoryPush(sm, repo.namespace, repo.entity, inFlight);
-      if ('emptyResult' in planned) {
-        node.result = { ...planned.emptyResult, success: planned.emptyResult.success ?? true };
-        return;
-      }
-      node.plan = planned;
+      assertSyncOnMainCheckout(sm.rxdb.worktreeTableSet, 'pushRepository');
+      const options = batch.deferredForeignKeys.length > 0 ? { deferredForeignKeys: batch.deferredForeignKeys } : {};
+      const classified = await mergePushBatch(remoteAdapter, batch.branchId, entries, options);
+      distributeCycleReceipts(entries, owners, classified);
     } catch (error) {
       const normalized = error instanceof Error ? error : new Error(String(error));
-      node.result = {
-        ...emptyPushProgress(),
-        repository: repo,
-        success: false,
-        error: normalized,
-        failures: [{ repository: repo, error: normalized }]
-      };
-      failedRepos.set(repoKey, normalized);
+      console.error(`Error pushing foreign key cycle [${unit.cycle.members.map(repositoryKey).join(', ')}]:`, error);
+      for (const node of planned) node.plan!.error = normalized;
       return;
     }
   }
+}
 
-  await pushPlanEntries(sm, node.plan, phase.kinds, options.batchSize);
-
-  // 本相位推失败：立刻定案，后续相位不再推，并把失败传导给依赖它的仓库
-  if (node.plan.error) {
-    // 有条目没拿到回执：什么都不落，被拒也不算，下一轮整批重推
-    node.result = pushRepositoryResult(node.plan, node.plan.pushed, 0, node.plan.error);
-    failedRepos.set(repoKey, node.plan.error);
+/** 一批回执按条目分发回各自的推送计划 */
+function distributeCycleReceipts(
+  entries: readonly CompactedPushEntry[],
+  owners: ReadonlyMap<CompactedPushEntry, RepositoryPushPlan>,
+  classified: ClassifiedPushBatch
+): void {
+  const planOfChange = new Map<RxDBChange, RepositoryPushPlan>();
+  for (const entry of entries) for (const change of entry.sourceChanges) planOfChange.set(change, owners.get(entry)!);
+  const rejectedEntries = new Set(classified.rejected.map(rejected => rejected.entry));
+  for (const { change, remoteId } of classified.applied)
+    planOfChange.get(change)!.remoteIdsByChange.set(change, remoteId);
+  for (const rejected of classified.rejected) owners.get(rejected.entry)!.rejectedEntries.push(rejected);
+  const touched = new Set<RepositoryPushPlan>();
+  for (const entry of entries) {
+    const plan = owners.get(entry)!;
+    if (!rejectedEntries.has(entry)) plan.pushed += 1;
+    touched.add(plan);
+  }
+  for (const plan of touched) {
+    if (classified.applied.some(({ change }) => planOfChange.get(change) === plan)) plan.invalidateHistory();
   }
 }
 
@@ -783,10 +1072,15 @@ function entryRejection(
 async function mergePushBatch(
   remoteAdapter: RxDBAdapterRemoteBase,
   branchId: string,
-  entries: CompactedPushEntry[]
+  entries: CompactedPushEntry[],
+  options?: RemoteMergeOptions
 ): Promise<ClassifiedPushBatch> {
   const batch = createCompactedPushBatch(entries);
-  const mergeResult = await remoteAdapter.mergeChanges(batch.actions, branchId, batch.sourceChanges);
+  // 只有环内的批才带第四个参数（US-038），其余调用与从前逐字相同
+  const mergeResult =
+    options ?
+      await remoteAdapter.mergeChanges(batch.actions, branchId, batch.sourceChanges, options)
+    : await remoteAdapter.mergeChanges(batch.actions, branchId, batch.sourceChanges);
   assertMergeResultCoversBatch(mergeResult.results, batch.sourceChanges);
 
   const resultByLocalId = new Map(mergeResult.results.map(result => [result.localId, result]));

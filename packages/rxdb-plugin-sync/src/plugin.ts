@@ -5,14 +5,36 @@
  * @module rxdb-plugin-sync
  */
 
-import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase } from '@aiao/rxdb';
+import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase, type EntityType, type RxDBSystemContribution } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { createSyncBranchMaterializationSource } from './branch-materialization-source.js';
 import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
+import { RxDBSyncBucketProgress, RxDBSyncBucketRow, RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
 import { SyncManager } from './SyncManager.js';
 
 /** 本插件当前不接受任何选项 */
 export type RxDBPluginSyncOptions = object;
+
+const SYNC_SYSTEM_ENTITIES: readonly EntityType[] = [
+  RxDBSyncBucketProgress,
+  RxDBSyncBucketRow,
+  RxDBSyncIdentityBinding
+];
+
+const SYNC_SYSTEM_CONTRIBUTION: RxDBSystemContribution = {
+  capability: 'sync',
+  version: 1,
+  packageSpecifier: '@aiao/rxdb-plugin-sync',
+  entities: SYNC_SYSTEM_ENTITIES,
+  createInitialRows: () => [],
+  createMigrations: () => [],
+  bootstrapExisting: async () => undefined,
+  writeBranchRows: async () => undefined,
+  removeBranchRows: async () => undefined,
+  prepareBranchSwitch: async () => undefined,
+  takeOverBranchSwitch: async () => 'not_applicable',
+  settleBranchSwitchFailure: async () => undefined
+};
 
 /**
  * 推拉同步 / 冲突 / 仓库依赖序插件。
@@ -51,6 +73,7 @@ export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
   readonly inject = ['plugin:history'] as const;
   name: Uncapitalize<string> = 'sync';
+  readonly system = SYNC_SYSTEM_CONTRIBUTION;
 
   install(scope: LifecycleScope) {
     // `inject` 已经保证历史插件先装完，`versionManager` 槽位此刻一定在。
@@ -89,15 +112,51 @@ export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
     // 适配器的订阅恢复路径。
     scope.acquire(
       () =>
-        this.rxdb.syncState.bindPullableRefresh(() => {
-          void syncManager.refreshPullableCount().catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error);
-            console.warn(`[RxDB Sync] 重算待拉数失败：${message}。`);
-          });
-        }),
+        this.rxdb.syncState.bindPullableRefresh(
+          coalesceRefresh(() =>
+            syncManager.refreshPullableCount().then(
+              () => undefined,
+              (error: unknown) => {
+                const message = error instanceof Error ? error.message : String(error);
+                console.warn(`[RxDB Sync] 重算待拉数失败：${message}。`);
+              }
+            )
+          )
+        ),
       'sync:pullableRefresh'
     );
   }
+}
+
+/**
+ * 把成串的重算请求合成「正在数的这一遍」加「收尾一遍」
+ *
+ * @param refresh - 数一遍；不得拒绝
+ * @returns 交给 `bindPullableRefresh()` 的回调
+ *
+ * @remarks
+ * 适配器每个频道订阅上都会请求一次（Supabase 是统一频道加每个分区一个），连接、重连、换身份时成串到来，
+ * 每个请求都整库重数一遍就是一阵远端请求的突发（评审 #3）。正在数时来的请求只记下「还要再数」：
+ * 数完再补一遍，补的那遍覆盖了数的途中才订阅上的频道——不补，它们断线期间攒下的变更就数不进来。
+ */
+function coalesceRefresh(refresh: () => Promise<void>): () => void {
+  let running = false;
+  let again = false;
+  const run = async (): Promise<void> => {
+    running = true;
+    do {
+      again = false;
+      await refresh();
+    } while (again);
+    running = false;
+  };
+  return () => {
+    if (running) {
+      again = true;
+      return;
+    }
+    void run();
+  };
 }
 
 declare module '@aiao/rxdb' {

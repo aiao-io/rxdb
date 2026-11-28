@@ -48,7 +48,7 @@ import type { WorkingTreePatchCodecContext } from './working-tree-patch-codec.js
  * `commit()` 照样全量提交（FR-015 末句）。
  */
 export interface WorkingTreeRestoreTarget {
-  /** 目标 commit 的 id；必须在当前分支 HEAD 的第一父链上（FR-033）。只经由合并提交的非第一父可达的提交被拒为 `side_branch_target`（US-316） */
+  /** 目标 commit 的 id；必须在当前分支 HEAD 的第一父链上（FR-033）。只经由合并提交的非第一父可达的提交被拒为 `side_branch_target`（US-319） */
   readonly commitId: string;
 
   /**
@@ -58,7 +58,7 @@ export interface WorkingTreeRestoreTarget {
    * 三段全给而不是只给 `entityId`：同一个 id 在两个 namespace 下是两行，
    * 只按 id 过滤会把另一张表里恰好同 id 的那一行也带进来。
    *
-   * US-317 之前它筛的是「目标节点自己的单元」：点名一行目标节点没碰过、却在之后被改过的数据，恢复出来是空的。
+   * US-320 之前它筛的是「目标节点自己的单元」：点名一行目标节点没碰过、却在之后被改过的数据，恢复出来是空的。
    * 现在筛的是「HEAD → 目标」的差异：点名的行只要两端不同就会被恢复，与它是在哪一次提交里变的无关。
    */
   readonly entities?: readonly WorkingTreeRestoreEntityRef[];
@@ -168,7 +168,7 @@ export type RestoreCompatibility =
  *   目标不在 HEAD 的**第一父链**上时返回 `undefined`
  *
  * @remarks
- * 路径 = **从 HEAD 沿第一父链走到目标之前的那些提交**（US-316 起）。每个提交的 ChangeSet 是相对它第一父的增量，
+ * 路径 = **从 HEAD 沿第一父链走到目标之前的那些提交**（US-319 起）。每个提交的 ChangeSet 是相对它第一父的增量，
  * 合并提交也一样，所以业务表在 HEAD 上等于「根 + 第一父链上每个 ChangeSet」——退回目标只要沿这条链倒着撤。
  * 在此之前这里是「HEAD 可达集减去目标可达集」：线性历史上两者逐个相同，合并图上后者会把侧枝提交也算进撤销路径，
  * 而侧枝的 ChangeSet 从没直接落到本分支的业务表上（它们的影响已经折进了合并提交那份增量），撤它们就是撤第二遍。

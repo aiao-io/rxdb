@@ -19,7 +19,7 @@ import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
  * 而 FR-044 的物化屏障要求能单独认出 `branch_baseline`；更要命的是它让「作者恰好没记上的
  * 普通 commit」与系统根节点不可区分，于是空 ChangeSet 的门禁对前者也失效。
  *
- * `merge` 是 US-316 加的第四种：**只由导入远端提交写下**（`importCommits()`），本地 `commit()` 从不产出它——
+ * `merge` 是 US-319 加的第四种：**只由导入远端提交写下**（`importCommits()`），本地 `commit()` 从不产出它——
  * 本地没有合并命令，写路径的父链只取当前 HEAD 一个。它有两个及以上的父，**ChangeSet 是合并结果相对第一父的增量**
  * （与 `git diff M^1 M` 同义），所以「某个提交的数据 = 第一父的数据 + 它自己的 ChangeSet」对四种提交一律成立：
  * 导入时把合并提交的 ChangeSet 叠到此刻等于第一父的业务表上，`restore()` 沿第一父链撤销，都靠这一条。
@@ -155,7 +155,7 @@ export class Commit {
    *
    * @remarks
    * 普通 commit 要求 trim 后非空且由调用方提供；两种系统根节点写系统生成的固定文案
-   * （列本身 not null，没有「无消息」这种物理状态）。导入的提交原样保存远端那一份（US-316），不 trim、不换文案：
+   * （列本身 not null，没有「无消息」这种物理状态）。导入的提交原样保存远端那一份（US-319），不 trim、不换文案：
    * 它参与内容指纹，改一个字节指纹就对不上。
    */
   message!: string;
@@ -169,7 +169,7 @@ export class Commit {
    * 创建时间
    *
    * @remarks
-   * 本地提交由写入时刻给；导入的提交带远端那一份时间入库（US-316）。它不进内容指纹，也不参与「同 ID 是不是同一个提交」的判定。
+   * 本地提交由写入时刻给；导入的提交带远端那一份时间入库（US-319）。它不进内容指纹，也不参与「同 ID 是不是同一个提交」的判定。
    */
   createdAt!: Date;
 

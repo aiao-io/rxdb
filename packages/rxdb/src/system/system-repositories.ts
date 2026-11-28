@@ -13,7 +13,7 @@
  * 因此 US-025 阶段 C 把**消费者**（历史 / 撤销重做 / 分支操作）搬进
  * `@aiao/rxdb-plugin-history`，把这三张表与本文件的解析函数留在核心。
  */
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, takeUntil, type Observable } from 'rxjs';
 import type { RxDB } from '../RxDB.js';
 import { RxDBError } from '../RxDBError.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID, WorktreeBranchHeldError } from './active-branch-guard.js';
@@ -90,12 +90,29 @@ export const resolve_current_branch = async (
 };
 
 /**
+ * 等适配器可用。给了 `until` 时，它先发出就以 {@link RxDBError} 结束，不再等下去。
+ *
+ * @remarks
+ * 断连之后适配器流按设计「像还没连上一样」一直等，重连时交出新连接。调用方所属的连接纪元已经结束时
+ * （同步插件的管理器随断连、销毁被拆掉），这次等待永远等不到属于它的连接，只会悬着。
+ */
+const firstAdapter = async <T>(adapter$: Observable<T>, until: Observable<unknown> | undefined): Promise<T> => {
+  if (until === undefined) return firstValueFrom(adapter$);
+  const adapter = await firstValueFrom(adapter$.pipe(takeUntil(until)), { defaultValue: undefined });
+  if (adapter === undefined) {
+    throw new RxDBError('The connection ended before the adapter became available; the operation was abandoned.');
+  }
+  return adapter;
+};
+
+/**
  * 取本地适配器上的系统表仓库。
  *
  * @param rxdb - RxDB 实例
+ * @param until - 可选：发出时放弃等待并抛 {@link RxDBError}（例如调用方的连接纪元已经结束）
  */
-export const getLocalSystemRepositories = async (rxdb: RxDB) => {
-  const adapter = await firstValueFrom(rxdb.localAdapter$);
+export const getLocalSystemRepositories = async (rxdb: RxDB, until?: Observable<unknown>) => {
+  const adapter = await firstAdapter(rxdb.localAdapter$, until);
   const branchRepository = adapter.getRepository<typeof RxDBBranch, LocalRxDBBranchRepository>(RxDBBranch);
   const changeRepository = adapter.getRepository<typeof RxDBChange, LocalRxDBChangeRepository>(RxDBChange);
   return { branchRepository, changeRepository, adapter };
@@ -105,9 +122,10 @@ export const getLocalSystemRepositories = async (rxdb: RxDB) => {
  * 取远端适配器上的系统表仓库。
  *
  * @param rxdb - RxDB 实例
+ * @param until - 可选：发出时放弃等待并抛 {@link RxDBError}（例如调用方的连接纪元已经结束）
  */
-export const getRemoteSystemRepositories = async (rxdb: RxDB) => {
-  const adapter = await firstValueFrom(rxdb.remoteAdapter$);
+export const getRemoteSystemRepositories = async (rxdb: RxDB, until?: Observable<unknown>) => {
+  const adapter = await firstAdapter(rxdb.remoteAdapter$, until);
   const branchRepository = adapter.getRepository<typeof RxDBBranch, RemoteRxDBBranchRepository>(RxDBBranch);
   const changeRepository = adapter.getRepository<typeof RxDBChange, RemoteRxDBChangeRepository>(RxDBChange);
   return { branchRepository, changeRepository, adapter };

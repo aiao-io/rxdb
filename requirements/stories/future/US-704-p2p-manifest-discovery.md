@@ -41,7 +41,7 @@ epic-013 已由 owner 解锁（见[解锁记录](../../epics/epic-013-p2p-file-s
 ### In Scope
 
 - 内容清单按 `contentHash` 唯一登记 `fileName` / `size` / `chunkSize` / `chunkHashes` / `sourceUrl`（服务器地址）；持有声明单独以 `(contentHash, holderId)` 记录获得/撤回，经 `rxdb-plugin-sync` 同步。`holderId` 必须关联认证宿主验证过的用户与设备，不能只用同一用户在多设备共用的 userId，也不能由客户端任意自报。与 `rxdb-plugin-storage` 的 `StorageFileMeta` 走 `SyncType.None`（本地专属、不上行）的路线**相反**，见 [US-502](../plugin/US-502-storage-plugin.md)
-- 清单可见范围与所在同步集合的读范围一致；跨租户隔离依赖部署级分离（多租户已移出 US-029），不在本故事内实现读边界
+- 清单可见范围与所在同步集合的读范围一致；跨租户隔离依赖部署级分离（US-029 只管写权限，不管读），不在本故事内实现读边界
 - 「谁曾声明持有 `contentHash=X`」的本地活查询来自持久清单，离线可答；是否当前可连接另由 presence/探测回答，不把缓存声明等同在线保证
 - 浏览器对等方信令：SDP / ICE candidate 经服务器**专用信令中转路由**转发（新端点；不复用实体失效通知通道）
 - 桌面对等方发现：mDNS 发现 + 直连握手

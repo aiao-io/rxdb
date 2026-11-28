@@ -33,4 +33,4 @@ An entity's write permissions are split into three independent capabilities — 
 - `update: 'system'`: rows degrade to read-only, "View" opens the detail in view mode, deletion still possible (when `delete` allows it);
 - `delete: 'system'`: the action column shows no "Delete", rows stay editable.
 
-Consumers that maintain `actionsColumn` calls or custom action columns across versions should derive `canDelete` with `deriveEntityCapabilities(metadata)` to stay consistent with `EntityList`'s internal decision.
+Consumers that maintain `actionsColumn` calls or custom action columns across versions should derive `canDelete` with `deriveEntityCapabilities(metadata)` to stay consistent with `EntityList`'s internal decision; for an entity whose `delete` is declared with a rule (US-029), derive it per row with `deriveRowCapabilities(metadata, record, { grants: rxdb.grants.snapshot })`.

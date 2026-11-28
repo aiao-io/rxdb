@@ -19,6 +19,7 @@ import {
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
+  entityAccessRulesSuite,
   hostKillingRestoreWorker,
   joinSqlSuite,
   menuIntegrationSuite,
@@ -46,6 +47,7 @@ const suiteExports = [
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
+  entityAccessRulesSuite,
   joinSqlSuite,
   menuIntegrationSuite,
   querySqlSuite,
@@ -105,7 +107,7 @@ describe('testing subpath', () => {
   });
 
   it('exports every shared suite as a function', () => {
-    expect(suiteExports).toHaveLength(22);
+    expect(suiteExports).toHaveLength(23);
     for (const suite of suiteExports) expect(suite).toBeTypeOf('function');
   });
 

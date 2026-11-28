@@ -20,10 +20,10 @@
  * 4. **discard 顺手把 HEAD 也退一格。** discard 不是 reset --hard HEAD~1。
  *    FR-016 的落点是工作树，2.5 一列都不动，也不写任何提交历史。
  *
- * **US-317 之后 discard 连业务表一起退回 HEAD。** v1 的 discard 只回滚「逻辑工作树」（data-model.md §5 的
+ * **US-320 之后 discard 连业务表一起退回 HEAD。** v1 的 discard 只回滚「逻辑工作树」（data-model.md §5 的
  * 三条簿记：revision +1、删条目、`entryCount` 归零），业务表停在丢弃前的值——列表与表单读到的数据与
  * `status()` 报的 clean 从此对不上。跨这条线照当初定下的规矩做：意图枚举加 `working_tree_projection`、
- * `TRUSTED_CALLSITE_REGISTRY` 与 epic-006「受信调用点登记表」加 #13（`discard-command.ts ·
+ * `TRUSTED_CALLSITE_REGISTRY` 与 epic-006「受信调用点登记表」加 #15（`discard-command.ts ·
  * rewriteProjectionToHead`）、漂移用例跟着改，而不是在这里随手补一句 `declareTrustedWrite()`。
  * 本文件「回写业务表」一组钉的是这次跨线的形状：一次 `executor.mergeChanges`、触发器照开、
  * 入口是投影重写（回写不再被捕获成单元），排在删条目与推 revision 之前；clean、冲突、
@@ -146,7 +146,7 @@ describe('范围是整棵工作树，签名里没有 selection（FR-016）', () 
     expectTypeOf<Parameters<typeof discardWorkingTree>[2]>().toEqualTypeOf<WorkingTreeDiscardOptions>();
   });
 
-  it('第二参是写上下文：回写要解码条目补丁，与 commit / restore 同形（US-317）', () => {
+  it('第二参是写上下文：回写要解码条目补丁，与 commit / restore 同形（US-320）', () => {
     // 条目里的 bigint / binary 列是 `$rxdbChangeValue` 信封，不解开就交给 mergeChanges 会在适配器的
     // 类型转换上炸掉；解码要实体元数据，而元数据只在门面握着的那个适配器上——与 commit() / restore()
     // 同一个来源、同一个形参位置。
@@ -419,7 +419,7 @@ describe('三个捕获位同样要比，且比在 no-op 判定之前（FR-031/03
   });
 });
 
-describe('回写业务表：条目的 inversePatch 把业务行退回 HEAD（US-317 AC1）', () => {
+describe('回写业务表：条目的 inversePatch 把业务行退回 HEAD（US-320 AC1）', () => {
   it('跨实体的插入、修改与删除各自撤回：一次 mergeChanges，触发器照开', async () => {
     const scene = createWorkingTreeScene();
     scene.addEntry({ entityId: 'note-new', operation: 'insert', patch: { title: '新建' }, inversePatch: null });
@@ -462,7 +462,7 @@ describe('回写业务表：条目的 inversePatch 把业务行退回 HEAD（US-
     expect({ localChanges, disableTriggers }).toEqual({ localChanges: undefined, disableTriggers: false });
   });
 
-  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #13，入口是投影重写', async () => {
+  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #15，入口是投影重写', async () => {
     const scene = createWorkingTreeScene();
     scene.addEntry();
     const executor = scene.probe.executor;

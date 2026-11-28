@@ -38,6 +38,8 @@ import {
   localizeEntityMetadata,
   type ListViewState,
   deriveEntityCapabilities,
+  deriveRowCapabilities,
+  deriveWriteBlockedReason,
   describeHistoryBarrier,
   extractFieldsFromMetadata,
   organizeFields,
@@ -332,10 +334,40 @@ watch(
 
 const entityCls = computed(() => entityClsMap.get(entityKey.value));
 
-/** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
+/** 授权快照（US-029）：规则形式的新增、编辑、删除按它逐行派生，变化时不刷新页面即生效 */
+const grants = shallowRef(rxdb.grants.snapshot);
+watchEffect(onCleanup => {
+  const subscription = rxdb.grants.snapshot$.subscribe(snapshot => (grants.value = snapshot));
+  onCleanup(() => subscription.unsubscribe());
+});
+/** 能力派生的实例侧上下文：只读实例与授权快照 */
+const capabilityContext = computed(() => ({ readOnly: rxdb.readOnly, grants: grants.value }));
+
+/** 当前实体的界面能力，由 `permissions` 与授权快照派生（US-027 / US-029）；未注册实体无元数据可派生，为 `undefined` */
 const capabilities = computed(() => {
   const cls = entityCls.value;
-  return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: rxdb.readOnly }) : undefined;
+  return cls ? deriveEntityCapabilities(getEntityMetadata(cls), capabilityContext.value) : undefined;
+});
+
+/** 已落库的行里不可编辑的那些（按行派生，US-029）：行挂 `_readonly`，详情走 view 模式 */
+const readonlyRowIds = computed(() => {
+  const cls = entityCls.value;
+  if (!cls) return new Set<unknown>();
+  const metadata = getEntityMetadata(cls);
+  const context = capabilityContext.value;
+  return new Set(
+    instances.value
+      .filter(inst => !deriveRowCapabilities(metadata, inst as Record<string, unknown>, context).canEdit)
+      .map(inst => inst.id)
+  );
+});
+
+/** 整个实体的写入口为什么都关着（US-029 AC#20）：列表顶部据此给出可读的原因，`undefined` 时不出提示 */
+const writeBlockedMessage = computed(() => {
+  const cls = entityCls.value;
+  const reason = cls ? deriveWriteBlockedReason(getEntityMetadata(cls), capabilityContext.value) : undefined;
+  if (reason === undefined) return undefined;
+  return t(reason === 'read-only-instance' ? 'list.writeBlocked.readOnly' : 'list.writeBlocked.grantsUnknown');
 });
 
 // ── History (undo/redo) ───────────────────────────────────────────────
@@ -382,7 +414,7 @@ const columnsCache = computed(() => {
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
           i18n: modelI18n,
-          readOnly: rxdb.readOnly,
+          ...capabilityContext.value,
           actionsMaxWidth: props.actionsMaxWidth,
           relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => {
@@ -474,7 +506,7 @@ const rowDragEnabled = computed(() => {
       selectMode: isSelectMode.value,
       fixedQuery: props.fixedQuery,
       fullyLoaded: !!list && !list.hasMore.value && !list.isLoading.value,
-      hasReadonlyRows: capabilities.value?.canEdit === false,
+      hasReadonlyRows: readonlyRowIds.value.size > 0,
       hasDrafts: localDraftItems.value.length > 0,
       hasPendingEdits: pendingEditBatches.value > 0,
       reorderPending: reorderPending.value
@@ -483,12 +515,12 @@ const rowDragEnabled = computed(() => {
 });
 
 const sourceTableRecords = computed<EntityTableRecord[]>(() => {
-  // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
-  // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
-  const isRowReadonly = capabilities.value?.canEdit === false;
+  // 不可编辑的行（`update` 只许系统写，或规则形式而这一行的作用域上没有所需权限）交给现成的 `_readonly`
+  // 行守卫挡住编辑与粘贴，详情走 view 模式；删除另由操作列按行判定。草稿尚未落库，仍可编辑
+  const readonlyIds = readonlyRowIds.value;
   const dbRecords = instances.value.map(inst => ({
     ...(inst as Record<string, unknown>),
-    ...(isRowReadonly ? { _readonly: true } : {})
+    ...(readonlyIds.has(inst.id) ? { _readonly: true } : {})
   }));
   const draftRecords = localDraftItems.value.map(inst => ({ ...(inst as Record<string, unknown>) }));
   let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
@@ -1281,6 +1313,16 @@ defineExpose({
         </div>
       </template>
     </Teleport>
+
+    <!-- 写入口全关的原因（US-029 AC#20）：只读实例，或授权快照还没取到 -->
+    <div
+      v-if="writeBlockedMessage"
+      class="alert alert-info rounded-none px-4 py-2 text-sm"
+      data-testid="entity-write-blocked"
+      role="status"
+    >
+      {{ writeBlockedMessage }}
+    </div>
 
     <div
       v-if="reorderError"

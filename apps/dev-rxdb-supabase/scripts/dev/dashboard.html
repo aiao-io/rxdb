@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="no-referrer" name="referrer" />
+    <link href="data:," rel="icon" />
+    <title>RxDB Supabase 测试起始页</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f5;
+        --surface: #ffffff;
+        --inset: #f0f3f2;
+        --border: #dde4e1;
+        --border-strong: #b9c6c0;
+        --text: #16201b;
+        --muted: #56665f;
+        --faint: #6f7d77;
+        --accent: #0f7d52;
+        --accent-hover: #0b6744;
+        --on-accent: #ffffff;
+        --green: #0f7d52;
+        --green-soft: #e1f3ea;
+        --blue: #1f5fae;
+        --blue-soft: #e4eefb;
+        --violet: #5b45b8;
+        --violet-soft: #ece8fb;
+        --amber: #8a5a07;
+        --amber-soft: #fbf0db;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --bg: #0b1019;
+          --surface: #111923;
+          --inset: #0b121d;
+          --border: #26313e;
+          --border-strong: #4d6a60;
+          --text: #e9edf6;
+          --muted: #9ca8ba;
+          --faint: #8291a5;
+          --accent: #b1f1cd;
+          --accent-hover: #c8f7dc;
+          --on-accent: #14251d;
+          --green: #a7efcb;
+          --green-soft: #22342e;
+          --blue: #9dc7fc;
+          --blue-soft: #1e3045;
+          --violet: #c4b7fc;
+          --violet-soft: #2a283e;
+          --amber: #f3ce8c;
+          --amber-soft: #3a3021;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 1180px;
+        margin: auto;
+        padding: 32px 32px 48px;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 4px;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      .topbar,
+      header,
+      .section-heading,
+      .card-top,
+      .card-bottom,
+      .field,
+      footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 650;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 35px;
+        height: 35px;
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        color: var(--green);
+        font:
+          600 13px ui-monospace,
+          monospace;
+      }
+      .local {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--faint);
+        font:
+          11px ui-monospace,
+          monospace;
+        letter-spacing: 1px;
+        overflow-wrap: anywhere;
+      }
+      .local::before {
+        content: '';
+        flex-shrink: 0;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      header {
+        align-items: end;
+        padding: 42px 0 30px;
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--faint);
+        font:
+          11px ui-monospace,
+          monospace;
+        letter-spacing: 2px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(28px, 4vw, 40px);
+        font-weight: 600;
+        letter-spacing: -0.5px;
+      }
+      header p {
+        margin: 0;
+        max-width: 640px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .primary {
+        flex-shrink: 0;
+        border-radius: 8px;
+        padding: 12px 18px;
+        background: var(--accent);
+        color: var(--on-accent);
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .primary:hover {
+        background: var(--accent-hover);
+      }
+      .blocks > * + * {
+        margin-top: 30px;
+      }
+      .section-heading {
+        justify-content: start;
+        gap: 12px;
+        margin: 0 0 14px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .caption {
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .card,
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        padding: 19px;
+        transition:
+          border-color 0.15s,
+          transform 0.15s;
+      }
+      .card:hover {
+        border-color: var(--border-strong);
+        transform: translateY(-2px);
+      }
+      .icon {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--green-soft);
+        color: var(--green);
+        font:
+          13px ui-monospace,
+          monospace;
+      }
+      .blue {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+      .violet {
+        background: var(--violet-soft);
+        color: var(--violet);
+      }
+      .amber {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+      .port {
+        color: var(--faint);
+        font:
+          11px ui-monospace,
+          monospace;
+      }
+      h3 {
+        margin: 15px 0 8px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .card p {
+        flex: 1;
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .card-bottom {
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .arrow {
+        color: var(--green);
+      }
+      .details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+      }
+      .row {
+        padding: 14px 19px;
+      }
+      .row + .row {
+        border-top: 1px solid var(--border);
+      }
+      .row-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .badge {
+        border: 1px solid var(--border-strong);
+        border-radius: 4px;
+        padding: 2px 5px;
+        color: var(--muted);
+        font:
+          10px ui-monospace,
+          monospace;
+      }
+      .row p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .field {
+        gap: 10px;
+        min-height: 30px;
+      }
+      .field + .field {
+        margin-top: 6px;
+      }
+      .label {
+        flex-shrink: 0;
+        width: 92px;
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .field code {
+        flex: 1;
+        min-width: 0;
+        color: var(--text);
+      }
+      .field .clip {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .commands .field code {
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: var(--inset);
+        line-height: 1.7;
+      }
+      .commands .label {
+        width: 150px;
+      }
+      button {
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 4px 8px;
+        background: var(--inset);
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 11px;
+      }
+      button:hover {
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .note {
+        margin: 12px 0 0;
+        color: var(--faint);
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      footer {
+        margin-top: 30px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+        color: var(--faint);
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      footer p {
+        margin: 0;
+      }
+      #copy-status {
+        color: var(--green);
+      }
+      @media (max-width: 850px) {
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .details {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      @media (max-width: 560px) {
+        main {
+          padding: 24px 16px;
+        }
+        header,
+        footer,
+        .topbar {
+          display: block;
+        }
+        .local {
+          margin-top: 12px;
+        }
+        .primary {
+          display: inline-block;
+          margin-top: 20px;
+        }
+        .cards {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .field {
+          flex-wrap: wrap;
+        }
+        .label,
+        .commands .label {
+          width: 100%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card {
+          transition: none;
+        }
+        .card:hover {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">Rx</span>
+          RxDB · Supabase
+        </div>
+        <span class="local">LOCAL DEVELOPMENT · {{ PROJECT }}</span>
+      </div>
+
+      <header>
+        <div>
+          <p class="eyebrow">DEV-RXDB-SUPABASE / 测试起始页</p>
+          <h1>环境已就绪，开始联调。</h1>
+          <p>
+            应用以远端同步模式运行，连着本 checkout 专属的 Supabase
+            栈，首次打开是不登录的访客，右上角可切换身份。测试入口、连接参数和常用命令都在这里。
+          </p>
+        </div>
+        <a class="primary" href="{{ APP_URL }}/todo" rel="noreferrer" target="_blank">
+          打开 Todo
+          <span aria-hidden="true">↗</span>
+        </a>
+      </header>
+
+      <div class="blocks">
+        <section aria-labelledby="entries-title">
+          <div class="section-heading">
+            <h2 id="entries-title">测试入口</h2>
+            <span class="caption">06 个入口</span>
+          </div>
+          <div class="cards">
+            <a class="card" href="{{ APP_URL }}/todo" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon" aria-hidden="true">T</span>
+                <span class="port">:{{ APP_PORT }}</span>
+              </div>
+              <h3>Todo · 远端同步</h3>
+              <p>增删改后点 Push / Pull，验证与 Supabase 的双向同步，以及撤销、重做与历史记录。</p>
+              <div class="card-bottom">
+                <code>/todo</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+            <a class="card" href="{{ APP_URL }}/catalog" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon" aria-hidden="true">S</span>
+                <span class="port">:{{ APP_PORT }}</span>
+              </div>
+              <h3>商品目录 · 按身份同步</h3>
+              <p>
+                访客只读公开区，Alice、Bob
+                各读所在租户；改规则、编辑商品、改可见范围、换成员关系后同步，看本机数据怎么补齐与清理。
+              </p>
+              <div class="card-bottom">
+                <code>/catalog</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+            <a class="card" href="{{ SUPABASE_URL }}" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon blue" aria-hidden="true">↔</span>
+                <span class="port">:{{ SUPABASE_PORT }}</span>
+              </div>
+              <h3>Supabase API 网关</h3>
+              <p>Auth、REST 与 Realtime 的统一入口，应用直连这个地址；根路径返回 404 属于正常。</p>
+              <div class="card-bottom">
+                <code>{{ SUPABASE_URL }}</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+            <a class="card" href="{{ STUDIO_URL }}" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon violet" aria-hidden="true">S</span>
+                <span class="port">:{{ STUDIO_PORT }}</span>
+              </div>
+              <h3>Supabase Studio</h3>
+              <p>浏览 todos、rxdb_change 等表，核对同步落库的结果；本机直接进入，无需登录。</p>
+              <div class="card-bottom">
+                <code>{{ STUDIO_URL }}</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+            <a class="card" href="{{ STUDIO_URL }}/project/default/sql/new" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon violet" aria-hidden="true">&gt;_</span>
+                <span class="port">Studio</span>
+              </div>
+              <h3>SQL 编辑器</h3>
+              <p>直接查询变更日志和业务表，例如按 entityId 追一条 Todo 的全部变更。</p>
+              <div class="card-bottom">
+                <code>/project/default/sql</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+            <a class="card" href="{{ STUDIO_URL }}/project/default/auth/users" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon amber" aria-hidden="true">@</span>
+                <span class="port">Studio</span>
+              </div>
+              <h3>认证用户</h3>
+              <p>匿名用户与 Alice、Bob 都在这里（访客没有会话）；可确认会话身份，或删掉用户重新开始。</p>
+              <div class="card-bottom">
+                <code>/project/default/auth/users</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+          </div>
+        </section>
+
+        <div class="details">
+          <section aria-labelledby="identity-title">
+            <div class="section-heading">
+              <h2 id="identity-title">测试身份</h2>
+              <span class="caption">右上角切换，每个身份一个本地库</span>
+            </div>
+            <div class="panel">
+              <div class="row">
+                <div class="row-title">
+                  访客
+                  <span class="badge">DEFAULT</span>
+                </div>
+                <p>不登录，以 anon 读公开区：商品目录只同步关注分类的公开商品，其余在线浏览；Todo 只存本机。</p>
+              </div>
+              <div class="row">
+                <div class="row-title">
+                  匿名用户
+                  <span class="badge">TODO</span>
+                </div>
+                <p>匿名登录，数据库角色 authenticated：用来演示 Todo 的日志推送与拉取，日志对所有登录身份可见。</p>
+              </div>
+              <div class="row">
+                <div class="row-title">
+                  Alice / Bob
+                  <span class="badge">TENANT</span>
+                </div>
+                <p>
+                  预置账号，第一次用时注册：Alice 在星河零售，Bob 在极光百货，各读所在租户的内部商品。
+                  并排对照用两个浏览器或一个隐身窗口：会话按浏览器保存，一个浏览器同一时间只有一个身份。
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="connection-title">
+            <div class="section-heading">
+              <h2 id="connection-title">连接参数</h2>
+              <span class="caption">本次运行的实际值</span>
+            </div>
+            <div class="panel">
+              <div class="row">
+                <div class="field">
+                  <span class="label">Supabase URL</span>
+                  <code>{{ SUPABASE_URL }}</code>
+                  <button aria-label="复制 Supabase URL" data-copy="{{ SUPABASE_URL }}" type="button">复制</button>
+                </div>
+                <div class="field">
+                  <span class="label">anon key</span>
+                  <code class="clip">{{ ANON_KEY }}</code>
+                  <button aria-label="复制 anon key" data-copy="{{ ANON_KEY }}" type="button">复制</button>
+                </div>
+                <div class="field">
+                  <span class="label">Compose 项目</span>
+                  <code>{{ PROJECT }}</code>
+                  <button aria-label="复制 Compose 项目名" data-copy="{{ PROJECT }}" type="button">复制</button>
+                </div>
+              </div>
+            </div>
+            <p class="note">
+              端口由 docker 按 checkout 分配，重建容器后会变，以本页为准。key 是 docker-compose.ci.yml
+              里公开的演示值，只用于本机；service_role key 不在此页展示。
+            </p>
+          </section>
+        </div>
+
+        <section aria-labelledby="commands-title">
+          <div class="section-heading">
+            <h2 id="commands-title">常用命令</h2>
+            <span class="caption">在仓库根目录执行</span>
+          </div>
+          <div class="panel commands">
+            <div class="row">
+              <div class="field">
+                <span class="label">远端 E2E（连本栈）</span>
+                <code>{{ E2E_REMOTE_COMMAND }}</code>
+                <button aria-label="复制远端 E2E 命令" data-copy="{{ E2E_REMOTE_COMMAND }}" type="button">复制</button>
+              </div>
+              <div class="field">
+                <span class="label">本地 E2E（不连远端）</span>
+                <code>pnpm nx run dev-rxdb-supabase-e2e:e2e</code>
+                <button aria-label="复制本地 E2E 命令" data-copy="pnpm nx run dev-rxdb-supabase-e2e:e2e" type="button">
+                  复制
+                </button>
+              </div>
+              <div class="field">
+                <span class="label">适配器测试（同一套栈）</span>
+                <code>pnpm nx test rxdb-adapter-supabase</code>
+                <button aria-label="复制适配器测试命令" data-copy="pnpm nx test rxdb-adapter-supabase" type="button">
+                  复制
+                </button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <span class="label">数据库命令行</span>
+                <code>docker/supabase-ci-compose.sh exec db psql -U postgres</code>
+                <button
+                  aria-label="复制 psql 命令"
+                  data-copy="docker/supabase-ci-compose.sh exec db psql -U postgres"
+                  type="button"
+                >
+                  复制
+                </button>
+              </div>
+              <div class="field">
+                <span class="label">重置商品目录演示数据</span>
+                <code>
+                  docker/supabase-ci-compose.sh exec -T db psql -U postgres -c 'SELECT public.demo_catalog_reset()'
+                </code>
+                <button
+                  aria-label="复制重置演示数据命令"
+                  data-copy="docker/supabase-ci-compose.sh exec -T db psql -U postgres -c 'SELECT public.demo_catalog_reset()'"
+                  type="button"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <span class="label">全部服务日志</span>
+                <code>docker/supabase-ci-compose.sh logs -f --tail 50</code>
+                <button
+                  aria-label="复制查看日志命令"
+                  data-copy="docker/supabase-ci-compose.sh logs -f --tail 50"
+                  type="button"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <span class="label">停止容器（保留数据）</span>
+                <code>docker/supabase-ci-compose.sh stop</code>
+                <button aria-label="复制停止容器命令" data-copy="docker/supabase-ci-compose.sh stop" type="button">
+                  复制
+                </button>
+              </div>
+              <div class="field">
+                <span class="label">删除容器与数据</span>
+                <code>pnpm nx run rxdb-adapter-supabase:test-env-down</code>
+                <button
+                  aria-label="复制删除容器命令"
+                  data-copy="pnpm nx run rxdb-adapter-supabase:test-env-down"
+                  type="button"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="note">
+            适配器测试与远端 E2E 和应用共用这套栈，只清理各自写入的行。Supabase 日志不混进 nx dev
+            的终端，需要时另开终端执行「全部服务日志」。
+          </p>
+        </section>
+      </div>
+
+      <footer>
+        <p>Ctrl-C 停止应用与起始页；Supabase 容器继续运行并保留数据。本页只监听 127.0.0.1。</p>
+        <p id="copy-status" aria-live="polite" role="status"></p>
+      </footer>
+    </main>
+    <script>
+      document.addEventListener('click', async event => {
+        const button = event.target.closest('button[data-copy]');
+        if (!button) return;
+        const status = document.getElementById('copy-status');
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy);
+          status.textContent = '已复制到剪贴板';
+        } catch {
+          status.textContent = '无法访问剪贴板，请选中文字复制';
+        }
+      });
+    </script>
+  </body>
+</html>

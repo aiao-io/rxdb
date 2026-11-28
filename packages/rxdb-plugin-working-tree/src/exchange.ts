@@ -1,5 +1,5 @@
 /**
- * @fileoverview `@aiao/rxdb-plugin-working-tree/exchange`：提交交换格式的纯函数入口（US-316）。
+ * @fileoverview `@aiao/rxdb-plugin-working-tree/exchange`：提交交换格式的纯函数入口（US-319）。
  *
  * @remarks
  * 给交换的**另一端**用。`importCommits()` / `exportCommits()` 交换的是 {@link CommitExchangeRecord}，内容指纹是跨系统契约：

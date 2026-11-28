@@ -162,7 +162,7 @@ export const RESTORE_OK = {
  * @remarks
  * 五种全列而不是挑一种代表：`reason` 是判别位，而 `conflict` / `incompatible` 只挂在其中两个
  * 分支上。只测 `dirty_working_tree` 的话，「带载荷的那两种有没有被原样带到 `success` 相位里」
- * 在本端永远没人问过——而界面要显示的恰恰是那两份载荷。`side_branch_target` 是 US-316 加的：
+ * 在本端永远没人问过——而界面要显示的恰恰是那两份载荷。`side_branch_target` 是 US-319 加的：
  * 目标只在合并提交带进来的侧枝上，沿第一父链退不到。
  */
 export const REJECTED_RESTORES = [
@@ -188,7 +188,7 @@ export const REJECTED_RESTORES = [
 ] as const satisfies readonly WorkingTreeRestoreResult[];
 
 /**
- * 一条交换记录：导入批次与导出页里都是这一种（US-316）。
+ * 一条交换记录：导入批次与导出页里都是这一种（US-319）。
  *
  * @remarks
  * 内容不重要（桩不校验指纹），形状重要：`satisfies` 让核心改了记录的字段名时三端一起红。
@@ -326,11 +326,11 @@ export interface WorkingTreeManagerStub {
   readonly restore: Mock<() => Promise<WorkingTreeRestoreResult>>;
   /** 读当前未结束的恢复会话。 */
   readonly restoreSession: Mock<() => Promise<WorkingTreeRestoreSessionInfo | null>>;
-  /** 导入一段远端提交（US-316）。 */
+  /** 导入一段远端提交（US-319）。 */
   readonly importCommits: Mock<
     (commits: readonly CommitExchangeRecord[], options: CommitImportOptions) => Promise<CommitImportResult>
   >;
-  /** 导出某个提交之后的提交（US-316）。 */
+  /** 导出某个提交之后的提交（US-319）。 */
   readonly exportCommits: Mock<(options?: CommitExportOptions) => Promise<CommitExportPage>>;
   /** 提交后事件流；桩上永不发值——三端入口目前都不订阅它。 */
   readonly commits$: Observable<WorkingTreeCommitEvent>;

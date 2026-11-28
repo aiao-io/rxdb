@@ -122,6 +122,16 @@ test('深层页面同包 ../ 相对链接绝对化', () => {
   );
 });
 
+test('绝对化包内和跨包链接并保留标题锚点', () => {
+  const content =
+    '见 [构造函数](RxDBError.md#constructor) 与 [合并变更](../../rxdb-plugin-sync/functions/push.md#returns)。';
+
+  assert.equal(
+    rewriteRelativeApiLinks(content, 'rxdb/classes/RxDBIdentityMismatchError.md'),
+    '见 [构造函数](/api/rxdb/classes/RxDBError.md#constructor) 与 [合并变更](/api/rxdb-plugin-sync/functions/push.md#returns)。'
+  );
+});
+
 test('已是绝对路径或外链的链接原样保留', () => {
   const content = '见 [绝对链接](/api/rxdb/classes/RxDB.md)、[外部链接](https://example.com/a.md) 与 [锚点](#x.md)。';
 

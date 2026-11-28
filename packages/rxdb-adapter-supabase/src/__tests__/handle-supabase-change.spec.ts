@@ -1,11 +1,8 @@
 import { EntityRemoteCreatedEvent, EntityRemoteRemovedEvent, EntityRemoteUpdatedEvent } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
-import { handleSupabaseChange } from '../handle_supabase_change.js';
+import { handleSupabaseChanges, RXDB_CHANGES_EVENT, RXDB_CHANGES_TOPIC } from '../handle_supabase_change.js';
 import type { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
-
-type SupabasePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
 
 type AdapterMock = RxDBAdapterSupabase & {
   rxdb: {
@@ -15,28 +12,23 @@ type AdapterMock = RxDBAdapterSupabase & {
   };
 };
 
+/** 参考 SQL 的 rxdb_change_broadcast 发出的一条变更：只有元数据 */
 const BASE_CHANGE = {
   namespace: 'public',
   entity: 'Todo',
   entityId: 'entity-id-1',
   type: 'INSERT',
   branchId: 'main',
-  patch: { title: 'test' },
   clientId: 'remote-client',
   createdAt: new Date().toISOString()
 } satisfies Record<string, unknown>;
 
-function makePayload(overrides: Record<string, unknown> = {}): SupabasePayload {
-  return {
-    table: 'rxdb_change',
-    eventType: 'INSERT',
-    new: BASE_CHANGE,
-    ...overrides
-  } as unknown as SupabasePayload;
+function makeChange(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { ...BASE_CHANGE, ...overrides };
 }
 
-function makeChange(overrides: Record<string, unknown>): Record<string, unknown> {
-  return { ...BASE_CHANGE, ...overrides };
+function makePayload(changes: unknown[] = [makeChange()]): unknown {
+  return { changes, id: 'realtime-generated-id' };
 }
 
 function makeAdapter(clientId?: string): AdapterMock {
@@ -49,149 +41,135 @@ function makeAdapter(clientId?: string): AdapterMock {
   } as unknown as AdapterMock;
 }
 
-describe('handleSupabaseChange', () => {
+function dispatched(adapter: AdapterMock) {
+  return adapter.rxdb.dispatchEvent.mock.calls.map(
+    call => call[0] as EntityRemoteCreatedEvent | EntityRemoteUpdatedEvent | EntityRemoteRemovedEvent
+  );
+}
+
+describe('handleSupabaseChanges', () => {
+  it('频道与事件名与参考 SQL 的 realtime.send 一致', () => {
+    expect(RXDB_CHANGES_TOPIC).toBe('rxdb:changes');
+    expect(RXDB_CHANGES_EVENT).toBe('changes');
+  });
+
   describe('前置守卫（Guard）', () => {
-    it('table 不是 rxdb_change 时不分发事件', () => {
+    it.each([
+      ['载荷不是对象', null],
+      ['载荷是字符串', 'changes'],
+      ['没有 changes 数组', { id: 'x' }],
+      ['changes 不是数组', { changes: makeChange() }]
+    ])('%s时不分发事件', (_label, payload) => {
       const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ table: 'other_table' }));
+      handleSupabaseChanges(adapter, payload);
       expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
     });
 
-    it('eventType 不是 INSERT 时不分发事件', () => {
+    it.each([
+      ['条目不是对象', 'not-a-change'],
+      ['entityId 缺失', makeChange({ entityId: undefined })],
+      ['entityId 为空串', makeChange({ entityId: '' })],
+      ['type 缺失', makeChange({ type: undefined })],
+      ['type 为未知值', makeChange({ type: 'UNKNOWN_OP' })],
+      ['type 是原型链上的键', makeChange({ type: 'toString' })],
+      ['实体不在本库配置里', makeChange({ entity: 'NotConfigured' })]
+    ])('%s时跳过该条', (_label, change) => {
       const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ eventType: 'UPDATE' }));
-      expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
-    });
-
-    it('eventType 为 DELETE 时不分发事件', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ eventType: 'DELETE' }));
-      expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
-    });
-
-    it('record.new 为 undefined 时不分发事件', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: undefined }));
-      expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
-    });
-
-    it('entityId 缺失时不分发事件', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ entityId: undefined }) }));
-      expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
-    });
-
-    it('type 缺失时不分发事件', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ type: undefined }) }));
-      expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
-    });
-
-    it('type 为未知值时不分发事件', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ type: 'UNKNOWN_OP' }) }));
+      handleSupabaseChanges(adapter, makePayload([change]));
       expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
     });
   });
 
   describe('自身 clientId 过滤', () => {
-    it('clientId 与 myClientId 相同时过滤，不分发', () => {
+    it('clientId 与本端相同时过滤，不分发', () => {
       const adapter = makeAdapter('my-client-id');
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ clientId: 'my-client-id' }) }));
+      handleSupabaseChanges(adapter, makePayload([makeChange({ clientId: 'my-client-id' })]));
       expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
     });
 
-    it('clientId 为 null 时不过滤（仍然分发）', () => {
-      const adapter = makeAdapter('my-client-id');
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ clientId: null }) }));
-      expect(adapter.rxdb.dispatchEvent).toHaveBeenCalledOnce();
-    });
-
-    it('adapter 没有 clientId 时不过滤（仍然分发）', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload());
-      expect(adapter.rxdb.dispatchEvent).toHaveBeenCalledOnce();
-    });
-
-    it('不同 clientId 不过滤（仍然分发）', () => {
-      const adapter = makeAdapter('client-A');
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ clientId: 'client-B' }) }));
+    it.each([
+      ['clientId 为 null', 'my-client-id', makeChange({ clientId: null })],
+      ['本端没有 clientId', undefined, makeChange()],
+      ['clientId 不同', 'client-A', makeChange({ clientId: 'client-B' })]
+    ])('%s时照常分发', (_label, myClientId, change) => {
+      const adapter = makeAdapter(myClientId);
+      handleSupabaseChanges(adapter, makePayload([change]));
       expect(adapter.rxdb.dispatchEvent).toHaveBeenCalledOnce();
     });
   });
 
   describe('事件类型路由', () => {
-    it('type=INSERT → 分发 EntityRemoteCreatedEvent', () => {
+    it.each([
+      ['INSERT', EntityRemoteCreatedEvent],
+      ['UPDATE', EntityRemoteUpdatedEvent],
+      ['DELETE', EntityRemoteRemovedEvent]
+    ])('type=%s → 对应的 Remote 事件', (type, EventClass) => {
       const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ type: 'INSERT' }) }));
-
-      expect(adapter.rxdb.dispatchEvent).toHaveBeenCalledOnce();
-      expect(adapter.rxdb.dispatchEvent.mock.calls[0][0]).toBeInstanceOf(EntityRemoteCreatedEvent);
-    });
-
-    it('type=UPDATE → 分发 EntityRemoteUpdatedEvent', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ type: 'UPDATE' }) }));
-
-      expect(adapter.rxdb.dispatchEvent.mock.calls[0][0]).toBeInstanceOf(EntityRemoteUpdatedEvent);
-    });
-
-    it('type=DELETE → 分发 EntityRemoteRemovedEvent', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ type: 'DELETE' }) }));
-
-      expect(adapter.rxdb.dispatchEvent.mock.calls[0][0]).toBeInstanceOf(EntityRemoteRemovedEvent);
+      handleSupabaseChanges(adapter, makePayload([makeChange({ type })]));
+      expect(dispatched(adapter)).toHaveLength(1);
+      expect(dispatched(adapter)[0]).toBeInstanceOf(EventClass);
     });
   });
 
   describe('事件数据字段', () => {
-    it('entities[0].id 等于 entityId', () => {
+    it('只带元数据：data 只有 id，没有任何行内容', () => {
       const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload());
+      handleSupabaseChanges(adapter, makePayload([makeChange({ patch: { title: 'leaked' } })]));
 
-      const event = adapter.rxdb.dispatchEvent.mock.calls[0][0] as EntityRemoteCreatedEvent;
-      expect(event.entities[0].id).toBe('entity-id-1');
-    });
-
-    it('entities[0].entity 等于实体名称', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload());
-
-      const event = adapter.rxdb.dispatchEvent.mock.calls[0][0] as EntityRemoteCreatedEvent;
-      expect(event.entities[0].entity).toBe('Todo');
-    });
-
-    it('entities[0].namespace 等于 namespace', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload());
-
-      const event = adapter.rxdb.dispatchEvent.mock.calls[0][0] as EntityRemoteCreatedEvent;
-      expect(event.entities[0].namespace).toBe('public');
-    });
-
-    it('entities[0].data 包含 patch 数据', () => {
-      const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload());
-
-      const event = adapter.rxdb.dispatchEvent.mock.calls[0][0] as EntityRemoteCreatedEvent;
-      expect((event.entities[0].data as Record<string, unknown>)['title']).toBe('test');
+      const [entity] = dispatched(adapter)[0].entities;
+      expect(entity).toMatchObject({ id: 'entity-id-1', entity: 'Todo', namespace: 'public', branchId: 'main' });
+      expect(entity.data).toEqual({ id: 'entity-id-1' });
     });
 
     it('namespace 缺失时默认为 public', () => {
       const adapter = makeAdapter();
-      handleSupabaseChange(adapter, makePayload({ new: makeChange({ namespace: undefined }) }));
-
-      const event = adapter.rxdb.dispatchEvent.mock.calls[0][0] as EntityRemoteCreatedEvent;
-      expect(event.entities[0].namespace).toBe('public');
+      handleSupabaseChanges(adapter, makePayload([makeChange({ namespace: undefined })]));
+      expect(dispatched(adapter)[0].entities[0].namespace).toBe('public');
     });
 
-    it('createdAt 缺失时 recordAt 使用 Date（不抛错）', () => {
-      const adapter = makeAdapter();
-      const payload = makePayload({ new: makeChange({ createdAt: undefined }) });
-      expect(() => handleSupabaseChange(adapter, payload)).not.toThrow();
+    it('recordAt 取 createdAt；缺失时用当前时间', () => {
+      const createdAt = '2026-11-19T08:00:00.000Z';
+      const withTime = makeAdapter();
+      handleSupabaseChanges(withTime, makePayload([makeChange({ createdAt })]));
+      expect(dispatched(withTime)[0].entities[0].recordAt).toEqual(new Date(createdAt));
 
-      const event = adapter.rxdb.dispatchEvent.mock.calls[0][0] as EntityRemoteCreatedEvent;
-      expect(event.entities[0].recordAt).toBeInstanceOf(Date);
+      const withoutTime = makeAdapter();
+      handleSupabaseChanges(withoutTime, makePayload([makeChange({ createdAt: undefined })]));
+      expect(dispatched(withoutTime)[0].entities[0].recordAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('一条通知里的多条变更', () => {
+    it('相邻同类型合成一个事件，类型切换时另起一个，顺序不变', () => {
+      const adapter = makeAdapter('my-client-id');
+      handleSupabaseChanges(
+        adapter,
+        makePayload([
+          makeChange({ entityId: 'a', type: 'INSERT' }),
+          makeChange({ entityId: 'b', type: 'INSERT' }),
+          makeChange({ entityId: 'mine', type: 'INSERT', clientId: 'my-client-id' }),
+          makeChange({ entityId: 'c', type: 'UPDATE' }),
+          makeChange({ entityId: 'd', type: 'INSERT', branchId: 'feature' })
+        ])
+      );
+
+      const events = dispatched(adapter);
+      expect(events.map(event => event.constructor)).toEqual([
+        EntityRemoteCreatedEvent,
+        EntityRemoteUpdatedEvent,
+        EntityRemoteCreatedEvent
+      ]);
+      expect(events.map(event => event.entities.map(entity => entity.id))).toEqual([['a', 'b'], ['c'], ['d']]);
+      expect(events[2].entities[0].branchId).toBe('feature');
+    });
+
+    it('全部被过滤时不分发', () => {
+      const adapter = makeAdapter('my-client-id');
+      handleSupabaseChanges(
+        adapter,
+        makePayload([makeChange({ clientId: 'my-client-id' }), makeChange({ entity: 'NotConfigured' })])
+      );
+      expect(adapter.rxdb.dispatchEvent).not.toHaveBeenCalled();
     });
   });
 });

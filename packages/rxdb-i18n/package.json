@@ -55,7 +55,7 @@
     ]
   },
   "dependencies": {
-    "intl-messageformat": "^12.2.0",
+    "intl-messageformat": "^12.2.1",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

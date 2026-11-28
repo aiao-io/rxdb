@@ -103,7 +103,9 @@ sql/
 
 其中 `03-business-tables.sql` 会创建适配器测试需要的业务表，例如 `Todo`、`TypeDemo`、`User`、`Order`、`OrderItem`、`Category`、`MenuLarge` 等。
 
-`production/rxdb-change-grants.sql` 收回 `anon` / `authenticated` 对变更日志表 `rxdb_change` 的写权限（保留 `SELECT`），必须最后加载：01 / 03 里的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把权限放宽回去。开发库因此与生产同口径，适配器测试对 `rxdb_change` 的预置与清理走 `service_role`。生产部署的用法见 [Supabase 适配器文档](../website/docs/adapters/supabase.md#收紧变更日志表的写权限)。
+`production/rxdb-change-grants.sql` 是生产权限脚本：客户端不能直写变更日志 `rxdb_change`，anon 退出日志同步协议，分支只经登记函数写入，实时通知频道只对 authenticated 开放。它必须最后加载：01 / 03 里的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把权限放宽回去。开发库因此与生产同口径，适配器测试以 authenticated 身份运行，对 `rxdb_change` 的预置与清理走 `service_role`。生产部署的用法见 [Supabase 适配器文档](../website/docs/adapters/supabase.md#日志同步只对已登录身份开放)。
+
+01 / 03 的整库授权只用于开发与测试库，会连同 public 下的业务表一起放宽，生产权限脚本只收回 RxDB 自己的对象。已有业务表的生产库升级时不重跑 01，改用 `production/rxdb-sync-access-upgrade.sql` 这类增量脚本，与 02、04、生产权限脚本在同一个事务里执行，见[迁移说明](../website/docs/migration/supabase-sync-access.md)。`init-db.sh` 不加载增量脚本。
 
 ## 服务结构
 
@@ -160,6 +162,20 @@ rm -rf volumes/db/data
 
 库数据在绑定挂载的 `volumes/db/data` 里，`docker compose down -v` 只删命名 volume，删不掉它。本地测试数据会随之丢失。
 
+## 本地开发：隔离栈 + Studio
+
+`pnpm nx dev dev-rxdb-supabase` 复用 `rxdb-adapter-supabase:test-env` 起的隔离 CI 栈（RV-036），再叠加 `docker-compose.ci-studio.yml` 里的 Studio，详见 [dev-rxdb-supabase](../apps/dev-rxdb-supabase/README.md#一键本地开发)。
+
+对这套栈执行 compose 子命令一律经 `supabase-ci-compose.sh`，它按 checkout 派生项目名与容器名，并把 test-env 落盘的 Kong 端口交给 Studio：
+
+```bash
+docker/supabase-ci-compose.sh ps
+docker/supabase-ci-compose.sh exec db psql -U postgres
+docker/supabase-ci-compose.sh logs -f --tail 50
+```
+
+直接跑 `docker compose -f docker-compose.ci.yml ...` 会按默认值（`supabase-db` / 54331）解析出另一套项目，操作不到这套栈。`test-env-down` 的 `--remove-orphans` 会把 Studio 一并清掉。
+
 ## 目录说明
 
 ```text
@@ -169,6 +185,7 @@ docker/
 ├── docker-compose.yml
 ├── docker-compose.caddy.yml
 ├── docker-compose.ci.yml          # CI 精简版（仅测试必需服务）
+├── docker-compose.ci-studio.yml   # 开发：叠加在隔离 CI 栈上的 Studio（CI 不加载）
 ├── docker-compose.envoy.yml       # Envoy API 网关覆盖
 ├── docker-compose.kong.yml        # Kong API 网关覆盖
 ├── docker-compose.logs.yml        # 日志/分析服务
@@ -186,6 +203,7 @@ docker/
 ├── stop.sh
 ├── reset.sh
 ├── init-db.sh
+├── supabase-ci-compose.sh              # 开发：对本 checkout 的隔离栈（含 Studio）执行任意 compose 子命令
 ├── supabase-ci-down.sh                 # CI：清理本 checkout 专属隔离环境（RV-036）
 ├── supabase-ci-identity.sh             # CI：按 checkout 路径派生确定性隔离标识（RV-036）
 ├── supabase-ci-isolation-regression.sh # CI：RV-036 隔离回归，两个 checkout 并行互不干扰
@@ -204,7 +222,8 @@ docker/
 │   ├── 03-business-tables.sql
 │   ├── 04-rxdb-utils-functions.sql
 │   └── production/
-│       └── rxdb-change-grants.sql # 收紧 rxdb_change 写权限，init-db.sh 最后加载
+│       ├── rxdb-change-grants.sql        # 生产权限，init-db.sh 最后加载
+│       └── rxdb-sync-access-upgrade.sql  # 生产库从 US-225 之前升级的增量脚本，init-db.sh 不加载
 ├── tests/                         # 环境测试脚本
 ├── utils/                         # 密钥/升级工具脚本
 │   ├── add-new-auth-keys.sh

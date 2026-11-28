@@ -14,7 +14,7 @@ import {
   SyncResult
 } from '@aiao/rxdb';
 import type { PushInFlightRegistry, SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
-import { Subscription } from 'rxjs';
+import { ReplaySubject, Subscription } from 'rxjs';
 import { bulkSync, type BulkSyncOptions, type BulkSyncResult } from './bulk-sync.js';
 import { checkRepositoryUpdates, type CheckRepositoryUpdatesResult } from './check-repository-updates.js';
 import { cleanupExpired, type CleanupExpiredOptions, type CleanupExpiredResult } from './cleanup-expired.js';
@@ -25,7 +25,12 @@ import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult }
 import { pull } from './pull.js';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from './push-repository.js';
 import { push } from './push.js';
-import { bindRemoteBackend, rebindRemoteBackend, type RebindRemoteBackendResult } from './remote-backend.js';
+import {
+  bindRemoteBackend,
+  bindScopedIdentity,
+  rebindRemoteBackend,
+  type RebindRemoteBackendResult
+} from './remote-backend.js';
 import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { setupSyncListeners } from './sync-listeners.js';
 import {
@@ -36,6 +41,9 @@ import {
 } from './sync-manager.utils.js';
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import { topologicalSort, type SortDirection } from './topological-sort.js';
+
+/** 待拉数重算被拉取抢先时最多数几遍（见 {@link SyncManager.refreshPullableCount}） */
+const PULLABLE_REFRESH_ATTEMPTS = 3;
 
 /**
  * 同步管理器
@@ -64,6 +72,11 @@ export class SyncManager {
   #subscriptions: Subscription[] = [];
   #branch_switch_generation = 0;
   #remote_backend_id: string | null = null;
+  /** 本纪元结束的信号，见 {@link SyncManager.destroy}；重放，结束之后才开始等的调用同样立刻收到 */
+  readonly #ended$ = new ReplaySubject<void>(1);
+
+  /** 同步入口的队尾：后来的排在它后面，见 {@link SyncManager.#exclusive} */
+  #exclusiveTail: Promise<unknown> = Promise.resolve();
 
   /**
    * 「哪些变更此刻正在飞往远端」的登记处。
@@ -132,7 +145,13 @@ export class SyncManager {
     }
   }
 
-  /** 拆掉 {@link init} 装上的全部监听与订阅 */
+  /**
+   * 拆掉 {@link init} 装上的全部监听与订阅，并结束本纪元
+   *
+   * @remarks
+   * 断连或销毁实例时由插件调用。之后还在等适配器的在途操作（例如响应晚到的拉取）以 RxDBError 结束：
+   * 本实例不会再有属于它的连接，一直等只会让调用方的 Promise 永远悬着。
+   */
   destroy() {
     for (const remove of this.#event_removers) {
       remove();
@@ -142,16 +161,18 @@ export class SyncManager {
       sub.unsubscribe();
     }
     this.#subscriptions.length = 0;
+    this.#ended$.next();
+    this.#ended$.complete();
   }
 
-  /** 取本地适配器上的系统表仓库 */
+  /** 取本地适配器上的系统表仓库；本纪元结束之后抛 RxDBError */
   async getLocalRepositories() {
-    return getLocalSystemRepositories(this.rxdb);
+    return getLocalSystemRepositories(this.rxdb, this.#ended$);
   }
 
-  /** 取远端适配器上的系统表仓库 */
+  /** 取远端适配器上的系统表仓库；本纪元结束之后抛 RxDBError */
   async getRemoteRepositories() {
-    return getRemoteSystemRepositories(this.rxdb);
+    return getRemoteSystemRepositories(this.rxdb, this.#ended$);
   }
 
   /**
@@ -182,9 +203,11 @@ export class SyncManager {
    * ```
    */
   async syncBranches(): Promise<SyncBranchesResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncBranches');
-    await this.verifyRemoteBackend();
-    return syncBranches(this);
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncBranches');
+      await this.#enter();
+      return syncBranches(this);
+    });
   }
 
   /**
@@ -207,31 +230,33 @@ export class SyncManager {
    * ```
    */
   async pull(options?: PullOptions): Promise<PullResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pull');
-    await this.verifyRemoteBackend();
-    const clearSyncedHistory = await this.#captureSyncedHistory('pull');
-    let result: PullResult;
-    try {
-      result = await this.history.syncing(() => this.#pullAndSettle(options));
-    } catch (error) {
-      // repositoryFilter 逐仓拉取时，前面的仓库可能已经真实落库
-      // 随后某个仓库失败会抛 RxDBPartialSyncError。此前这里直接 rethrow，
-      // undo 边界从未按已提交的部分推进，用户仍能 undo 到「合并前」的内容，
-      // 与已落库的远端数据产生分叉。
-      if (partialSyncInvalidatesHistory(error)) {
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pull');
+      await this.#enter();
+      const clearSyncedHistory = await this.#captureSyncedHistory('pull');
+      let result: PullResult;
+      try {
+        result = await this.history.syncing(() => this.#pullAndSettle(options));
+      } catch (error) {
+        // repositoryFilter 逐仓拉取时，前面的仓库可能已经真实落库
+        // 随后某个仓库失败会抛 RxDBPartialSyncError。此前这里直接 rethrow，
+        // undo 边界从未按已提交的部分推进，用户仍能 undo 到「合并前」的内容，
+        // 与已落库的远端数据产生分叉。
+        if (partialSyncInvalidatesHistory(error)) {
+          clearSyncedHistory();
+        }
+        throw error;
+      }
+
+      // 远端变更改写了本地实体数据时才清空 undo/redo 历史：已与远程合并，无法 undo 合并前的内容。
+      // 判据是 historyInvalidated 而非 pulled —— 拉回来的变更可能被压缩全部抵消，
+      // 一条实体数据都没动，此时历史边界仍然有效。
+      if (result.historyInvalidated) {
         clearSyncedHistory();
       }
-      throw error;
-    }
 
-    // 远端变更改写了本地实体数据时才清空 undo/redo 历史：已与远程合并，无法 undo 合并前的内容。
-    // 判据是 historyInvalidated 而非 pulled —— 拉回来的变更可能被压缩全部抵消，
-    // 一条实体数据都没动，此时历史边界仍然有效。
-    if (result.historyInvalidated) {
-      clearSyncedHistory();
-    }
-
-    return result;
+      return result;
+    });
   }
 
   /**
@@ -259,24 +284,26 @@ export class SyncManager {
    * ```
    */
   async push(options?: PushOptions): Promise<PushResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'push');
-    await this.verifyRemoteBackend();
-    const clearSyncedHistory = await this.#captureSyncedHistory('push');
-    let result: PushResult;
-    try {
-      result = await this.history.syncing(() => push(this, options));
-    } catch (error) {
-      if (partialSyncInvalidatesHistory(error)) clearSyncedHistory();
-      throw error;
-    }
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'push');
+      await this.#enter();
+      const clearSyncedHistory = await this.#captureSyncedHistory('push');
+      let result: PushResult;
+      try {
+        result = await this.history.syncing(() => push(this, options));
+      } catch (error) {
+        if (partialSyncInvalidatesHistory(error)) clearSyncedHistory();
+        throw error;
+      }
 
-    // 当 push 有数据变更时，清空 undo/redo 历史
-    // 因为已与远程合并，无法 undo 合并前的内容
-    if (result.pushed > 0) {
-      clearSyncedHistory();
-    }
+      // 当 push 有数据变更时，清空 undo/redo 历史
+      // 因为已与远程合并，无法 undo 合并前的内容
+      if (result.pushed > 0) {
+        clearSyncedHistory();
+      }
 
-    return result;
+      return result;
+    });
   }
 
   /**
@@ -298,38 +325,40 @@ export class SyncManager {
    * ```
    */
   async sync(options?: { pull?: PullOptions; push?: PushOptions }): Promise<SyncResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'sync');
-    await this.verifyRemoteBackend();
-    const clearSyncedHistory = await this.#captureSyncedHistory('sync');
-    // pull 成功、push 才抛错时，这段进度不随返回值出来 —— 提到闭包外，catch 里才看得见
-    // 「已经合并进来的那部分」。否则远端变更已落库，undo 边界却原地不动。
-    let settledPull: PullResult | undefined;
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'sync');
+      await this.#enter();
+      const clearSyncedHistory = await this.#captureSyncedHistory('sync');
+      // pull 成功、push 才抛错时，这段进度不随返回值出来 —— 提到闭包外，catch 里才看得见
+      // 「已经合并进来的那部分」。否则远端变更已落库，undo 边界却原地不动。
+      let settledPull: PullResult | undefined;
 
-    let result: SyncResult;
-    try {
-      result = await this.history.syncing(async () => {
-        // 先 pull 再 push
-        settledPull = await this.#pullAndSettle(options?.pull);
-        const pushResult = await push(this, options?.push);
+      let result: SyncResult;
+      try {
+        result = await this.history.syncing(async () => {
+          // 先 pull 再 push
+          settledPull = await this.#pullAndSettle(options?.pull);
+          const pushResult = await push(this, options?.push);
 
-        return { pullResult: settledPull, pushResult };
-      });
-    } catch (error) {
-      // 部分成功同样要推进 undo 边界，进度落在两处之一：pull 中途失败时挂在
-      // RxDBPartialSyncError.result 上，pull 已结算而 push 失败时只存在于 settledPull。
-      if (settledPull?.historyInvalidated === true || partialSyncInvalidatesHistory(error)) {
+          return { pullResult: settledPull, pushResult };
+        });
+      } catch (error) {
+        // 部分成功同样要推进 undo 边界，进度落在两处之一：pull 中途失败时挂在
+        // RxDBPartialSyncError.result 上，pull 已结算而 push 失败时只存在于 settledPull。
+        if (settledPull?.historyInvalidated === true || partialSyncInvalidatesHistory(error)) {
+          clearSyncedHistory();
+        }
+        throw error;
+      }
+
+      // 当 pull 改写了实体数据、或 push 有上行时，清空 undo/redo 历史
+      // 因为已与远程合并，无法 undo 合并前的内容
+      if (result.pullResult.historyInvalidated || result.pushResult.pushed > 0) {
         clearSyncedHistory();
       }
-      throw error;
-    }
 
-    // 当 pull 改写了实体数据、或 push 有上行时，清空 undo/redo 历史
-    // 因为已与远程合并，无法 undo 合并前的内容
-    if (result.pullResult.historyInvalidated || result.pushResult.pushed > 0) {
-      clearSyncedHistory();
-    }
-
-    return result;
+      return result;
+    });
   }
 
   /**
@@ -361,34 +390,37 @@ export class SyncManager {
     entity: string,
     options?: PullRepositoryOptions
   ): Promise<PullRepositoryResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pullRepository');
-    await this.verifyRemoteBackend();
-    const clearSyncedHistory = await this.#captureSyncedHistory('pullRepository');
-    let result: PullRepositoryResult;
-    try {
-      result = await this.history.syncing(() => pullRepository(this, namespace, entity, options));
-    } catch (error) {
-      // fetchAll 多轮拉取中途失败时，前面几轮的事务已经真实提交
-      // 会抛 RxDBPartialSyncError 而非裸错误。此前这里直接 rethrow，undo 边界
-      // 从未按已提交的部分推进，用户仍能 undo 到「合并前」的内容。
-      if (partialSyncInvalidatesHistory(error)) {
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pullRepository');
+      await this.#enter();
+      const clearSyncedHistory = await this.#captureSyncedHistory('pullRepository');
+      let result: PullRepositoryResult;
+      try {
+        result = await this.history.syncing(() => pullRepository(this, namespace, entity, options));
+      } catch (error) {
+        // fetchAll 多轮拉取中途失败时，前面几轮的事务已经真实提交
+        // 会抛 RxDBPartialSyncError 而非裸错误。此前这里直接 rethrow，undo 边界
+        // 从未按已提交的部分推进，用户仍能 undo 到「合并前」的内容。
+        if (partialSyncInvalidatesHistory(error)) {
+          clearSyncedHistory();
+        }
+        throw error;
+      }
+
+      // 有实体数据被改写时清空 undo/redo 历史（级联依赖仓的改写也算在内）
+      if (result.historyInvalidated) {
         clearSyncedHistory();
       }
-      throw error;
-    }
 
-    // 有实体数据被改写时清空 undo/redo 历史（级联依赖仓的改写也算在内）
-    if (result.historyInvalidated) {
-      clearSyncedHistory();
-    }
-
-    return result;
+      return result;
+    });
   }
 
   /**
    * 推送指定 Repository 的本地变更
    *
-   * 提供实体类型级别的精细同步控制，支持级联同步以自动推送依赖实体。
+   * 提供实体类型级别的精细同步控制。默认连同目标所在的连通分量一起推，跨仓顺序只由外键决定：
+   * 删除子先父后，新建与修改父先子后。
    *
    * @param namespace - 实体命名空间（如 "public"）
    * @param entity - 实体名称（如 "User"）
@@ -398,9 +430,9 @@ export class SyncManager {
    *
    * @example
    * ```typescript
-   * // 推送 User 并级联推送依赖方
-   * const result = await rxdb.syncManager.pushRepository('public', 'User', {
-   *   includeRelated: true // 默认：若 Post 引用 User 则自动推送 Post
+   * // 推送 Post 及其所在的连通分量：先推它引用的 User，再推 Post
+   * const result = await rxdb.syncManager.pushRepository('public', 'Post', {
+   *   includeRelated: true // 默认
    * });
    *
    * // 不级联推送
@@ -414,23 +446,25 @@ export class SyncManager {
     entity: string,
     options?: PushRepositoryOptions
   ): Promise<PushRepositoryResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pushRepository');
-    await this.verifyRemoteBackend();
-    const clearSyncedHistory = await this.#captureSyncedHistory('pushRepository');
-    let result: PushRepositoryResult;
-    try {
-      result = await this.history.syncing(() => pushRepository(this, namespace, entity, options));
-    } catch (error) {
-      if (partialSyncInvalidatesHistory(error)) clearSyncedHistory();
-      throw error;
-    }
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pushRepository');
+      await this.#enter();
+      const clearSyncedHistory = await this.#captureSyncedHistory('pushRepository');
+      let result: PushRepositoryResult;
+      try {
+        result = await this.history.syncing(() => pushRepository(this, namespace, entity, options));
+      } catch (error) {
+        if (partialSyncInvalidatesHistory(error)) clearSyncedHistory();
+        throw error;
+      }
 
-    // 有数据变更时清空 undo/redo 历史
-    if (result.pushed > 0) {
-      clearSyncedHistory();
-    }
+      // 有数据变更时清空 undo/redo 历史
+      if (result.pushed > 0) {
+        clearSyncedHistory();
+      }
 
-    return result;
+      return result;
+    });
   }
 
   /**
@@ -463,27 +497,29 @@ export class SyncManager {
     entity: string,
     options?: SyncRepositoryOptions
   ): Promise<SyncRepositoryResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncRepository');
-    await this.verifyRemoteBackend();
-    const clearSyncedHistory = await this.#captureSyncedHistory('syncRepository');
-    let result: SyncRepositoryResult;
-    try {
-      result = await this.history.syncing(() => syncRepository(this, namespace, entity, options));
-    } catch (error) {
-      // 与 pullRepository 同口径：pull 落库或 push 上行之后失败，都会包成
-      // RxDBPartialSyncError 抛出，那部分数据已经与远端合并、undo 不回去了。
-      if (partialSyncInvalidatesHistory(error)) {
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncRepository');
+      await this.#enter();
+      const clearSyncedHistory = await this.#captureSyncedHistory('syncRepository');
+      let result: SyncRepositoryResult;
+      try {
+        result = await this.history.syncing(() => syncRepository(this, namespace, entity, options));
+      } catch (error) {
+        // 与 pullRepository 同口径：pull 落库或 push 上行之后失败，都会包成
+        // RxDBPartialSyncError 抛出，那部分数据已经与远端合并、undo 不回去了。
+        if (partialSyncInvalidatesHistory(error)) {
+          clearSyncedHistory();
+        }
+        throw error;
+      }
+
+      // 有数据变更时清空 undo/redo 历史
+      if (result.pullResult.historyInvalidated || result.pushResult.pushed > 0) {
         clearSyncedHistory();
       }
-      throw error;
-    }
 
-    // 有数据变更时清空 undo/redo 历史
-    if (result.pullResult.historyInvalidated || result.pushResult.pushed > 0) {
-      clearSyncedHistory();
-    }
-
-    return result;
+      return result;
+    });
   }
 
   /**
@@ -515,8 +551,10 @@ export class SyncManager {
     entity: string,
     options?: CleanupExpiredOptions
   ): Promise<CleanupExpiredResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'cleanupExpired');
-    return cleanupExpired(this, namespace, entity, options);
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'cleanupExpired');
+      return cleanupExpired(this, namespace, entity, options);
+    });
   }
 
   /**
@@ -599,17 +637,24 @@ export class SyncManager {
   /**
    * 按各仓库持久化的远端水位线重新计算待拉变更数
    *
-   * @returns 当前远端待拉变更总数
+   * @returns 最后一次数出的远端待拉变更总数
    *
    * @remarks
    * 远程适配器在实时订阅恢复后调用。若刷新期间又收到实时事件，保留两者中的较大值，
    * 避免把查询快照之后到达的通知覆盖掉。
+   *
+   * 刷新期间有一次拉取结算过（比如登录后立刻点了拉取），先数的那几个仓库用的还是拉取之前的游标，
+   * 这次结果作废、再数一遍（US-233）。连着 {@link PULLABLE_REFRESH_ATTEMPTS} 次都被拉取抢先就不再数：
+   * 那几次拉取已经把计数结算到位。
    */
   async refreshPullableCount(): Promise<number> {
-    const token = this.history.beginPullableSettlement();
-    const statuses = await getAllRepositorySyncStatus(this.rxdb);
-    const count = statuses.reduce((total, status) => total + (status.enabled ? status.pullableCount : 0), 0);
-    this.history.reconcilePullableCount(token, count);
+    let count = 0;
+    for (let attempt = 0; attempt < PULLABLE_REFRESH_ATTEMPTS; attempt++) {
+      const token = this.history.beginPullableSettlement();
+      const statuses = await getAllRepositorySyncStatus(this.rxdb);
+      count = statuses.reduce((total, status) => total + (status.enabled ? status.pullableCount : 0), 0);
+      if (this.history.reconcilePullableCount(token, count)) return count;
+    }
     return count;
   }
 
@@ -654,6 +699,26 @@ export class SyncManager {
    * ```
    */
   async bulkSync(options?: BulkSyncOptions): Promise<BulkSyncResult> {
+    return this.#exclusive(async () => {
+      // 远端身份在本体进门核对；授权快照只在公开入口刷新：入口内部逐仓库走本体，再刷新就是同一轮问两次
+      await this.rxdb.grants.refresh();
+      return this.bulkSyncInSession(options);
+    });
+  }
+
+  /**
+   * {@link SyncManager.bulkSync} 的本体，不排队
+   *
+   * @param options - 同 {@link SyncManager.bulkSync}
+   * @returns 同 {@link SyncManager.bulkSync}
+   *
+   * @remarks
+   * 只给已经排上队的同步入口内部用：`push()` 与带 `repositoryFilter` 的 `pull()` 逐仓库时走它。
+   * 那时队列由外层入口占着，再经公开的 {@link SyncManager.bulkSync} 排一次就是等自己。
+   *
+   * @internal
+   */
+  async bulkSyncInSession(options?: BulkSyncOptions): Promise<BulkSyncResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'bulkSync');
     await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('bulkSync');
@@ -692,6 +757,7 @@ export class SyncManager {
    */
   async verifyRemoteBackend(): Promise<void> {
     if (!this.rxdb.config.sync?.remote?.adapter) return;
+    await bindScopedIdentity(this);
     this.#remote_backend_id = await bindRemoteBackend(this);
   }
 
@@ -723,10 +789,12 @@ export class SyncManager {
    * ```
    */
   async rebindRemoteBackend(): Promise<RebindRemoteBackendResult> {
-    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'rebindRemoteBackend');
-    const result = await rebindRemoteBackend(this);
-    this.#remote_backend_id = result.backendId;
-    return result;
+    return this.#exclusive(async () => {
+      assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'rebindRemoteBackend');
+      const result = await rebindRemoteBackend(this);
+      this.#remote_backend_id = result.backendId;
+      return result;
+    });
   }
 
   /**
@@ -775,6 +843,40 @@ export class SyncManager {
   getRepositorySyncOrder(direction: SortDirection): RepositoryIdentifier[] {
     const graph = this.getRepositoryDependencyGraph();
     return topologicalSort(graph, direction);
+  }
+
+  /**
+   * 与远端交换数据的公开入口进门：核对远端身份，再按远端刷新授权快照（US-029）
+   *
+   * @remarks
+   * 授权快照每一轮同步刷新一次：管理员刚调整的成员权限，在下一轮同步之后的本机写上就生效。只在入口刷新，
+   * 不随 {@link SyncManager.verifyRemoteBackend} 在一轮中途反复问。没有实体声明作用域、或远端不报告授权时，
+   * `rxdb.grants.refresh()` 什么都不做。
+   */
+  async #enter(): Promise<void> {
+    await this.verifyRemoteBackend();
+    await this.rxdb.grants.refresh();
+  }
+
+  /**
+   * 同步入口一次只跑一个：前一个结束（成功或失败）才开始下一个
+   *
+   * @param operation - 入口的本体
+   * @returns 本体的结果
+   *
+   * @remarks
+   * 拉取在事务外读游标与分区进度、在事务里写回，推送同样先读水位再写。两个入口交错时，先发出、后落库的
+   * 那一批会把行写回旧的样子，游标却已被另一次推到前面，中间那几条变更再也不会重拉。所以凡是读写同步记录、
+   * 游标、分区进度或替同步收拾本地副本的入口都排进这一条队。
+   *
+   * 只读的状态查询、检查更新与待拉数重算不排队；QueryCache 出站队列的重放走自己的 `exhaustMap`，也不排。
+   * 锁内的嵌套调用不能再排：`push()` 与带 `repositoryFilter` 的 `pull()` 经 {@link SyncManager.bulkSyncInSession}
+   * 逐仓库，不经公开的 {@link SyncManager.bulkSync}。
+   */
+  #exclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.#exclusiveTail.then(operation);
+    this.#exclusiveTail = result.catch(() => undefined);
+    return result;
   }
 
   async #captureSyncedHistory(operation: string): Promise<() => void> {

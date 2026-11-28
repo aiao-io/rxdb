@@ -300,7 +300,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用                 | 即使为防回推而关闭 `RxDBChange` trigger，也必须写入来源为 `remote_sync` 的工作树单元；不生成可 push 的本地 change。冲突裁决（`KEEP_LOCAL` / `KEEP_REMOTE` / 无净变化）对工作树的影响见下文「远端冲突裁决对工作树的影响」                                                                                                                                                                                                                                                                                                    |
 | 只更新 `remoteId`、同步水位或审计时间                                                     | **不构成业务实体净变化**（remoteId 回填本身是对实体行的 UPDATE），不创建工作树单元，不递增 working-tree revision                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `cleanupExpired()` 的过期删除                                                             | 与 `pull` 同类（实现在 [cleanup-expired.ts](../../packages/rxdb-plugin-sync/src/cleanup-expired.ts)，经 `SyncManager.cleanupExpired()` 暴露）：写入来源为 `remote_sync` 的 DELETE 工作树单元，递增 working-tree revision；不生成可 push 的本地 change                                                                                                                                                                                                                                                                       |
-| branch switch、baseline 物化、restore / discard 回写、远端提交导入、commit 后的工作树清空 | 由对应领域操作显式维护工作树，不产生工作树单元。branch switch 与 baseline 物化关 trigger：它们重放的是变更日志里已有的变更，再记一遍就是二次记录。restore / discard 回写（US-317）开 trigger：回写是当前分支上的一次新写入，变更日志要跟着它走，切分支、同步推送与撤销栈才与业务表一致；它们同样不被捕获成单元——条目由命令自己写，见「受信调用点登记表」#13 / #14。远端提交导入（US-316）同样开 trigger、不产生单元：HEAD 快进到导入的提交，业务表跟着新 HEAD 走，工作树保持 clean；它拒绝写走 changelog 推送的实体，见 #15 |
+| branch switch、baseline 物化、restore / discard 回写、远端提交导入、commit 后的工作树清空 | 由对应领域操作显式维护工作树，不产生工作树单元。branch switch 与 baseline 物化关 trigger：它们重放的是变更日志里已有的变更，再记一遍就是二次记录。restore / discard 回写（US-320）开 trigger：回写是当前分支上的一次新写入，变更日志要跟着它走，切分支、同步推送与撤销栈才与业务表一致；它们同样不被捕获成单元——条目由命令自己写，见「受信调用点登记表」#15 / #16。远端提交导入（US-319）同样开 trigger、不产生单元：HEAD 快进到导入的提交，业务表跟着新 HEAD 走，工作树保持 clean；它拒绝写走 changelog 推送的实体，见 #17 |
 | metadata-only 目标分支的远端预取                                                          | 只写 branch materialization staging 与独立水位，不得更新当前分支 `RxDBSync` 或业务表                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | QueryCache 的 upsert/delete/孤儿清理与离线出站重放                                        | QueryCache 实体不进入 baseline、status、diff 或 commit；它仍是可重建缓存，不能与版本化实体混在同一事务单元中（覆盖路径见下注）                                                                                                                                                                                                                                                                                                                                                                                              |
 | raw SQL、adapter 直写或其他 trigger bypass                                                | 业务表写入前以 `commit_capability_mismatch` 拒绝；只有同时持有内部事务能力并原子维护工作树的受信路径可以关闭 trigger。判定机制（**按目标表 + 目标列**判定，非「rawQuery 整体只读」）与其能力边界见下文「raw SQL / adapter 直写的 bypass 门禁判定」                                                                                                                                                                                                                                                                          |
@@ -329,8 +329,8 @@ QueryCache 那一行覆盖**当前代码实际存在的全部路径**：[QueryCa
 按 `sync.type` 判定放行；新增 QueryCache 写路径按同一条排除规则登记即可，**排除结论不变**。
 
 远端数据进入工作树不等于 remote commit push/pull：v1 只记录本地可审计的未提交结果，不伪造远端作者、消息或远端 commit。
-导入远端提交（epic-014 / US-316 的 `importCommits()`）是另一条入口，不改这条结论：它写下的是服务端那一份提交身份（原 id、作者、
-消息、时间、内容指纹），不是本地替谁伪造的提交；它不经工作树，HEAD 直接快进（登记表 #15），而通用同步拉下的变化照旧进工作树。
+导入远端提交（epic-014 / US-319 的 `importCommits()`）是另一条入口，不改这条结论：它写下的是服务端那一份提交身份（原 id、作者、
+消息、时间、内容指纹），不是本地替谁伪造的提交；它不经工作树，HEAD 直接快进（登记表 #17），而通用同步拉下的变化照旧进工作树。
 支持 full/filter 同步的实体必须覆盖“pull → refresh → switch away/back → status/diff”这条完整链路，但它**跨三个故事**，
 不能整条压在任何单一故事上：US-306 阶段 A 验 `pull → refresh → 仅凭 HEAD + WorkingTreeEntry 重放`（持久层断言，不经
 `switchBranch` 入口），US-306 阶段 B 接上 `status/diff`，US-308 接上 `switch away/back`。三段各自可独立跑；完整链路作为
@@ -364,33 +364,35 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 变成噪音源。符号取**实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法
 本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。
 
-文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 / #13 / #14 / #15 在
+文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9、#12~#14 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 与 #15~#17 在
 `@aiao/rxdb-plugin-working-tree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
 [trusted-write-intent.ts](../../packages/rxdb/src/trusted-write/trusted-write-intent.ts)——它是 `declareTrustedWrite()`
 的准入名单，而那道门禁在核心。下表按符号登记，与代码实际调用点一一对应：
 
-| #   | 文件（基名）            | 符号                        | 写原语                            | 行   | 意图          | 产生工作树单元 |
-| --- | ----------------------- | --------------------------- | --------------------------------- | ---- | ------------- | -------------- |
-| 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 331  | 分支物化      | **不产生**     |
-| 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 661  | redo 失效标记 | **不产生**     |
-| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 262  | 撤销 / 重做   | **必须产生**   |
-| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 239  | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 280  | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`         | `pullBatchOnce`             | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts`    | `pullSingleRepository`      | `executor.mergeChanges(…, true)`  | 627  | `remote_sync` | **必须产生**   |
-| 9   | `cleanup-expired.ts`    | `cleanupExpired`            | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
-| 10  | `materialize-branch.ts` | `switchWithMaterialization` | `adapter.switchBranch`            | 313  | 分支物化      | **不产生**     |
-| 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
-| 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
-| 13  | `discard-command.ts`    | `rewriteProjectionToHead`   | `executor.mergeChanges(…, false)` | 139  | 工作树投影    | **不产生**     |
-| 14  | `restore-command.ts`    | `rewriteProjectionToTarget` | `executor.mergeChanges(…, false)` | 415  | 工作树投影    | **不产生**     |
-| 15  | `import-command.ts`     | `applyImportedCommit`       | `executor.mergeChanges(…, false)` | 618  | 远端提交导入  | **不产生**     |
+| #   | 文件（基名）                | 符号                             | 写原语                            | 行   | 意图          | 产生工作树单元 |
+| --- | --------------------------- | -------------------------------- | --------------------------------- | ---- | ------------- | -------------- |
+| 1   | `VersionManager.ts`         | `switchBranch`                   | `adapter.switchBranch`            | 376  | 分支物化      | **不产生**     |
+| 2   | `restore-entity.ts`         | `restore_entity`                 | `executor.mergeChanges(…, false)` | 99   | 实体恢复      | **必须产生**   |
+| 3   | `HistoryManager.ts`         | `invalidateRedoStack`            | `adapter.switchBranch`            | 726  | redo 失效标记 | **不产生**     |
+| 4   | `undo-redo-apply.ts`        | `applyUndoRedoHistories`         | `adapter.switchBranch`            | 264  | 撤销 / 重做   | **必须产生**   |
+| 5   | `merge-branch.ts`           | `merge_branch`（逐条分支）       | `executor.mergeChanges(…, false)` | 239  | 逐条合并      | **必须产生**   |
+| 6   | `merge-branch.ts`           | `merge_branch`（压缩分支）       | `executor.mergeChanges(…, false)` | 280  | 压缩合并      | **必须产生**   |
+| 7   | `pull-batch.ts`             | `pullBatchOnce`                  | `executor.mergeChanges(…, true)`  | 407  | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts`        | `pullSingleRepository`           | `executor.mergeChanges(…, true)`  | 811  | `remote_sync` | **必须产生**   |
+| 9   | `cleanup-expired.ts`        | `cleanupExpired`                 | `executor.mergeChanges(…, true)`  | 217  | `remote_sync` | **必须产生**   |
+| 10  | `materialize-branch.ts`     | `switchWithMaterialization`      | `adapter.switchBranch`            | 322  | 分支物化      | **不产生**     |
+| 11  | `materialize-branch.ts`     | `applyMaterializedActions`       | `executor.mergeChanges(…, true)`  | 369  | 分支物化      | **不产生**     |
+| 12  | `push-repository.ts`        | `alignRejectedEntities`          | `executor.mergeChanges(…, true)`  | 1713 | `remote_sync` | **必须产生**   |
+| 13  | `bucketed-pull.ts`          | `applyScopedBatch`               | `executor.mergeChanges(…, true)`  | 614  | `remote_sync` | **必须产生**   |
+| 14  | `bucketed-scope-cleanup.ts` | `removeBucketScopeInTransaction` | `executor.mergeChanges(…, true)`  | 87   | `remote_sync` | **必须产生**   |
+| 15  | `discard-command.ts`        | `rewriteProjectionToHead`        | `executor.mergeChanges(…, false)` | 139  | 工作树投影    | **不产生**     |
+| 16  | `restore-command.ts`        | `rewriteProjectionToTarget`      | `executor.mergeChanges(…, false)` | 415  | 工作树投影    | **不产生**     |
+| 17  | `import-command.ts`         | `applyImportedCommit`            | `executor.mergeChanges(…, false)` | 618  | 远端提交导入  | **不产生**     |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
-`pull-batch.ts` 与 `pull-repository.ts` 是两个不同文件里的两个独立调用点，不得合并成一行。
+`pull-batch.ts`、`pull-repository.ts`、`bucketed-pull.ts` 与 `bucketed-scope-cleanup.ts` 是不同文件里的独立调用点，不得合并成一行。
 
-**#13 / #14 是 discard / restore 回写业务表（US-317）。**
+**#15 / #16 是 discard / restore 回写业务表（US-320）。**
 两条命令先改逻辑工作树（删条目 / 写「HEAD → 目标」的差异条目），再在同一个事务里把业务表对齐成 HEAD + 条目：
 discard 用条目的 inversePatch 把业务行退回 HEAD，restore 把同一份差异叠到此刻等于 HEAD 的业务行上。三处裁决：
 
@@ -403,7 +405,7 @@ discard 用条目的 inversePatch 把业务行退回 HEAD，restore 把同一份
   撤销栈也读它。关掉的话，丢掉的草稿会在切走再切回来时被原样重放回业务表，而工作树报 clean。与 #1 / #11 关 trigger 不矛盾：
   那两行重放的是日志里已有的变更，再记一遍才是二次记录。
 
-**#15 是导入远端提交（US-316）。** `importCommits()` 把服务端下发的一段提交原样写进当前分支：节点按原 id、父链、作者、消息、
+**#17 是导入远端提交（US-319）。** `importCommits()` 把服务端下发的一段提交原样写进当前分支：节点按原 id、父链、作者、消息、
 时间与内容指纹入库，第一父链上新到的每个提交各走一次 `executor.mergeChanges(…, false)` 把它的 ChangeSet 叠到业务表上，分支头按修订号
 比较交换快进到最后一个。合并提交（`CommitKind` 的 `merge`）带进来的侧枝只作为节点入库，它们的 ChangeSet 不落业务表——每个提交的
 ChangeSet 是相对第一父的增量，侧枝对这条线的影响已经折进合并提交那一份里。三处裁决：
@@ -413,10 +415,10 @@ ChangeSet 是相对第一父的增量，侧枝对这条线的影响已经折进�
   这一行是业务表跟上新 HEAD，合成一个意图就说不清「HEAD 会不会动」。
 - **入口是投影重写，不产生单元**：导入自己维护提交图与 HEAD；被挂载点 2 按领域重算捕获的话，刚导入的提交会在工作树里再出现一遍，
   下一次 `commit()` 把远端的改动当成本地的再提交一次。
-- **触发器开着**，与 #13 / #14 同一条理由：切分支按日志撤投影、按日志重放，分支对比与合并预览读的也是日志，提交的分叉点记的也是
+- **触发器开着**，与 #15 / #16 同一条理由：切分支按日志撤投影、按日志重放，分支对比与合并预览读的也是日志，提交的分叉点记的也是
   日志上的位置——关掉的话导入的数据不跟着分支走。代价是这些日志行对通用实体同步而言就是待推送的本地变更，所以导入**拒绝写任何走
   changelog 推送的实体**（`needsPush()` 为真），返回 `unsupported_entity` / `synced`：**导入与通用实体同步同时用在同一批实体上不受支持**。
-- **叠之前核对前像**：这一行受信写不像 #13 / #14 那样回写本机自己算出来的增量，它叠的是服务端给的增量，叠错了不会报错——
+- **叠之前核对前像**：这一行受信写不像 #15 / #16 那样回写本机自己算出来的增量，它叠的是服务端给的增量，叠错了不会报错——
   打空的 UPDATE / DELETE 静默落空。所以 `mergeChanges` 之前，第一父链上每个单元写之前的那一行都要与叠到它时的业务行对得上，
   对不上即零写入的 `precondition_mismatch`（规则见 `import-precondition.ts`）。
 
@@ -436,7 +438,7 @@ ChangeSet 是相对第一父的增量，侧枝对这条线的影响已经折进�
 `adapter.transaction` 仍是登记表认得的原语（没声明的 `transaction()` 是普通 CRUD，只在自报了意图时才进本表），
 但登记表里没有一行用它。
 
-**`mergeChanges` 那 11 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；
+**`mergeChanges` 那 13 行全部绑在事务执行器上，没有一行绑适配器实例。** 声明存在一个 WeakMap 里，每个作用域只存一条；
 而工作树的 `interceptMergeChanges()` 是排队拿到事务之后才取声明的。绑适配器实例时两个并发的 `mergeChanges` 会互相覆盖——
 先执行的取到后声明者的意图，后执行的取不到声明被当作未知入口拒绝。只有一次写的 #2 / #6 因此也先开事务、再按执行器声明；
 并发用例在 [trusted-write-concurrency.spec.ts](../../packages/rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts)。
@@ -849,7 +851,7 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
     HEAD + WorkingTreeEntry 重放。意图标记登记表与代码实际调用点一致——存在未登记的
     `adapter.switchBranch` / **本地重载 `mergeChanges` 的任意调用点**（`adapter.` 与 `executor.` 两种接收者，
     `disableTriggers` 真假**都算**）/ `upsertMany` / `deleteByIds` 调用点即门禁失败。
-    `disableTriggers` 在登记表里是**分类依据**，不是扫描的筛选条件：15 行登记里有 6 行是 trigger 开启的
+    `disableTriggers` 在登记表里是**分类依据**，不是扫描的筛选条件：17 行登记里有 6 行是 trigger 开启的
     `mergeChanges(…, false)`（`merge_branch` 的两个策略分支、`restore_entity`、discard / restore 的回写与远端提交导入），按 `disableTriggers` 过滤
     会让门禁漏验这 6 行。后两个方法的登记项以**目标实体的 `sync.type`** 为准：
     QueryCache 实体登记为放行，版本化实体登记为拒绝；漂移扫描 MUST 能报出「调用 `upsertMany`

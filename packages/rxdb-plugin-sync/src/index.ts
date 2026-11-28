@@ -35,8 +35,12 @@ export type { CheckRepositoryUpdatesResult } from './check-repository-updates.js
 // 全仓只有 `SyncManager.ts:427` 与本包测试相对 import 它——转出去等于多一个能绕开
 // `SyncManager` 自身前置校验的入口。
 export type { CleanupExpiredOptions, CleanupExpiredResult } from './cleanup-expired.js';
-// `SyncManager.getRepositoryDependencyGraph()` 的返回值。图的构建函数是内部实现。
-export type { DependencyGraph } from './dependency-graph.js';
+// `SyncManager.getRepositoryDependencyGraph()` 的返回值，连同图上的外键与环（US-038）。图的构建函数是内部实现。
+export type { DependencyCycle, DependencyForeignKey, DependencyGraph } from './dependency-graph.js';
+// 分区清理时还被本地别的行经外键引用、暂时留在本机的行，进拉取结果的 `failures`（US-033）。
+export { RxDBBucketCleanupBlockedError } from './bucket-cleanup-blocked-error.js';
+// 外键成环的仓库推拉不了时进 `failures` 的错误（US-038）。
+export { RxDBForeignKeyCycleError, type RxDBForeignKeyCycleReason } from './foreign-key-cycle-error.js';
 // `SyncManager.getAllRepositorySyncStatus()` 的可选过滤器。
 export type { GetAllRepositorySyncStatusFilter } from './get-all-repository-sync-status.js';
 // `getRepositorySyncStatus()` 的返回值。
@@ -61,4 +65,20 @@ export { queryCacheEntityIdentifier } from './query-cache-entity-identifier.js';
 // 元素类型），自由函数收回。
 export type { SyncBranchSkipReason, SyncBranchesResult } from './sync-branches.js';
 // 实例由插件装配，用户不自己 new，因此只转类型不转类。
+export { RxDBSyncBucketProgress, RxDBSyncBucketRow, RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
+export {
+  IdentityMismatchError,
+  canonicalize,
+  filterFingerprint,
+  identityFingerprint,
+  scopedDatabaseName,
+  scopedIdentityKind,
+  type PendingChangeCountAdapter,
+  type PendingChangeProbe,
+  type ScopedEntitySyncInfo,
+  type ScopedIdentityKind,
+  type ScopedSyncAdapter,
+  type ScopedSyncIdentity,
+  type ScopedSyncIdentitySource
+} from './scoped-sync.js';
 export type { SyncManager } from './SyncManager.js';

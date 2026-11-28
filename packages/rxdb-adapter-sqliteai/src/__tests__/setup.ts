@@ -11,6 +11,7 @@ import {
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
+  entityAccessRulesSuite,
   joinSqlSuite,
   menuIntegrationSuite,
   querySqlSuite,
@@ -51,6 +52,7 @@ customPrimaryKeySuite(sqliteaiFactory);
 relationIntegrationSuite(sqliteaiFactory);
 menuIntegrationSuite(sqliteaiFactory);
 cascadeMutationSuite(sqliteaiFactory);
+entityAccessRulesSuite(sqliteaiFactory);
 treeIntegrationSuite(sqliteaiFactory);
 
 // 版本管理套件。

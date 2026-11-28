@@ -108,7 +108,7 @@ export type WorkingTreeCommandState<T> =
  * @remarks
  * 只有六件事有 empty 语义：`status()` 无未提交变更、`diff()` 无可展示改动、
  * `listCommits()` 无历史、`commitChanges()` 无变更单元（基线节点）、`restoreSession()`
- * 无未结束会话、`exportCommits()` 那个提交之后没有新提交（US-316）。判据分别是 {@link isWorkingTreeStatusEmpty}、
+ * 无未结束会话、`exportCommits()` 那个提交之后没有新提交（US-319）。判据分别是 {@link isWorkingTreeStatusEmpty}、
  * {@link isWorkingTreeDiffEmpty}、{@link isCommitLogPageEmpty}、`isCommitChangeSetPageEmpty()`、
  * {@link isWorkingTreeRestoreSessionEmpty}、`isCommitExportPageEmpty()`。
  */
@@ -126,7 +126,7 @@ export type WorkingTreeQueryState<T> =
  * 键集是 US-306 阶段 C 收口的六项，加上 T110 补进来的 `restore()` / `restoreSession()`，
  * 再加 T123 补进来的 `switchBranch()`，加上 commit 明细侧的 `commitChanges()`，
  * 与 auto-enable 补进来的 `enableIfEmpty()`——tri-framework-api.md §3 清单十二项到齐；US-314 阶段 A 又补进
- * 从提交建分支的 `checkBranchFromCommit()` / `createBranchFromCommit()`，共十四项；US-316 补进导入远端提交的
+ * 从提交建分支的 `checkBranchFromCommit()` / `createBranchFromCommit()`，共十四项；US-319 补进导入远端提交的
  * `importCommits()` 与导出侧的 `exportCommits()`，共十六项。
  *
  * `importCommitsState` 走**命令**状态：被拒的十种成因与「同一批再导入一次」的 no-op 都是结果，不是「没有内容」。
@@ -185,10 +185,10 @@ export interface WorkingTreeAsyncStates {
   /** `createBranchFromCommit()` 的状态；**没有 empty** —— 建好了与三种被拒成因都是结果 */
   readonly createBranchFromCommitState: WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>;
 
-  /** `importCommits()` 的状态；**没有 empty** —— 被拒的各种成因与 no-op 都是结果（US-316） */
+  /** `importCommits()` 的状态；**没有 empty** —— 被拒的各种成因与 no-op 都是结果（US-319） */
   readonly importCommitsState: WorkingTreeCommandState<CommitImportResult>;
 
-  /** `exportCommits()` 的状态；空即「那个提交之后这条分支上没有新提交」（US-316） */
+  /** `exportCommits()` 的状态；空即「那个提交之后这条分支上没有新提交」（US-319） */
   readonly exportCommitsState: WorkingTreeQueryState<CommitExportPage>;
 }
 

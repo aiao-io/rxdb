@@ -13,6 +13,8 @@ import {
   createEntityDirtyTracker,
   createListViewState,
   deriveEntityCapabilities,
+  deriveRowCapabilities,
+  deriveWriteBlockedReason,
   describeHistoryBarrier,
   extractFieldsFromMetadata,
   getListViewFields,
@@ -195,6 +197,10 @@ export class EntityListComponent implements OnDestroy {
   readonly #releaseDirty = this.#dirty.subscribe(dirty => this.dirtyChange.emit(dirty));
   // ── Service injections ────────────────────────────────────────────────
   readonly #rxdb = inject(RxDB);
+  /** 授权快照（US-029）：规则形式的新增、编辑、删除按它逐行派生，变化时不刷新页面即生效 */
+  readonly #grants = toSignal(this.#rxdb.grants.snapshot$, { initialValue: this.#rxdb.grants.snapshot });
+  /** 能力派生的实例侧上下文：只读实例与授权快照 */
+  readonly #capabilityContext = computed(() => ({ readOnly: this.#rxdb.readOnly, grants: this.#grants() }));
   readonly #injector = inject(Injector);
   readonly #dialog = inject(Dialog);
   readonly #errorHandler = inject(ErrorHandler);
@@ -238,6 +244,8 @@ export class EntityListComponent implements OnDestroy {
 
   readonly #columnsCache = computed(() => {
     this.t('common.actions');
+    // 快照变了重建列：操作列的删除按行与快照派生（US-029）
+    const { readOnly, grants } = this.#capabilityContext();
     return new Map<string, ColumnsDefine>(
       this.#rxdb.config.entities.map(cls => {
         const meta = getEntityMetadata(cls);
@@ -245,7 +253,8 @@ export class EntityListComponent implements OnDestroy {
           `${meta.namespace}:${meta.name}`,
           buildEditableColumns(meta, {
             i18n: this.modelI18n,
-            readOnly: this.#rxdb.readOnly,
+            readOnly,
+            grants,
             actionsMaxWidth: this.actionsMaxWidth(),
             relatedItemsProviderFactory: (fkField, relatedEntityName) => {
               const relCls = [...this.#entityClsMap.values()].find(c => {
@@ -293,10 +302,25 @@ export class EntityListComponent implements OnDestroy {
 
   readonly #entityCls = computed(() => this.#entityClsMap.get(this.#entityKey()));
 
-  /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
+  /**
+   * 当前实体的界面能力，由 `permissions` 与授权快照派生（US-027 / US-029）；未注册实体无元数据可派生，为 `undefined`
+   */
   readonly #capabilities = computed(() => {
     const cls = this.#entityCls();
-    return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: this.#rxdb.readOnly }) : undefined;
+    return cls ? deriveEntityCapabilities(getEntityMetadata(cls), this.#capabilityContext()) : undefined;
+  });
+
+  /** 已落库的行里不可编辑的那些（按行派生，US-029）：行挂 `_readonly`，详情走 view 模式 */
+  readonly #readonlyRowIds = computed(() => {
+    const cls = this.#entityCls();
+    if (!cls) return new Set<unknown>();
+    const metadata = getEntityMetadata(cls);
+    const context = this.#capabilityContext();
+    return new Set(
+      this.#instances()
+        .filter(inst => !deriveRowCapabilities(metadata, inst as Record<string, unknown>, context).canEdit)
+        .map(inst => inst.id)
+    );
   });
 
   /** 级联新增模式下本地草稿子实体（未保存到DB，由父实体级联保存） */
@@ -325,12 +349,12 @@ export class EntityListComponent implements OnDestroy {
     return createListViewState();
   });
   protected readonly sourceTableRecords = computed<EntityTableRecord[]>(() => {
-    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
-    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
-    const isRowReadonly = this.#capabilities()?.canEdit === false;
+    // 不可编辑的行（`update` 只许系统写，或规则形式而这一行的作用域上没有所需权限）交给现成的 `_readonly`
+    // 行守卫挡住编辑与粘贴，详情走 view 模式；删除另由操作列按行判定。草稿尚未落库，仍可编辑
+    const readonlyIds = this.#readonlyRowIds();
     const dbRecords = this.#instances().map(inst => ({
       ...(inst as Record<string, unknown>),
-      ...(isRowReadonly ? { _readonly: true } : {})
+      ...(readonlyIds.has(inst.id) ? { _readonly: true } : {})
     }));
     const draftRecords = this.#localDraftItems().map(inst => ({ ...(inst as Record<string, unknown>) }));
     let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
@@ -471,6 +495,17 @@ export class EntityListComponent implements OnDestroy {
     return meta.displayName ?? meta.name;
   });
 
+  /**
+   * 整个实体的写入口为什么都关着（US-029 AC#20）：只读实例，或有规则形式的操作而授权快照还没取到；
+   * 列表顶部据此给出可读的原因，`undefined` 时不出提示
+   */
+  readonly writeBlockedMessage = computed(() => {
+    const cls = this.#entityCls();
+    const reason = cls ? deriveWriteBlockedReason(getEntityMetadata(cls), this.#capabilityContext()) : undefined;
+    if (reason === undefined) return undefined;
+    return this.t(reason === 'read-only-instance' ? 'list.writeBlocked.readOnly' : 'list.writeBlocked.grantsUnknown');
+  });
+
   /** 当前实体不接受从列表新增：`create` 只许系统写，或已在祖先创建链路中（循环创建检测） */
   readonly isCreateBlocked = computed(
     () => this.#capabilities()?.canCreate === false || this.creationChain().includes(this.#entityKey())
@@ -552,7 +587,7 @@ export class EntityListComponent implements OnDestroy {
         selectMode: this.isSelectMode(),
         fixedQuery: this.fixedQuery(),
         fullyLoaded: !!list && !list.hasMore() && !list.isLoading(),
-        hasReadonlyRows: this.#capabilities()?.canEdit === false,
+        hasReadonlyRows: this.#readonlyRowIds().size > 0,
         hasDrafts: this.#localDraftItems().length > 0,
         hasPendingEdits: this.#pendingEditBatches() > 0,
         reorderPending: this.#reorderPending()

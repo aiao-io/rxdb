@@ -3,9 +3,7 @@ import { ENTITIES, IdCard, Order, OrderItem, User, type UserStaticTypes } from '
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 const SHOP_ENTITIES = ENTITIES;
 
@@ -36,8 +34,7 @@ describe('Supabase EXISTS 操作符测试', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

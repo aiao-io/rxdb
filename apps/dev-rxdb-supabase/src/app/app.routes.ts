@@ -12,9 +12,14 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./todo/todo.page')
   },
   {
-    path: 'todo-cursor',
+    path: 'catalog',
     resolve: { supabase: supabaseSyncResolver },
-    loadComponent: () => import('./todo-cursor/todo-cursor.page')
+    loadComponent: () => import('./catalog/catalog.page')
+  },
+  {
+    path: 'orders',
+    resolve: { supabase: supabaseSyncResolver },
+    loadComponent: () => import('./orders/orders.page')
   },
   {
     path: '**',

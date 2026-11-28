@@ -53,7 +53,7 @@
  *
  * ## 服务端用的也是这一份
  *
- * US-316 起指纹是跨系统契约：交换的另一端（首个使用方是 Admin 的服务端，含 Supabase Edge Function）要复算它。
+ * US-319 起指纹是跨系统契约：交换的另一端（首个使用方是 Admin 的服务端，含 Supabase Edge Function）要复算它。
  * JavaScript 的那一端经 `@aiao/rxdb-plugin-working-tree/exchange` 拿到的就是本文件的三个函数，不照文档另写一份——
  * 文档那一节（插件页「内容指纹的规范化规则」）留给别的语言。于是本文件在那个子路径的模块闭包里：值导入只能有
  * `@aiao/rxdb`（`sha256Hex` 与 `RxDBError`），一条指向实体或运行时的值导入就把它们带进了服务端

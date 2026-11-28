@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { parseEnv, promisify } from 'node:util';
 
 // docker/ 下的 Supabase 栈脚本用假的 docker / curl 驱动：假命令只记下每次调用的 cwd 与参数，
 // 不起任何容器。断言的是「初始化发给了哪套 Compose 栈」这类调用身份，与真实 Docker 无关。
@@ -19,15 +19,18 @@ const DOCKER_FILES = [
   'reset.sh',
   'supabase-ci-up.sh',
   'supabase-ci-down.sh',
+  'supabase-ci-compose.sh',
   'supabase-ci-identity.sh',
   'supabase-ci-isolation-regression.sh',
-  'docker-compose.ci.yml'
+  'docker-compose.ci.yml',
+  'docker-compose.ci-studio.yml'
 ];
 
 const FAKE_DOCKER = String.raw`#!/usr/bin/env node
 const { appendFileSync, readFileSync } = require('node:fs');
 const args = process.argv.slice(2);
-appendFileSync(process.env.FAKE_DOCKER_LOG, JSON.stringify({ cwd: process.cwd(), args }) + '\n');
+const publicUrl = process.env.SUPABASE_CI_PUBLIC_URL ?? null;
+appendFileSync(process.env.FAKE_DOCKER_LOG, JSON.stringify({ cwd: process.cwd(), args, publicUrl }) + '\n');
 const missing = (process.env.FAKE_DOCKER_MISSING || '').split(',').filter(Boolean);
 const valueAfter = flag => args[args.indexOf(flag) + 1];
 const isHealthInspect = args[0] === 'inspect' && String(valueAfter('-f')).includes('.State.Health.Status');
@@ -37,6 +40,11 @@ if (isHealthInspect) {
     .split('\n')
     .filter(line => line.includes('.State.Health.Status')).length;
   process.stdout.write(sequence[Math.min(earlier, sequence.length) - 1] + '\n');
+  process.exit(0);
+}
+// init-db.sh 加载生产权限脚本前探测 Realtime 的 schema（psql -tAc）：默认已就绪，FAKE_REALTIME_READY=false 时一直没建好
+if (args[0] === 'compose' && args.includes('psql') && args.includes('-tAc')) {
+  process.stdout.write((process.env.FAKE_REALTIME_READY === 'false' ? 'f' : 't') + '\n');
   process.exit(0);
 }
 if (args[0] === 'compose' && args.includes('port')) {
@@ -61,7 +69,13 @@ if (process.argv.includes('-w')) process.stdout.write('200');
 `;
 
 /** 调用方环境里可能残留的栈身份变量，一律去掉，免得测到开发机的配置。 */
-const INHERITED_IDENTITY = ['SUPABASE_CI_ID', 'SUPABASE_CI_PROJECT_NAME', 'COMPOSE_PROJECT_NAME', 'COMPOSE_FILE'];
+const INHERITED_IDENTITY = [
+  'SUPABASE_CI_ID',
+  'SUPABASE_CI_PROJECT_NAME',
+  'SUPABASE_PUBLIC_URL',
+  'COMPOSE_PROJECT_NAME',
+  'COMPOSE_FILE'
+];
 
 async function createHarness(t) {
   const root = await mkdtemp(join(tmpdir(), 'docker-supabase-scripts-'));
@@ -74,9 +88,16 @@ async function createHarness(t) {
     await chmod(join(dockerDir, file), 0o755);
   }
   await cp(join(repoRoot, 'docker', 'sql'), join(dockerDir, 'sql'), { recursive: true });
-  const p2pSchema = join(root, 'apps', 'dev-rxdb-p2p', 'supabase', 'p2p-schema.sql');
-  await mkdir(dirname(p2pSchema), { recursive: true });
-  await copyFile(join(repoRoot, 'apps', 'dev-rxdb-p2p', 'supabase', 'p2p-schema.sql'), p2pSchema);
+  // init-db.sh 在 docker/sql 之外还加载三个 demo 自带的 SQL
+  for (const demoSql of [
+    ['apps', 'dev-rxdb-p2p', 'supabase', 'p2p-schema.sql'],
+    ['apps', 'dev-rxdb-supabase', 'supabase', 'catalog-demo.sql'],
+    ['apps', 'dev-rxdb-supabase', 'supabase', 'orders-demo.sql']
+  ]) {
+    const target = join(root, ...demoSql);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(join(repoRoot, ...demoSql), target);
+  }
 
   const bin = join(root, 'bin');
   await mkdir(bin);
@@ -84,11 +105,11 @@ async function createHarness(t) {
   await writeFile(join(bin, 'curl'), FAKE_CURL, { mode: 0o755 });
   const log = join(root, 'docker-calls.jsonl');
 
-  const run = async (script, env = {}) => {
+  const run = async (script, env = {}, args = []) => {
     await writeFile(log, '');
     const childEnv = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_DOCKER_LOG: log, ...env };
     for (const key of INHERITED_IDENTITY) if (!(key in env)) delete childEnv[key];
-    const result = await execFileAsync('bash', [join(dockerDir, script)], {
+    const result = await execFileAsync('bash', [join(dockerDir, script), ...args], {
       cwd: root,
       env: childEnv,
       timeout: 60_000
@@ -126,6 +147,34 @@ const initStacks = calls =>
     .filter(call => call.subcommand[0] === 'exec' && call.subcommand.includes('psql'))
     .map(call => call.stack);
 
+test('init-db.sh 先探测 Realtime 建好的 schema，之后才加载生产权限脚本', async t => {
+  const harness = await createHarness(t);
+  const { calls } = await harness.run('init-db.sh');
+
+  const psqlCalls = composeCalls(calls).filter(
+    call => call.subcommand[0] === 'exec' && call.subcommand.includes('psql')
+  );
+  const probe = psqlCalls.findIndex(
+    call => call.subcommand.includes('-tAc') && call.subcommand.some(arg => arg.includes('realtime.messages'))
+  );
+  assert.ok(probe >= 0, 'init-db.sh 应当探测 realtime.messages / realtime.send');
+  const fileLoadsAfterProbe = psqlCalls
+    .slice(probe + 1)
+    .filter(call => !call.subcommand.includes('-tAc') && !call.subcommand.includes('-c'));
+  assert.equal(fileLoadsAfterProbe.length, 1, '探测之后只应再加载生产权限脚本这一份 SQL');
+});
+
+test('init-db.sh 等不到 Realtime 的 schema 就按超时报错退出，不跳过生产权限脚本', async t => {
+  const harness = await createHarness(t);
+  await assert.rejects(
+    harness.run('init-db.sh', { FAKE_REALTIME_READY: 'false', SUPABASE_REALTIME_WAIT_SECONDS: '1' }),
+    error => {
+      assert.match(String(error.stderr), /realtime\.messages/);
+      return true;
+    }
+  );
+});
+
 test('start.sh 起的默认栈，自动初始化发给同一个 Compose 项目', async t => {
   const harness = await createHarness(t);
   const { calls } = await harness.run('start.sh');
@@ -156,6 +205,50 @@ test('supabase-ci-up.sh 起的隔离栈，初始化仍发给这个隔离项目',
   const inits = initStacks(calls);
   assert.ok(inits.length > 0, 'supabase-ci-up.sh 应当执行 init-db.sh');
   for (const stack of inits) assert.deepEqual(stack, started);
+});
+
+test('supabase-ci-compose.sh 发给 test-env 起的同一个隔离项目，叠加 Studio 配置并原样转发参数', async t => {
+  const harness = await createHarness(t);
+  const env = { SUPABASE_CI_ID: 'spec-isolated' };
+  const started = stackStarted((await harness.run('supabase-ci-up.sh', env)).calls);
+  const { calls } = await harness.run('supabase-ci-compose.sh', env, ['exec', 'db', 'psql', '-U', 'postgres']);
+
+  const [call, ...others] = composeCalls(calls);
+  assert.equal(others.length, 0);
+  assert.deepEqual(call.stack, {
+    project: started.project,
+    files: [...started.files, join(dirname(started.files[0]), 'docker-compose.ci-studio.yml')],
+    cwd: null
+  });
+  assert.deepEqual(call.subcommand, ['exec', 'db', 'psql', '-U', 'postgres']);
+});
+
+test('supabase-ci-compose.sh 把 test-env 落盘的 Kong 端口交给 Studio 作浏览器可达的 API 地址', async t => {
+  const harness = await createHarness(t);
+  const env = { SUPABASE_CI_ID: 'spec-isolated' };
+  await harness.run('supabase-ci-up.sh', env);
+  const state = parseEnv(await readFile(join(harness.dockerDir, '.supabase-ci-state.spec-isolated.env'), 'utf8'));
+  const { calls } = await harness.run('supabase-ci-compose.sh', env, ['up', '-d', '--no-deps', 'studio']);
+
+  assert.equal(calls[0].publicUrl, `http://localhost:${state.SUPABASE_CI_KONG_PORT}`);
+});
+
+test('Studio 的 API 地址在配置里也不编造：没有回退值，缺了就让 compose 当场报错', async () => {
+  // 经 supabase-ci-compose.sh 的栈 Kong 端口总是动态分配的（supabase-ci-identity.sh 置 SUPABASE_KONG_PORT=0），
+  // 回退到默认栈的 54331 永远不对：Studio 的直连请求要么全部失败，要么打到机器上另一套默认栈
+  const studio = await readFile(join(repoRoot, 'docker', 'docker-compose.ci-studio.yml'), 'utf8');
+  const entry = studio.split('\n').find(line => line.trim().startsWith('SUPABASE_PUBLIC_URL:'));
+
+  // 变量名不用 SUPABASE_PUBLIC_URL：compose 会加载 docker/.env，那里的同名变量是默认栈的地址，缺了也报不出错
+  assert.match(entry ?? '', /^\s*SUPABASE_PUBLIC_URL: \$\{SUPABASE_CI_PUBLIC_URL:\?.+\}\s*$/);
+  assert.doesNotMatch(studio, /54331/);
+});
+
+test('还没起过栈时 supabase-ci-compose.sh 不编造 Studio 的 API 地址', async t => {
+  const harness = await createHarness(t);
+  const { calls } = await harness.run('supabase-ci-compose.sh', { SUPABASE_CI_ID: 'spec-never-started' }, ['ps']);
+
+  assert.equal(calls[0].publicUrl, null);
 });
 
 for (const [label, missing] of [

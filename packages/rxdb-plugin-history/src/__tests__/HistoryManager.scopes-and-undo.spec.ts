@@ -12,6 +12,7 @@ import {
   type RxDB,
   RxDBBranch,
   RxDBChange,
+  RxDBError,
   RxDBSync,
   type SwitchVersionActions,
   SyncType,
@@ -112,6 +113,15 @@ const createHistory = (...changes: RxDBChange[]): HistoryItem => convertChangesT
 
 const asQuery = (value: unknown): QueryOptions => value as QueryOptions;
 
+/** 待推数分两次数（`countRxDBChangeRecords`），两次查询外层都是「那批待推变更 AND transactionId 条件」 */
+const pendingOf = (value: unknown): QueryRule => asQuery(value).where.rules[0];
+
+/** 分组计数给事务数，普通计数给不在事务里的变更数；订阅自己那次触发查询也走普通计数 */
+const recordCounts =
+  (standalone: number, transactions: number) =>
+  (options: { groupBy?: string[] }): Observable<number> =>
+    of(options.groupBy ? transactions : standalone);
+
 const getRule = (query: QueryOptions, field: string): QueryRule | undefined =>
   query.where.rules.find(rule => rule.field === field);
 
@@ -128,6 +138,17 @@ class LocalOnlyNote extends EntityBase {
   text!: string;
 }
 
+/** 生成的多对多中间表的替身：两端是 User 与 Post（US-316） */
+@Entity({ name: 'PostUserJunction', properties: [] })
+class PostUserJunction extends EntityBase {}
+
+const junctionSchemaManager = {
+  generatedEntities: [PostUserJunction],
+  isJunctionEntity: (EntityType: unknown) => EntityType === PostUserJunction,
+  junctionEndpointsOf: (EntityType: unknown) =>
+    EntityType === PostUserJunction ? [getEntityMetadata(Post), getEntityMetadata(User)] : undefined
+};
+
 /** 三个实体都跟随全局 full sync，因此都可推送 */
 const PUSHABLE_ENTITIES: EntityType[] = [User, Post, Tag];
 
@@ -137,6 +158,8 @@ const createHarness = (
     connected?: boolean;
     entities?: EntityType[];
     firstConnectedAt?: Date;
+    /** 换掉默认的「没有多对多」：多仓库作用域按它找中间表（US-316） */
+    schemaManager?: unknown;
   } = {}
 ): Harness => {
   const connected$ = new BehaviorSubject(options.connected ?? false);
@@ -184,6 +207,12 @@ const createHarness = (
     worktreeTableSet: WorktreeTableSet.MAIN,
     worktreeTableSet$: of(WorktreeTableSet.MAIN),
     entityManager: { getRepository },
+    // 多仓库作用域（US-316）按两端找中间表：这组实体之间没有多对多
+    schemaManager: options.schemaManager ?? {
+      generatedEntities: [],
+      isJunctionEntity: () => false,
+      junctionEndpointsOf: () => undefined
+    },
     firstConnectedAt: options.firstConnectedAt,
     localAdapter$: of(localAdapter),
     removeEventListener,
@@ -230,6 +259,64 @@ afterEach(() => {
 });
 
 describe('历史流、作用域与撤销重做执行', () => {
+  // 评审 #12：清单与计数同一口径（`buildPendingPushWhere`），端到端由 pglite 包的真库用例守，这里守本包自己的那一半
+  describe('pushableHistories$（US-317）', () => {
+    const collect = (harness: Harness) => {
+      const emitted: HistoryItem[][] = [];
+      const subscription = harness.historyManager.pushableHistories$.subscribe(items => emitted.push(items));
+      return { emitted, subscription };
+    };
+    /** 清单与操作历史的活查询共用变更表的 findAll：清单的查询带 remoteId 条件，操作历史的没有 */
+    const isPendingPushQuery = (query: unknown) => getRule(asQuery(query), 'remoteId') !== undefined;
+    const pendingPushQueries = () => findAllMock.mock.calls.filter(([query]) => isPendingPushQuery(query));
+    const listChanges = (changes: RxDBChange[]) =>
+      findAllMock.mockImplementation((query: unknown) => of(isPendingPushQuery(query) ? changes : []));
+
+    it('按待推条件查当前分支上没撤销、没推上去的变更，一个事务一项、最新在前；查全部行，不受默认 100 行截断', async () => {
+      const harness = createHarness({ connected: true });
+      const transactionId = 'tx-pushable' as UUID;
+      listChanges([
+        createChange(4, { transactionId }),
+        createChange(3, { transactionId, entity: 'Post' }),
+        createChange(2)
+      ]);
+
+      const { emitted, subscription } = collect(harness);
+      await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(2));
+
+      expect(emitted.at(-1)!.map(item => item.changes.map(change => change.id))).toEqual([[4, 3], [2]]);
+      const query = asQuery(pendingPushQueries()[0][0]);
+      expect(getRule(query, 'branchId')?.value).toBe('main');
+      expect(getRule(query, 'revertChangeId')).toMatchObject({ operator: '=', value: null });
+      expect(getRule(query, 'remoteId')).toMatchObject({ operator: '=', value: null });
+      expect(query.orderBy).toEqual([{ field: 'id', sort: 'desc' }]);
+      subscription.unsubscribe();
+    });
+
+    it('同步结算之后重查一遍清单：推上去的那几项随之消失', async () => {
+      const harness = createHarness({ connected: true });
+      listChanges([createChange(2), createChange(1)]);
+      const { emitted, subscription } = collect(harness);
+      await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(2));
+
+      listChanges([createChange(2)]);
+      harness.repositorySyncComplete();
+
+      await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(1));
+      expect(emitted.at(-1)!.map(item => item.changeId)).toEqual([2]);
+      subscription.unsubscribe();
+    });
+
+    it('没连上时清单为空，不查变更表', async () => {
+      const harness = createHarness({ connected: false });
+      const { emitted, subscription } = collect(harness);
+
+      await vi.waitFor(() => expect(emitted).toEqual([[]]));
+      expect(pendingPushQueries()).toEqual([]);
+      subscription.unsubscribe();
+    });
+  });
+
   describe('history streams', () => {
     it('emits histories, counts and repository-aware undo histories', async () => {
       const changes = [
@@ -367,6 +454,38 @@ describe('历史流、作用域与撤销重做执行', () => {
 
       databaseSub.unsubscribe();
       repositorySub.unsubscribe();
+    });
+
+    it('creates a repositories scope from an entity array, cached regardless of order（US-316）', () => {
+      const harness = createHarness();
+      const scope = harness.historyManager.history([User, Post]);
+      const subscription = scope.histories$.subscribe();
+
+      expect(scope.type).toBe('repositories');
+      expect(harness.historyManager.history([Post, User])).toBe(scope);
+      expect(() => harness.historyManager.history([])).toThrow(RxDBError);
+
+      subscription.unsubscribe();
+    });
+
+    // 评审 #12：作用域走真实的 `#repositoriesScope` 路径——中间表由 schemaManager 的生成实体与两端给出
+    it('多仓库作用域按 schemaManager 找出两端都列出的中间表，一并算进作用域；只列一端时不算', async () => {
+      findAllMock.mockReturnValue(
+        of([
+          createChange(4, { entity: 'PostUserJunction' }),
+          createChange(3, { entity: 'Post' }),
+          createChange(2, { entity: 'Tag' }),
+          createChange(1)
+        ])
+      );
+      const harness = createHarness({ firstConnectedAt, schemaManager: junctionSchemaManager });
+
+      const both = firstValueFrom(harness.historyManager.history([User, Post]).histories$);
+      const userOnly = firstValueFrom(harness.historyManager.history([User]).histories$);
+      harness.connected$.next(true);
+
+      expect((await both).map(history => history.changeId)).toEqual([4, 3, 1]);
+      expect((await userOnly).map(history => history.changeId)).toEqual([1]);
     });
 
     it('keeps a cached scope until its final subscription is released', () => {
@@ -648,6 +767,17 @@ describe('历史流、作用域与撤销重做执行', () => {
       expect(call.actions.updates.has('rxdb:RxDBChange:1')).toBe(true);
     });
 
+    it('reverts the whole transaction from a scope listing both repositories（US-316）', async () => {
+      const harness = createHarness({ firstConnectedAt });
+      harness.changeFind.mockResolvedValue(crossScopeTransaction());
+
+      await harness.historyManager.history([User, Post]).undo();
+
+      const call = harness.switchBranch.mock.calls[0][0] as SwitchBranchInput;
+      expect(call.actions.updates.has('rxdb:RxDBChange:2')).toBe(true);
+      expect(call.actions.updates.has('rxdb:RxDBChange:1')).toBe(true);
+    });
+
     it('applies a transaction that stays inside the scope', async () => {
       const harness = createHarness({ firstConnectedAt });
       harness.changeFind.mockResolvedValue([
@@ -885,9 +1015,51 @@ describe('历史流、作用域与撤销重做执行', () => {
       harness.historyManager.incrementPullableCount(2);
       const token = harness.historyManager.beginPullableSettlement();
 
-      harness.historyManager.reconcilePullableCount(token, 5);
+      expect(harness.historyManager.reconcilePullableCount(token, 5)).toBe(true);
 
       await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(5);
+    });
+
+    // US-233：登录后立刻拉取，启动时的重算还在逐个仓库数，拉取先结算成 0；重算按拉取之前的游标数出的数不能再盖上去
+    it('a pull that settles while the watermark refresh is still counting supersedes it', async () => {
+      const harness = createHarness();
+      harness.historyManager.incrementPullableCount(5);
+      const refresh = harness.historyManager.beginPullableSettlement();
+      const pull = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.settlePullableCount(pull, { complete: true, pulled: 5 });
+
+      expect(harness.historyManager.reconcilePullableCount(refresh, 1)).toBe(false);
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(0);
+    });
+
+    it('a session reset supersedes a watermark refresh that started before it', async () => {
+      const harness = createHarness();
+      const refresh = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.resetPullableCount();
+
+      expect(harness.historyManager.reconcilePullableCount(refresh, 3)).toBe(false);
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(0);
+    });
+
+    it('a refresh that starts after the pull settled is applied as usual', async () => {
+      const harness = createHarness();
+      const pull = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.settlePullableCount(pull, { complete: true, pulled: 0 });
+      const refresh = harness.historyManager.beginPullableSettlement();
+
+      expect(harness.historyManager.reconcilePullableCount(refresh, 2)).toBe(true);
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(2);
+    });
+
+    it('two overlapping complete pulls still settle to zero', async () => {
+      const harness = createHarness();
+      harness.historyManager.incrementPullableCount(4);
+      const first = harness.historyManager.beginPullableSettlement();
+      const second = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.settlePullableCount(first, { complete: true, pulled: 4 });
+      harness.historyManager.settlePullableCount(second, { complete: true, pulled: 4 });
+
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(0);
     });
 
     it('does not overwrite realtime events that arrive during watermark refresh', async () => {
@@ -896,7 +1068,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       const token = harness.historyManager.beginPullableSettlement();
       harness.historyManager.incrementPullableCount(4);
 
-      harness.historyManager.reconcilePullableCount(token, 5);
+      expect(harness.historyManager.reconcilePullableCount(token, 5)).toBe(true);
 
       await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(6);
     });
@@ -953,7 +1125,7 @@ describe('历史流、作用域与撤销重做执行', () => {
     // 有记录时又只按记录构造 OR 组，没记录的仓库整个被漏掉。两条分支的口径互相矛盾。
     // 正确的集合恒等于「当前配置里有推送资格的实体」，记录只提供水位线。
     it('counts every pushable repository even when no sync record exists yet', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(7));
+      countMock.mockImplementation(recordCounts(0, 7));
       const harness = createHarness({ entities: [User, LocalOnlyNote] });
 
       harness.connected$.next(true);
@@ -961,14 +1133,14 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(7);
       });
-      const query = asQuery(countMock.mock.calls.at(-1)?.[0]);
-      expect(query.where.rules.slice(0, 3)).toEqual([
+      const pending = pendingOf(countMock.mock.calls.at(-1)?.[0]);
+      expect(pending.rules?.slice(0, 3)).toEqual([
         { field: 'branchId', operator: '=', value: 'main' },
         { field: 'revertChangeId', operator: '=', value: null },
         { field: 'remoteId', operator: '=', value: null }
       ]);
       // 没有水位线 ⇒ 无上界，只按 namespace + entity 圈定；LocalOnlyNote 不可推送，不进 OR 组
-      expect(query.where.rules.at(-1)).toEqual({
+      expect(pending.rules?.at(-1)).toEqual({
         combinator: 'or',
         rules: [
           {
@@ -983,7 +1155,7 @@ describe('历史流、作用域与撤销重做执行', () => {
     });
 
     it('keeps repositories without a sync record alongside those that have one', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(4));
+      countMock.mockImplementation(recordCounts(0, 4));
       const harness = createHarness();
       // 只有 User 同步过；Post / Tag 一次都没推过，因此没有记录 —— 旧实现会把它们整体漏算
       harness.syncFind.mockResolvedValue([
@@ -995,7 +1167,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(4);
       });
-      const repositories = asQuery(countMock.mock.calls.at(-1)?.[0]).where.rules.at(-1);
+      const repositories = pendingOf(countMock.mock.calls.at(-1)?.[0]).rules?.at(-1);
       expect(repositories?.combinator).toBe('or');
       expect(repositories?.rules).toHaveLength(3);
       expect(repositories?.rules?.[0].rules).toContainEqual({ field: 'id', operator: '>', value: 12 });
@@ -1004,7 +1176,7 @@ describe('历史流、作用域与撤销重做执行', () => {
     });
 
     it('treats null and undefined watermarks as unbounded', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(4));
+      countMock.mockImplementation(recordCounts(0, 4));
       const harness = createHarness();
       harness.syncFind.mockResolvedValue([
         { branchId: 'main', entity: 'User', lastPushedChangeId: 12, namespace: 'public' },
@@ -1017,7 +1189,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(4);
       });
-      const repositories = asQuery(countMock.mock.calls.at(-1)?.[0]).where.rules.at(-1);
+      const repositories = pendingOf(countMock.mock.calls.at(-1)?.[0]).rules?.at(-1);
       expect(repositories?.rules?.[0].rules).toContainEqual({ field: 'id', operator: '>', value: 12 });
       expect(repositories?.rules?.[1].rules).toHaveLength(2);
       expect(repositories?.rules?.[2].rules).toHaveLength(2);
@@ -1025,7 +1197,7 @@ describe('历史流、作用域与撤销重做执行', () => {
 
     // RXD-029 把 `enabled` 定成一票否决；计数得跟着走，否则界面报「有 N 条待推」而 push 一条都不会发。
     it('drops repositories whose sync record is disabled', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(5));
+      countMock.mockImplementation(recordCounts(0, 5));
       const harness = createHarness({ entities: [User, Post] });
       harness.syncFind.mockResolvedValue([
         { branchId: 'main', enabled: false, entity: 'User', lastPushedChangeId: 12, namespace: 'public' }
@@ -1036,7 +1208,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(5);
       });
-      const repositories = asQuery(countMock.mock.calls.at(-1)?.[0]).where.rules.at(-1);
+      const repositories = pendingOf(countMock.mock.calls.at(-1)?.[0]).rules?.at(-1);
       expect(repositories?.rules).toHaveLength(1);
       expect(repositories?.rules?.[0].rules).toContainEqual({ field: 'entity', operator: '=', value: 'Post' });
     });
@@ -1056,9 +1228,11 @@ describe('历史流、作用域与撤销重做执行', () => {
     it('ignores a stale refresh that settles after a newer one', async () => {
       const slow = deferred<RxDBSync[]>();
       const fast = deferred<RxDBSync[]>();
+      // 每次刷新数两次（不在事务里的变更、事务），两次相加才是那次刷新的结果
       countMock
         .mockReturnValueOnce(of(0)) // 订阅自身那次
-        .mockReturnValueOnce(of(42)) // 后发起的那次刷新
+        .mockReturnValueOnce(of(42)) // 后发起的那次刷新：不在事务里的变更
+        .mockReturnValueOnce(of(0)) // 后发起的那次刷新：事务
         .mockReturnValue(of(7)); // 先发起、后落地的那次
       const harness = createHarness({ entities: [User] });
       harness.syncFind.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
@@ -1085,7 +1259,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const slow = deferred<RxDBSync[]>();
       const fast = deferred<RxDBSync[]>();
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(11));
+      countMock.mockReturnValueOnce(of(0)).mockImplementation(recordCounts(0, 11));
       const harness = createHarness({ entities: [User] });
       harness.syncFind.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
 

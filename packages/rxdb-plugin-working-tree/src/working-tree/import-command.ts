@@ -1,5 +1,5 @@
 /**
- * @fileoverview `importCommits(commits, options)` —— 把服务端下发的一段提交原样写进当前分支，分支头快进到最后一个（US-316）。
+ * @fileoverview `importCommits(commits, options)` —— 把服务端下发的一段提交原样写进当前分支，分支头快进到最后一个（US-319）。
  *
  * @remarks
  * 一次导入做三件事，全在调用方的一个写事务里：提交节点按原 id、父链、作者、消息、时间与内容指纹入库；第一父链上新到的
@@ -56,7 +56,7 @@
  * 不带消息、作者或补丁内容（FR-043）。两类情况**抛**而不是返回：加密列里躺着明文（`CommitEncryptedAtRestError`，
  * 安全违规，与本地提交同一道门）与补丁里有落不进 JSON 列的值（`RxDBError`，调用方没按 JSON 值传）。
  *
- * ## 业务表回写：登记表 #15，入口投影重写，触发器开着
+ * ## 业务表回写：登记表 #17，入口投影重写，触发器开着
  *
  * 见 {@link applyImportedCommit} 与核心 `TrustedWriteIntent.remote_commit_import`。导入的变化进变更日志，所以切分支、
  * 分支对比与合并预览、撤销栈都与业务表一致；代价是它们对通用实体同步而言就是待推送的本地变更，于是导入拒绝写
@@ -67,7 +67,7 @@
  * - **只在主检出位导入**（epic-006「只有主检出位同步」）：挂在可写检出位上时返回 `not_main_checkout`。
  * - **不经 `commits$` 发事件**：那条流的订阅者通常是上传逻辑，导入的提交本就来自服务端，再发一次就是回声。
  * - **撤销栈上多一步**：外层是带事务日志的受管事务，整次导入是一个 `TRANSACTION` 项；撤销它会把业务表退回导入之前，
- *   退回的改动经撤销入口落成工作树条目（相对新 HEAD），与 US-317 的 discard 同一个结果。
+ *   退回的改动经撤销入口落成工作树条目（相对新 HEAD），与 US-320 的 discard 同一个结果。
  */
 
 import type { EntitySyncResolver, EntityType, SwitchVersionActions, TransactionExecutor } from '@aiao/rxdb';
@@ -595,13 +595,13 @@ const actionsOf = (context: CommitWriteContext, units: readonly CommitChangeUnit
   );
 
 /**
- * 把一个导入提交的 ChangeSet 叠到业务表上：受信调用点登记表 #15。
+ * 把一个导入提交的 ChangeSet 叠到业务表上：受信调用点登记表 #17。
  *
  * @param executor - 调用方那个写事务的执行器；声明挂在它上面，由挂载点 2 当场取走
  * @param actions - {@link actionsOf} 算出的增删改
  *
  * @remarks
- * 三处裁决与 discard / restore 的回写（#13 / #14）同形，理由不同：
+ * 三处裁决与 discard / restore 的回写（#15 / #16）同形，理由不同：
  *
  * - **入口是投影重写**：导入自己维护提交图与 HEAD，业务表跟着新 HEAD 走；被挂载点 2 按领域重算捕获的话，
  *   刚导入的提交会在工作树里再出现一遍，`status()` 报脏、下一次 `commit()` 把远端的改动当成本地的再提交一次。
@@ -743,7 +743,7 @@ const writeImport = async (
 };
 
 /**
- * 把一段远端提交原样导入当前分支，分支头快进到最后一个（US-316）。
+ * 把一段远端提交原样导入当前分支，分支头快进到最后一个（US-319）。
  *
  * @param executor - 调用方那个写事务的执行器；本函数**不自己开事务**
  * @param context - 见 {@link CommitWriteContext}：造节点行的实体管理器，与解码、at-rest 判定的 codec 上下文

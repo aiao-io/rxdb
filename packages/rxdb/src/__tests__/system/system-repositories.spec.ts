@@ -17,9 +17,10 @@
  *    重新入队，排在自己这个事务后面，队列并发度 1，永久挂起。
  */
 
-import { of } from 'rxjs';
+import { NEVER, of, ReplaySubject, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import type { RxDB } from '../../RxDB.js';
+import { RxDBError } from '../../RxDBError.js';
 import { ACTIVE_BRANCH_KEY } from '../../system/active-branch-guard.js';
 import { RxDBBranch } from '../../system/branch.js';
 import { RxDBChange } from '../../system/change.js';
@@ -112,6 +113,35 @@ describe('getLocalSystemRepositories / getRemoteSystemRepositories', () => {
 
     expect(repositories.adapter).toBe(adapter);
     expect(repositories.branchRepository).toBe(branchRepository);
+  });
+
+  // 断连之后适配器流一直等到重连；调用方的连接纪元已经结束时，until 让这次等待以错误收场
+  it('还没等到适配器，until 先发出：以 RxDBError 结束，不再悬着', async () => {
+    const until = new Subject<void>();
+    const rxdb = { localAdapter$: NEVER, remoteAdapter$: NEVER } as unknown as RxDB;
+
+    const local = getLocalSystemRepositories(rxdb, until);
+    const remote = getRemoteSystemRepositories(rxdb, until);
+    until.next();
+
+    await expect(local).rejects.toBeInstanceOf(RxDBError);
+    await expect(remote).rejects.toBeInstanceOf(RxDBError);
+  });
+
+  it('until 在开始等之前就已经发出过（重放）：立刻以 RxDBError 结束', async () => {
+    const ended = new ReplaySubject<void>(1);
+    ended.next();
+    ended.complete();
+    const rxdb = { localAdapter$: NEVER } as unknown as RxDB;
+
+    await expect(getLocalSystemRepositories(rxdb, ended)).rejects.toBeInstanceOf(RxDBError);
+  });
+
+  it('适配器先就绪：until 不影响结果', async () => {
+    const branchRepository = branchRepositoryStub([[]]);
+    const { rxdb, adapter } = rxdbStub({ branchRepository });
+
+    await expect(getLocalSystemRepositories(rxdb, new Subject<void>())).resolves.toMatchObject({ adapter });
   });
 });
 

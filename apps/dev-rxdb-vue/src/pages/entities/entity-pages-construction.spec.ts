@@ -26,6 +26,7 @@ const stubs = vi.hoisted(() => ({
 
 vi.mock('@aiao/rxdb-vue', () => ({
   injectRxDB: () => rxdbHolder.current,
+  useRxDB: () => rxdbHolder.current,
   useCount: () => ({
     value: ref(0),
     error: undefined,

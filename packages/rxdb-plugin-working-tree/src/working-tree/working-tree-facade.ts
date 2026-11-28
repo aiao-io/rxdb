@@ -109,7 +109,7 @@ export class WorkingTreeCapabilityDisabledError extends RxDBError {
 }
 
 /**
- * 导入要向库问的三件事，从本纪元的适配器与宿主上现取（US-316）。
+ * 导入要向库问的三件事，从本纪元的适配器与宿主上现取（US-319）。
  *
  * @param rxdb - 宿主实例；取实体登记与同步配置解析器
  * @param adapter - 这一笔受管事务用的那个适配器；版本化域问它物理表名
@@ -178,7 +178,7 @@ export class WorkingTreeManager {
    * - **何时不发**：`ok: false`（凭据冲突 / CAS 落败）、抛错、同一 `operationId` 的幂等重放、
    *   `enable()` 的基线、`restore()` / `discard()`、`importCommits()` 导入的提交。幂等重放同样回 `ok: true`，
    *   按返回值判断的订阅者会把同一个 commit 记两次——这条流的存在就是为了让订阅者不必自己判断。导入的提交本就来自
-   *   服务端，这条流的订阅者通常是上传逻辑，再发一次就是回声（US-316）。
+   *   服务端，这条流的订阅者通常是上传逻辑，再发一次就是回声（US-319）。
    * - **订阅者隔离**：回调抛错不影响 `commit()` 的返回值，也不影响其他订阅者，错误走 RxJS 的
    *   未处理错误路径（`config.onUnhandledError`，缺省异步重抛）。
    * - **不经门禁**：未启用的库上也能订阅，只是永远不发。流不 `error`、不 `complete`。
@@ -378,7 +378,7 @@ export class WorkingTreeManager {
   }
 
   /**
-   * 把当前分支的工作树整体退回当前 HEAD，业务表逐行一起退（FR-016、US-317）。
+   * 把当前分支的工作树整体退回当前 HEAD，业务表逐行一起退（FR-016、US-320）。
    *
    * @param options - 见 {@link WorkingTreeDiscardOptions}；三个捕获位必填
    * @returns 见 {@link WorkingTreeDiscardResult}；干净工作树上是 `discardedCount: 0` 的 no-op
@@ -447,7 +447,7 @@ export class WorkingTreeManager {
   }
 
   /**
-   * 列出当前分支某个提交之后的提交，摊成交换记录，供上传（US-316 的导出侧）。
+   * 列出当前分支某个提交之后的提交，摊成交换记录，供上传（US-319 的导出侧）。
    *
    * @param options - 见 {@link CommitExportOptions}；不给 `afterCommitId` 就是整条可达历史
    * @returns 见 {@link CommitExportPage}；没有新提交时是 `commits` 为空的一页
@@ -471,7 +471,7 @@ export class WorkingTreeManager {
   }
 
   /**
-   * 把服务端下发的一段提交原样导入当前分支，分支头快进到最后一个（US-316）。
+   * 把服务端下发的一段提交原样导入当前分支，分支头快进到最后一个（US-319）。
    *
    * @param commits - 批次：父先于子，最后一个是新头；记录形状见 {@link CommitExchangeRecord}
    * @param options - 见 {@link CommitImportOptions}；三个捕获位必填，与 `discard()` / `restore()` 同一组
@@ -505,7 +505,7 @@ export class WorkingTreeManager {
   }
 
   /**
-   * 把业务表恢复成一个可达历史 commit 的数据，与 HEAD 的差异作为新的未提交变更（FR-013、US-317）。
+   * 把业务表恢复成一个可达历史 commit 的数据，与 HEAD 的差异作为新的未提交变更（FR-013、US-320）。
    *
    * @param target - 见 {@link WorkingTreeRestoreTarget}；`entities` 缺省即全部行
    * @param options - 见 {@link WorkingTreeRestoreOptions}；三个捕获位必填

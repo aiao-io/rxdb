@@ -1,9 +1,9 @@
 /**
- * @fileoverview 工作树条目与业务表之间的那一份增删改：discard / restore 回写业务投影时要落什么（US-317）。
+ * @fileoverview 工作树条目与业务表之间的那一份增删改：discard / restore 回写业务投影时要落什么（US-320）。
  *
  * @remarks
  * 本模块**只算不写**。真正发起回写的两处——`discard-command.ts` 的 `rewriteProjectionToHead` 与
- * `restore-command.ts` 的 `rewriteProjectionToTarget`——各自登记在 `TRUSTED_CALLSITE_REGISTRY`（#13 / #14）：
+ * `restore-command.ts` 的 `rewriteProjectionToTarget`——各自登记在 `TRUSTED_CALLSITE_REGISTRY`（#15 / #16）：
  * 登记键取「实际发起那次批量重写的最内层具名函数」，把 `mergeChanges` 收进这里的公共函数会让两条语义
  * 不同的路径共用一个登记键，漂移扫描就分不出是谁在写。
  *
@@ -141,7 +141,7 @@ const stripBookkeepingUpdates = (updates: Map<string, SwitchVersionChange>): Map
  * 一批单元投到业务表上要落的增删改。
  *
  * @param units - 单元；补丁须是解码后的形态。discard / restore 交来的每个身份至多一条（条目与「HEAD → 目标」的差异都满足）；
- *   导入远端提交（US-316）交来的是一个提交的全部单元，按 `sequence` 顺序，同一身份可以有多条
+ *   导入远端提交（US-319）交来的是一个提交的全部单元，按 `sequence` 顺序，同一身份可以有多条
  * @param direction - 见 {@link WorkingTreeProjectionDirection}
  * @returns 交给 `executor.mergeChanges()` 的增删改；UPDATE 上不带簿记字段
  *

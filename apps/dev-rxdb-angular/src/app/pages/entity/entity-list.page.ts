@@ -1,6 +1,8 @@
 import { RxDB } from '@aiao/rxdb';
 import { EntityListComponent } from '@aiao/rxdb-model-angular';
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { findGrantDemoTarget } from './grant-demo';
+import { GrantDemoPanelComponent } from './grant-demo-panel.component';
 
 /** 列表固定查询的结构（与 `EntityList` 的 `fixedQuery` 输入一致） */
 type FixedQuery = { combinator: 'and' | 'or'; rules: unknown[] };
@@ -24,17 +26,17 @@ export function parseFixedQuery(raw: string | undefined): FixedQuery | undefined
  *
  * 可选查询参数 `fixedQuery`（`FixedQuery` 的 JSON）作为列表的固定查询，例如钉住分组排序实体的一组后
  * 才能拖拽排序（US-028 阶段 B，三端 e2e 经它进入）。
+ *
+ * 演示实体 `TenantNote`（声明了 `access.scope`）的列表上方出授权快照演示面板（US-029）。
  */
 @Component({
   selector: 'app-entity-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EntityListComponent],
-  template: `<rxdb-entity-list
-    class="block h-full"
-    [fixedQuery]="fixedQuery()"
-    [name]="name()"
-    [namespace]="namespace()"
-  />`,
+  imports: [EntityListComponent, GrantDemoPanelComponent],
+  template: `@if (grantDemo(); as target) {
+      <app-grant-demo-panel [target]="target" />
+    }
+    <rxdb-entity-list class="min-h-0 flex-1" [fixedQuery]="fixedQuery()" [name]="name()" [namespace]="namespace()" />`,
   host: { class: 'page-host flex h-full flex-col bg-base-100' }
 })
 export default class EntityListPage {
@@ -46,4 +48,6 @@ export default class EntityListPage {
   readonly name = input.required<string>();
   /** 查询参数 `fixedQuery`：列表的固定查询 */
   readonly fixedQuery = input<FixedQuery | undefined, string | undefined>(undefined, { transform: parseFixedQuery });
+  /** 演示实体 `TenantNote`：列表上方出授权快照演示面板 */
+  readonly grantDemo = computed(() => findGrantDemoTarget(this.rxdb.config.entities, this.namespace(), this.name()));
 }

@@ -536,7 +536,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @throws {@link WorkingTreeWriteRejectedError} 两个作用域上都没有声明时
    *
    * @remarks
-   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9/#11/#12/#13/#14，全是 `mergeChanges`）
+   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9/#11/#12/#13/#14/#15/#16/#17，全是 `mergeChanges`）
    * 把声明放在 executor 上，适配器级调用（#1/#3/#4/#10，全是 `switchBranch`）放在适配器上。
    * 反过来先问适配器的话，一次适配器级声明会被紧随其后的事务内写取走。
    * 接管路径的物化正是两者叠在一起的那一处：#10 由挂载点 3 在调 `prepare` **之前**同步取走，
@@ -646,7 +646,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  *
  * @remarks
  * 建域整段在 `database-versioned-domain.ts`（同步策略怎么解析、系统表为什么先摘出去，理由都写在那边）：导入远端提交
- * （US-316）判「这张表受不受版本控制」也走它，两边问的必须是同一份清单。物理表名每次向适配器现取——建立检出位、
+ * （US-319）判「这张表受不受版本控制」也走它，两边问的必须是同一份清单。物理表名每次向适配器现取——建立检出位、
  * 重新连接都可能增加影子表，所以域放在 getter 里，不在构造时定格。
  */
 export const createWorkingTreeCaptureRuntime = (

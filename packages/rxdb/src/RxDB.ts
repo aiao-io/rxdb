@@ -8,6 +8,7 @@ import { SyncType } from './entity/metadata-options.interface.js';
 import { selectPrimaryAdapter } from './entity/primary-adapter.js';
 import { assertNoSystemEntityOverride, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
+import { RxDBGrants } from './grants/grants.js';
 import { ReachabilityMonitor } from './network/reachability.js';
 import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
@@ -49,11 +50,11 @@ import {
   freezeConfig,
   installOnePlugin,
   installPlugin,
-  type PluginLifecycleHost,
   releaseConnectionScope,
   resetPluginScheduling,
   trackPluginInstall,
-  unregisterRepository
+  unregisterRepository,
+  type PluginLifecycleHost
 } from './rxdb.plugin-lifecycle.js';
 import { assertLocalAdapterCapabilities, isLocalAdapter, isTransactionEvent } from './rxdb.private.js';
 import {
@@ -78,6 +79,16 @@ import {
 import { RxDBBranch } from './system/branch.js';
 import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { declaresStorageConstraints } from './system/constraint-drift.js';
+import {
+  assertCallerIdentity,
+  assertIdentityBinding,
+  assertRxDBIdentity,
+  getRxDBIdentityKey,
+  identityClaimName,
+  identityWatermarkName,
+  type CallerIdentityReporter,
+  type RxDBIdentity
+} from './system/identity-binding.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { isUniqueConstraintViolation, RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
@@ -474,6 +485,16 @@ export class RxDB {
   public readonly syncState!: SyncStateHub;
 
   /**
+   * 授权快照：调用者在各作用域上有哪些成员权限（US-029）
+   *
+   * @remarks
+   * 声明了规则形式写权限（`permissions: { update: { requires: 'edit' } }`）的实体，公开写入口按它判定；
+   * 未取到时一律拒绝。快照写进本地库，`connect()` 打开既有库时读回。生命周期跟随实例，断连不清：
+   * 它属于这个库，重连读回的就是同一份。
+   */
+  public readonly grants: RxDBGrants;
+
+  /**
    * 本实例的实体同步配置解析器 —— 「某个实体在这个库里走哪种同步策略」的唯一答案。
    *
    * @remarks
@@ -590,7 +611,7 @@ export class RxDB {
   }
 
   /**
-   * **本库**的系统表：核心自带的四张 + 本实例 `use()` 过的插件贡献的那些
+   * **本库**的系统表：核心自带的五张 + 本实例 `use()` 过的插件贡献的那些
    *
    * @remarks
    * 建表这一侧的唯一真相，两个消费者共用：{@link SchemaManager.init} 把它补进
@@ -598,7 +619,7 @@ export class RxDB {
    * 两处都**不能**改读模块级的 `SYSTEM_ENTITIES`——那份是判定用的活视图，只增不减，
    * 见 {@link RxDB.#contributed_system_entities}。
    *
-   * 顺序即建表顺序，核心四张在前：贡献方的表允许引用 `RxDBBranch`（分支级行就是这么来的），
+   * 顺序即建表顺序，核心五张在前：贡献方的表允许引用 `RxDBBranch`（分支级行就是这么来的），
    * 反过来不成立。
    *
    * 每次返回新数组：`SchemaManager.init()` 会往 `config.entities` 里推东西，拿到内部数组
@@ -676,6 +697,11 @@ export class RxDB {
       dbName: `${options.dbName}@${RXDB_DB_NAME_SUFFIX}`,
       entities: [...options.entities]
     };
+    // 身份声明在构造时就校验并取自有副本：形状不对不等到连接才发现，之后改调用方的对象也影响不到本实例
+    if (options.identity !== undefined) {
+      assertRxDBIdentity(options.identity);
+      this.#config.identity = { scope: options.identity.scope, subject: options.identity.subject };
+    }
     // 覆盖在这里就校验并快照：早于实体绑定与任何数据库写入，之后调用方改原对象也影响不到本实例。
     // 冻结数组与解析器索引出自同一次快照，共用同一批 `sync` 副本
     const overrides =
@@ -683,16 +709,56 @@ export class RxDB {
         undefined
       : snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity, this.#config.sync);
     if (overrides) this.#config.syncOverrides = overrides.entries;
-    this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index);
+    // 中间表跟随两端（US-228）：中间表在 init() 时才生成，解析时经 schemaManager 现查两端
+    this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index, metadata =>
+      this.schemaManager.junctionEndpointsOf(metadata)
+    );
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     // changelog 路径的待推数由 `@aiao/rxdb-plugin-history` 在安装时经
     // `syncState.bindPushableCount()` 接上（US-025 阶段 C）：那条流的主人随连接纪元来去，
     // 而本汇聚器跟随实例，构造期没有也不该有它。
     this.syncState = new SyncStateHub({ online$: this.reachability.online$ });
+    this.grants = new RxDBGrants(this);
     this.context = { ...this.#config.context };
     this.#pluginHost = this.#createPluginHost();
     this.#freeze_config();
+  }
+
+  /**
+   * 与远端交换数据之前核对：远端会话的调用者就是本实例声明的身份（US-035）
+   *
+   * @param remote - 远端适配器
+   * @throws `RxDBIdentityMismatchError` 远端会话是别的身份
+   *
+   * @remarks
+   * 没有声明 {@link RxDBOptions.identity} 时什么都不做，也不问远端。每次都问、不缓存：令牌可能在
+   * 两次请求之间换了主人。同步插件在每个与远端交换数据的入口、每一轮落库之前调它。
+   *
+   * @internal
+   */
+  async assertCallerIdentity(remote: CallerIdentityReporter): Promise<void> {
+    await assertCallerIdentity(this.#config.identity, remote);
+  }
+
+  /**
+   * 在调用方的事务里把本地库绑定给 `identity`（US-035）：库已绑定这个身份就不写
+   *
+   * @param executor - 调用方事务的 executor；绑定行随这个事务一起提交或回滚
+   * @param identity - 要绑定的身份；同步插件在没有声明 {@link RxDBOptions.identity} 时传第一次同步的会话身份
+   * @throws `RxDBIdentityMismatchError` 库已绑定别的身份，一行不写
+   * @throws `RxDBError` 身份不是两个非空字符串
+   *
+   * @remarks
+   * 与打开既有库时的就地绑定同一份写法、同一组行（竞争行 + 绑定行），之后带声明打开时由打开守卫核对。
+   * 同步插件只写自己那一行绑定的话，应用之后改为声明身份打开同一个库，打开守卫看不到绑定，会把装着
+   * 上一个身份数据的库就地绑给打开它的那个身份（RV-01a2118227d9715ab33e8ef2556bb4b6）。
+   *
+   * @internal
+   */
+  async bindIdentity(executor: TransactionExecutor, identity: RxDBIdentity): Promise<void> {
+    assertRxDBIdentity(identity);
+    await this.#writeIdentityBinding(executor, getRxDBIdentityKey(identity));
   }
 
   /**
@@ -1177,12 +1243,19 @@ export class RxDB {
         const contributions = [...this.#system_contributions.values()];
         const systemMigrations = createSystemMigrations(this.entityManager, contributions);
         const bootstrapFingerprint = this.#bootstrapFingerprint(systemMigrations);
+        const identityKey = this.#config.identity === undefined ? undefined : getRxDBIdentityKey(this.#config.identity);
+        let identityBound = false;
         if (existed) {
           // 守卫排在这一切之前，包括 #ensureSystemTables：它要回答的是「这个库该不该由本进程打开」，
           // 而所有后续步骤都已经在写了。放到 runMigrations 里顺带做会省一次读事务，但那样守卫与
           // 第一次写之间就只剩「同一个函数里靠前几行」这种靠读代码维持的保证。
           const state = await this.#readBootstrapState(localAdapter);
           assertClaimedCapabilities(state.claimedNames, new Set(this.#system_contributions.keys()));
+          // 身份守卫与能力守卫同一个位置、同一个理由：它回答「这个库该不该由这个身份打开」，
+          // 而之后的迁移与建表都已经在写了。对不上就在这里拒绝，库里一行都不动
+          identityBound = await this.#refuseOnIdentityFailure(adapterName, () =>
+            assertIdentityBinding(state.claimedNames, identityKey)
+          );
           const bootstrapComplete = state.bootstrapFingerprints.has(bootstrapFingerprint);
           // 指纹只证明迁移链执行过；物理表与约束仍须每次连接检查。
           await this.#ensureSystemTables(localAdapter);
@@ -1231,7 +1304,11 @@ export class RxDB {
             // 漏掉这批水位线，下次启动会在一张**已经初始化过**的库上重跑 up()，撞主键。
             ...createMigrationWatermarks([...systemMigrations, ...(this.#config.migrations ?? [])], this.entityManager),
             // 首轮引导即完成：指纹随建表同批写入，第二次连接直接走指纹跳过。
-            this.#bootstrapFingerprintRow(bootstrapFingerprint)
+            this.#bootstrapFingerprintRow(bootstrapFingerprint),
+            // 新库在建库时就记下身份：与表同批原子提交，不存在「库建好了、还没绑定」的窗口
+            ...(identityKey === undefined ?
+              []
+            : [this.#identityBindingClaimRow(), this.#identityBindingRow(identityKey)])
           ]);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
@@ -1239,6 +1316,12 @@ export class RxDB {
           // 与 reconcileEntityIndexes 同一时机——用户迁移与缺表补建之后（US-030 AC#10）。
           await localAdapter.checkEntityConstraints?.(this.#config.entities);
           await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
+        }
+        if (existed && identityKey !== undefined && !identityBound) {
+          // 本功能之前建的库没有绑定：第一次带身份打开时就地绑给这个身份
+          await this.#refuseOnIdentityFailure(adapterName, () =>
+            this.#recordIdentityBinding(localAdapter, identityKey)
+          );
         }
         if (existed) {
           // 既有库才把贡献的能力接到这条连接上。新库不调：它的贡献行全是上面那次
@@ -1251,7 +1334,16 @@ export class RxDB {
           for (const contribution of contributions) {
             await contribution.bootstrapExisting({ adapter: localAdapter });
           }
+          // 授权快照随身份的库走（US-029）：读回上次的快照，离线重开照样按它判定。排在置位已连接之前，
+          // 与上面的贡献接线同一个理由——置位之后插件与应用就开始写了，那时判定必须已经看得见快照。
+          // 新库不读：那张表刚随建表建出来，是空的
+          await this.grants.load(localAdapter);
         }
+      } else if (this.#config.sync.remote?.adapter === adapterName) {
+        // 远端连上时刷新一次授权快照（US-029）：只在有实体声明了作用域、远端又报告授权时问。排在置位已连接之前：
+        // 远端没部署授权函数是配置错误，连接就此失败、撤回适配器名，与身份对不上同一种处置（刷新先核对身份）；
+        // 连不上远端（离线）沿用上次的快照，连接照常完成
+        await this.#refuseOnIdentityFailure(adapterName, () => this.grants.refreshOnConnect(adapter));
       }
       // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的
       // 就是拆卸之后才落下的这一笔（见 #connect_epochs）。
@@ -2305,6 +2397,77 @@ export class RxDB {
     record.name = bootstrapFingerprintName(fingerprint);
     record.executedAt = new Date();
     return record;
+  }
+
+  /**
+   * 身份核对没通过时，除了让 `connect()` 失败，还要把这个适配器的名字从仓储的读路径上撤回。
+   *
+   * @param adapterName - 正在连接的适配器名
+   * @param step - 核对或写下身份绑定的那一步
+   *
+   * @remarks
+   * 仓储按名字经 `localAdapter$` 解析适配器，而名字在 `init()` 里就已经发布了，并不看「已连接」。
+   * 只让 `connect()` 抛错，应用没停手的话后续查询照样读得到库里上一个身份的行。撤回之后读会像「还没连上」
+   * 一样一直等待；与断连时是同一个动作，成功的 `connect()` 会把名字发布回来。
+   *
+   * 不只身份对不上（`RxDBIdentityMismatchError`）才撤回：认领残缺（竞争行在、绑定行不在，只有手工改库
+   * 才写得出）、绑定写不进去，都是声明了身份却没能核实这个库属于谁，与对不上同样不能放行读。
+   */
+  async #refuseOnIdentityFailure<R>(adapterName: string, step: () => R | Promise<R>): Promise<R> {
+    try {
+      return await step();
+    } catch (error) {
+      this.#retract_adapter_name(adapterName);
+      throw error;
+    }
+  }
+
+  /** 身份绑定行的迁移表记录；新库随建表同批写入，既有库未绑定时单独写。 */
+  #identityBindingRow(identityKey: string): RxDBMigration {
+    const record = this.entityManager.instantiate(RxDBMigration);
+    record.name = identityWatermarkName(identityKey);
+    record.executedAt = new Date();
+    return record;
+  }
+
+  /** 首次绑定的固定竞争行；不同身份必须在同一唯一键上竞争。 */
+  #identityBindingClaimRow(): RxDBMigration {
+    const record = this.entityManager.instantiate(RxDBMigration);
+    record.name = identityClaimName();
+    record.executedAt = new Date();
+    return record;
+  }
+
+  /**
+   * 把身份绑定写进既有库的 `rxdb_migration`。
+   *
+   * @param adapter - 本地适配器
+   * @param identityKey - 本客户端声明的身份键
+   *
+   * @remarks
+   * 读与写在同一个事务里：读到的状态就是写入时的状态。事务里再核对一次，是为了防另一个标签页
+   * 在前面那次只读之后抢先把库绑给了别的身份——那种情况宁可拒绝，也不能写出两个身份的绑定行。
+   * 同一身份并发写下同一行时唯一索引挡下后者，行里的值正是它要写的，当作已写入。
+   */
+  async #recordIdentityBinding(adapter: RxDBAdapterLocalBase, identityKey: string): Promise<void> {
+    for (;;) {
+      try {
+        await adapter.bootstrapTransaction(executor => this.#writeIdentityBinding(executor, identityKey), false);
+        return;
+      } catch (error) {
+        if (!isUniqueConstraintViolation(error)) throw error;
+      }
+    }
+  }
+
+  /** {@link RxDB.#recordIdentityBinding} 的事务体：库已绑定本身份就不写，否则写下竞争行与绑定行。 */
+  async #writeIdentityBinding(executor: TransactionExecutor, identityKey: string): Promise<void> {
+    const repository = executor.getRepository(RxDBMigration);
+    const records = await repository.find({ where: { combinator: 'and', rules: [] } });
+    const names = records.map(record => record.name);
+    if (assertIdentityBinding(names, identityKey)) return;
+    await repository.create(this.#identityBindingClaimRow());
+    await repository.create(this.#identityBindingRow(identityKey));
   }
 
   /**

@@ -178,8 +178,8 @@ RETURNING revision;
 | 2    | ✅ ADMIN-US-219 RLS 读取、Broadcast、Presence、本地 JWT 校验                       | 218                   | 中   |
 | 3    | ✅ ADMIN-US-220 Edge Function 命令入口，只部署 Supabase                            | 218、219              | 中   |
 | 4    | ADMIN-US-217 staging / production 部署、真实邮箱证据与运维护栏                     | 218～220              | 中   |
-| 并行 | ✅ 平台 epic-014：US-316 导入远端提交（含多父）、US-317 回写式 discard/restore     | In Review（根批次 8） | 大   |
-| 5    | ✅ ADMIN-US-221 团队任务草稿落在 working-tree                                      | 218 + US-316、US-317  | 大   |
+| 并行 | ✅ 平台 epic-014：US-319 导入远端提交（含多父）、US-320 回写式 discard/restore     | In Review（根批次 8） | 大   |
+| 5    | ✅ ADMIN-US-221 团队任务草稿落在 working-tree                                      | 218 + US-319、US-320  | 大   |
 
 迁移文件按新结构重写即可：产品尚未部署，没有线上数据需要迁移。ADMIN-US-201～216 保持 In Review，阶段 1～3 完成后在新实现上整体回归，再统一评审合并。
 

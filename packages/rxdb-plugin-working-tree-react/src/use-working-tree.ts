@@ -57,7 +57,7 @@ const openSlot = (database: ReturnType<typeof useRxDB>): WorkingTreeSlot => ({
  * 不传第二参时与今天逐字节一致（无条件切换），`{ requireClean: true }` 在工作树非空时**抛**
  * `WorkingTreeDirtyError` —— 被拒不是返回值，因为那一刻分支根本没切。
  *
- * `importCommits(commits, options)` / `exportCommits(options?)` 由 US-316 接进来：导入的十种被拒成因
+ * `importCommits(commits, options)` / `exportCommits(options?)` 由 US-319 接进来：导入的十种被拒成因
  * （`not_fast_forward`、`fingerprint_mismatch`、`precondition_mismatch` 等）走**返回值**，`importCommitsState` 因此**没有 empty**，成功与否
  * 都重读一次 status（HEAD 快进过，或面板上那份凭据已经过期）；`exportCommitsState` 的空只有一个含义——那个提交之后
  * 这条分支上没有新提交，上传逻辑据此跳过一轮。导入的提交不经 `commits$` 发事件。

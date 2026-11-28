@@ -5,7 +5,7 @@ function uniqueTitle(prefix: string): string {
 }
 
 /**
- * 这些用例断的是绝对数量（`data-loaded-count === '100'`、删除后 `toHaveCount(0)`），
+ * 这些用例断的是绝对数量（删除后 `toHaveCount(0)`），
  * 只有在应用完全不连远端时才成立。这条自动 fixture 守住那个前提：
  *
  * - 指向 baseURL 之外的 http(s) 请求 = 应用连上了 Supabase（或别的远端）。
@@ -100,6 +100,25 @@ test.describe('Supabase local-first app', () => {
     await expect(page.getByText(editedTitle, { exact: true })).toHaveCount(0);
   });
 
+  // US-230 AC#5：本地模式（没有 Supabase 配置）顶栏没有同步组，页面里也没有残留的推拉按钮；撤销照样在顶栏（US-231）
+  test('local mode keeps undo in the header and shows no sync controls', async ({ page }) => {
+    const title = uniqueTitle('local-undo');
+
+    await page.goto('/todo');
+    await expect(page.getByTestId('todo-title')).toBeVisible();
+    await expect(page.getByTestId('workbench-sync-group')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^(拉取|推送|同步|Pull|Push)$/u })).toHaveCount(0);
+
+    await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
+    await page.getByRole('button', { name: '添加', exact: true }).click();
+    const item = page.getByTestId('todo-item').filter({ hasText: title });
+    await expect(item).toBeVisible();
+    await page.getByTestId('workbench-undo').click();
+    await expect(item).toHaveCount(0);
+    await page.getByTestId('workbench-redo').click();
+    await expect(item).toBeVisible();
+  });
+
   test('runs on wa-sqlite and keeps local data across reload', async ({ page }) => {
     const title = uniqueTitle('wa-sqlite-persistence');
 
@@ -113,44 +132,5 @@ test.describe('Supabase local-first app', () => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-rxdb-local-adapter', 'wa-sqlite');
     await expect(page.getByTestId('todo-item').filter({ hasText: title })).toBeVisible();
-  });
-
-  test('loads the next cursor page when the viewport reaches the bottom', async ({ page }) => {
-    const oldestTitle = uniqueTitle('cursor-load-more');
-
-    await page.goto('/todo-cursor');
-    await page.getByRole('textbox', { name: 'What needs to be done?' }).fill(oldestTitle);
-    await page.getByRole('button', { name: 'Add Todo' }).click();
-    await expect(page.getByText(oldestTitle, { exact: true })).toBeVisible();
-
-    const addBatchButton = page.getByRole('button', { name: 'add 100', exact: true });
-    await addBatchButton.click();
-    await expect(addBatchButton).toBeEnabled({ timeout: 30_000 });
-
-    const viewport = page.getByTestId('todo-cursor-viewport');
-
-    // P2-2：页大小从页面自己声明的 `data-page-size` 读，不再抄一个魔数 `'100'`。
-    // 原先那个 100 来自 `InfiniteScrollingList` 内部的 `inputOptions.limit ?? 100` ——
-    // **断的是库的默认值**，库改默认这个 demo 的测试就会因为无关的事变红。
-    const pageSize = Number(await viewport.getAttribute('data-page-size'));
-    expect(pageSize).toBeGreaterThan(0);
-    await expect(viewport).toHaveAttribute('data-loaded-count', String(pageSize));
-
-    // P2-1：这里原先是 `expect(page.getByText(oldestTitle)).toHaveCount(0)`。
-    // 列表是 `*cdkVirtualFor`，**视窗外的行根本不渲染** ——
-    // count 为 0 既可能是"它不在已加载的这一页"，也可能只是"它在页内但滚出了视窗"。
-    // 两种情况都为 0，这条断言区分不了任何东西，是空断言。
-    //
-    // 真正要证明的是"最早那条落在第一页之外"，而它的**可证形式是正向的**：
-    // 滚到底触发下一页加载后，它应该出现在已加载集合里。
-    await viewport.evaluate(element => element.scrollTo({ top: element.scrollHeight }));
-    await expect
-      .poll(async () => Number(await viewport.getAttribute('data-loaded-count')), { timeout: 15_000 })
-      .toBeGreaterThan(pageSize);
-
-    // 加载了第二页之后，最早那条必须真的在数据里 —— 用 `data-loaded-count` 之外的
-    // 独立证据交叉验证游标翻页确实往回取到了它。
-    await viewport.evaluate(element => element.scrollTo({ top: element.scrollHeight }));
-    await expect(page.getByText(oldestTitle, { exact: true })).toBeVisible({ timeout: 15_000 });
   });
 });

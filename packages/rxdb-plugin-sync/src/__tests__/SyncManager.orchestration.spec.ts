@@ -10,7 +10,7 @@
  */
 
 import { RxDB, RxDBBranch, RxDBChange, RxDBError, RxDBPartialSyncError, WorktreeTableSet } from '@aiao/rxdb';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncManager } from '../SyncManager.js';
 
@@ -39,6 +39,7 @@ const doubles = vi.hoisted(() => ({
     syncRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>()
   },
   remoteBackend: {
+    bindScopedIdentity: vi.fn<(manager: unknown) => Promise<void>>(),
     bind: vi.fn<(manager: unknown) => Promise<string>>(),
     rebind: vi.fn<(manager: unknown) => Promise<unknown>>()
   }
@@ -63,6 +64,7 @@ vi.mock('../push.js', () => ({ push: doubles.delegates.push }));
 vi.mock('../sync-branches.js', () => ({ syncBranches: doubles.delegates.syncBranches }));
 vi.mock('../sync-repository.js', () => ({ syncRepository: doubles.delegates.syncRepository }));
 vi.mock('../remote-backend.js', () => ({
+  bindScopedIdentity: doubles.remoteBackend.bindScopedIdentity,
   bindRemoteBackend: doubles.remoteBackend.bind,
   rebindRemoteBackend: doubles.remoteBackend.rebind
 }));
@@ -97,7 +99,7 @@ const createBridge = () => {
     beginPullableSettlement: vi.fn<() => number>(() => 7),
     settlePull: vi.fn<(token: number, options: unknown, result: unknown) => void>(),
     settleAbortedPull: vi.fn<(token: number, pulled: number) => void>(),
-    reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
+    reconcilePullableCount: vi.fn<(token: number, count: number) => boolean>(() => true),
     incrementPullableCount: vi.fn<(count: number) => void>()
   };
 };
@@ -153,6 +155,8 @@ function createHarness(entities: unknown[] = []): Harness {
     worktreeTableSet: WorktreeTableSet.MAIN,
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
+    // 授权快照（US-029）：入口进门按远端刷新一次
+    grants: { refresh: vi.fn<() => Promise<void>>() },
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
   } as unknown as RxDB;
@@ -228,6 +232,28 @@ describe('SyncManager 对协作模块的编排契约', () => {
     expect(unsubscribeStatus).toHaveBeenCalledOnce();
   });
 
+  // 断连或销毁实例时插件拆掉管理器。之后还在等适配器的在途操作（响应晚到的拉取）不能悬着：
+  // 这个管理器不会再有属于它的连接
+  it('destroy 之后，还在等适配器的在途操作与之后的调用都以 RxDBError 结束', async () => {
+    const harness = createHarness();
+    Object.assign(harness.rxdb, { localAdapter$: NEVER, remoteAdapter$: NEVER });
+
+    const waitingLocal = harness.manager.getLocalRepositories();
+    const waitingRemote = harness.manager.getRemoteRepositories();
+    harness.manager.destroy();
+
+    await expect(waitingLocal).rejects.toBeInstanceOf(RxDBError);
+    await expect(waitingRemote).rejects.toBeInstanceOf(RxDBError);
+    await expect(harness.manager.getRemoteRepositories()).rejects.toBeInstanceOf(RxDBError);
+  });
+
+  it('适配器在本纪元内就绪：照常交出系统表仓库', async () => {
+    const harness = createHarness();
+
+    await expect(harness.manager.getLocalRepositories()).resolves.toMatchObject({ adapter: harness.localAdapter });
+    await expect(harness.manager.getRemoteRepositories()).resolves.toMatchObject({ adapter: harness.remoteAdapter });
+  });
+
   // 在飞登记处的主人在历史侧（push 与 undo 唯一的会合点），本管理器只是把桥上那一个转出去。
   // 自己 new 一个的话，push 认领的区间 undo 永远读不到。
   it('exposes the history-owned push-in-flight registry', () => {
@@ -249,6 +275,33 @@ describe('SyncManager 对协作模块的编排契约', () => {
     expect(harness.history.beginPullableSettlement).toHaveBeenCalledOnce();
     expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledWith(harness.rxdb);
     expect(harness.history.reconcilePullableCount).toHaveBeenCalledWith(7, 7);
+  });
+
+  // US-233：重算期间有一次拉取结算过，按旧游标数出的结果作废，重算一次
+  it('recounts when a pull settled while the refresh was counting', async () => {
+    const harness = createHarness();
+    harness.history.reconcilePullableCount.mockReturnValueOnce(false);
+    doubles.delegates.getAllRepositorySyncStatus
+      .mockResolvedValueOnce([{ enabled: true, pullableCount: 1 }])
+      .mockResolvedValueOnce([{ enabled: true, pullableCount: 0 }]);
+
+    await expect(harness.manager.refreshPullableCount()).resolves.toBe(0);
+
+    expect(harness.history.beginPullableSettlement).toHaveBeenCalledTimes(2);
+    expect(harness.history.reconcilePullableCount.mock.calls).toEqual([
+      [7, 1],
+      [7, 0]
+    ]);
+  });
+
+  it('stops after three superseded refreshes: the pulls that kept settling have set the count', async () => {
+    const harness = createHarness();
+    harness.history.reconcilePullableCount.mockReturnValue(false);
+    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([{ enabled: true, pullableCount: 2 }]);
+
+    await expect(harness.manager.refreshPullableCount()).resolves.toBe(2);
+
+    expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledTimes(3);
   });
 
   it('wraps pull in the syncing guard and settles pull state', async () => {
@@ -611,6 +664,31 @@ describe('SyncManager 对协作模块的编排契约', () => {
       expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
     });
 
+    // 评审 F3：按区拉取不抛，分区失败结构化进 `failures`，失败之前已提交的改写由结果里的 `historyInvalidated` 交回
+    it.each([
+      ['失败之前已提交了改写', true, 1],
+      ['失败之前一条都没改', false, 0]
+    ])('pullRepository 以结果交回分区失败且%s时清空 %d 次 undo 历史', async (_label, historyInvalidated, expected) => {
+      const { manager, history } = createHarness();
+      const withFailures = {
+        repository: { namespace: 'public', entity: 'Todo' },
+        pulled: 2,
+        compacted: 0,
+        applied: historyInvalidated ? 1 : 0,
+        hasMore: true,
+        conflictsResolved: 0,
+        conflictsDeferred: 0,
+        persistedProgress: true,
+        historyInvalidated,
+        failures: [{ repository: { namespace: 'public', entity: 'Todo' }, error: new Error('page 2 failed') }]
+      };
+      doubles.delegates.pullRepository.mockResolvedValue(withFailures);
+
+      await expect(manager.pullRepository('public', 'Todo')).resolves.toBe(withFailures);
+
+      expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
+    });
+
     // RXD-068：失败仓库在失败前可能已经提交了部分进度，它藏在 `item.error.result` 里。
     // 只看 `item.result` 会漏掉这部分 —— 远端数据已落库，用户却仍能 undo 回同步前状态，
     // 重新制造本地/远端分叉。
@@ -705,6 +783,126 @@ describe('SyncManager 对协作模块的编排契约', () => {
  * 会和远端交换数据、或替同步收拾本地副本的入口，在实例挂在可写检出位上时一进门就拒绝：
  * 不进 syncing 守卫、不碰下游实现、不动 undo 边界。只读的状态查询不在此列。
  */
+// 评审 #5：拉取在事务外读游标、事务里写回。两个入口交错时，先发出、后落库的那一批把行写回旧的样子，
+// 游标却已被另一次推到前面，中间那几条变更再也不会重拉
+describe('同步入口一次只跑一个（评审 #5）', () => {
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((onResolve, onReject) => {
+      resolve = onResolve;
+      reject = onReject;
+    });
+    return { promise, resolve, reject };
+  };
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('后来的入口等前一个结束才开始：第一次拉取落库之前，第二次拉取与推送都不开始', async () => {
+    const { manager } = createHarness();
+    const first = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValueOnce(first.promise).mockResolvedValueOnce(createPullResult(0));
+    doubles.delegates.push.mockResolvedValue(createPushResult(0));
+
+    const pulling = manager.pull();
+    const pullingAgain = manager.pull();
+    const pushing = manager.push();
+    await flush();
+
+    expect(doubles.delegates.pull).toHaveBeenCalledTimes(1);
+    expect(doubles.delegates.push).not.toHaveBeenCalled();
+
+    first.resolve(createPullResult(2));
+    await expect(pulling).resolves.toMatchObject({ pulled: 2 });
+    await expect(pullingAgain).resolves.toMatchObject({ pulled: 0 });
+    await expect(pushing).resolves.toMatchObject({ pushed: 0 });
+    expect(doubles.delegates.pull).toHaveBeenCalledTimes(2);
+    expect(doubles.delegates.push).toHaveBeenCalledTimes(1);
+  });
+
+  it('前一个失败也放行下一个：失败不堵住队列', async () => {
+    const { manager } = createHarness();
+    doubles.delegates.pull.mockRejectedValueOnce(new Error('remote down'));
+    doubles.delegates.pullRepository.mockResolvedValue({
+      ...createPullResult(1),
+      repository: { namespace: 'public', entity: 'Todo' }
+    });
+
+    const failing = manager.pull();
+    const next = manager.pullRepository('public', 'Todo');
+
+    await expect(failing).rejects.toThrow('remote down');
+    await expect(next).resolves.toMatchObject({ pulled: 1 });
+  });
+
+  it('排队的有改绑、清理与分支同步：改绑在拉取落库之后才清游标', async () => {
+    const { manager } = createHarness();
+    const pulling = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValue(pulling.promise);
+    doubles.remoteBackend.rebind.mockResolvedValue({ backendId: 'backend-new', previousBackendIds: [], rebound: 0 });
+    doubles.delegates.cleanupExpired.mockResolvedValue({ removed: 0, removedIds: [] });
+    doubles.delegates.syncBranches.mockResolvedValue({ created: 0, updated: 0 });
+
+    const pull = manager.pull();
+    const rebind = manager.rebindRemoteBackend();
+    const cleanup = manager.cleanupExpired('public', 'Todo');
+    const branches = manager.syncBranches();
+    await flush();
+
+    expect(doubles.remoteBackend.rebind).not.toHaveBeenCalled();
+    expect(doubles.delegates.cleanupExpired).not.toHaveBeenCalled();
+    expect(doubles.delegates.syncBranches).not.toHaveBeenCalled();
+
+    pulling.resolve(createPullResult(0));
+    await Promise.all([pull, rebind, cleanup, branches]);
+    expect(doubles.remoteBackend.rebind).toHaveBeenCalledOnce();
+    expect(doubles.delegates.cleanupExpired).toHaveBeenCalledOnce();
+    expect(doubles.delegates.syncBranches).toHaveBeenCalledOnce();
+  });
+
+  it('入口内部逐仓库走 bulkSyncInSession，不再排队：排队就是等自己', async () => {
+    const { manager } = createHarness();
+    doubles.delegates.bulkSync.mockResolvedValue({ succeeded: 0, failed: 0, results: [], durationMs: 0 });
+    doubles.delegates.push.mockImplementation(async (inner: unknown) => {
+      await (inner as SyncManager).bulkSyncInSession({ operation: 'push' });
+      return createPushResult(0);
+    });
+
+    await expect(manager.push()).resolves.toMatchObject({ pushed: 0 });
+    expect(doubles.delegates.bulkSync).toHaveBeenCalledOnce();
+  });
+
+  it('公开的 bulkSync 同样排队', async () => {
+    const { manager } = createHarness();
+    const pulling = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValue(pulling.promise);
+    doubles.delegates.bulkSync.mockResolvedValue({ succeeded: 0, failed: 0, results: [], durationMs: 0 });
+
+    const pull = manager.pull();
+    const bulk = manager.bulkSync({ operation: 'pull' });
+    await flush();
+    expect(doubles.delegates.bulkSync).not.toHaveBeenCalled();
+
+    pulling.resolve(createPullResult(0));
+    await Promise.all([pull, bulk]);
+    expect(doubles.delegates.bulkSync).toHaveBeenCalledOnce();
+  });
+
+  it('只读的状态查询不排队：拉取还在跑时照常返回', async () => {
+    const { manager } = createHarness();
+    const pulling = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValue(pulling.promise);
+    doubles.delegates.getRepositorySyncStatus.mockResolvedValue({ namespace: 'public', entity: 'Todo' });
+    doubles.delegates.checkRepositoryUpdates.mockResolvedValue({ hasUpdates: false });
+
+    const pull = manager.pull();
+    await expect(manager.getRepositorySyncStatus('public', 'Todo')).resolves.toMatchObject({ entity: 'Todo' });
+    await expect(manager.checkRepositoryUpdates('public', 'Todo')).resolves.toMatchObject({ hasUpdates: false });
+
+    pulling.resolve(createPullResult(0));
+    await pull;
+  });
+});
+
 describe('远端身份', () => {
   type Delegate = keyof typeof doubles.delegates;
   const EXCHANGES: ReadonlyArray<{
@@ -760,6 +958,40 @@ describe('远端身份', () => {
     expect(harness.history.syncing).not.toHaveBeenCalled();
     expect(harness.history.clearUndoHistory).not.toHaveBeenCalled();
     expect(harness.manager.remoteBackendId).toBeNull();
+  });
+
+  it.each(EXCHANGES)('$operation 进门按远端刷新一次授权快照，排在下游之前（US-029）', async ({ delegate, call }) => {
+    const harness = createHarness();
+    doubles.remoteBackend.bind.mockResolvedValue('backend-a');
+    doubles.delegates[delegate].mockRejectedValue(new Error('stop after delegate'));
+
+    await call(harness.manager).catch(() => undefined);
+
+    const refresh = vi.mocked(harness.rxdb.grants.refresh);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh.mock.invocationCallOrder[0]).toBeLessThan(doubles.delegates[delegate].mock.invocationCallOrder[0]);
+  });
+
+  it.each(EXCHANGES)('$operation 刷新授权失败时停在门口，下游一步都不跑', async ({ delegate, call }) => {
+    const harness = createHarness();
+    doubles.remoteBackend.bind.mockResolvedValue('backend-a');
+    const failure = new RxDBError('rxdb_caller_grants() is missing');
+    vi.mocked(harness.rxdb.grants.refresh).mockRejectedValue(failure);
+
+    await expect(call(harness.manager)).rejects.toBe(failure);
+
+    expect(doubles.delegates[delegate]).not.toHaveBeenCalled();
+  });
+
+  it('状态查询不刷新授权快照', async () => {
+    const harness = createHarness();
+    doubles.delegates.checkRepositoryUpdates.mockResolvedValue({});
+    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([]);
+
+    await harness.manager.checkRepositoryUpdates('public', 'Todo');
+    await harness.manager.getAllRepositorySyncStatus();
+
+    expect(harness.rxdb.grants.refresh).not.toHaveBeenCalled();
   });
 
   it('没配远端时不核对', async () => {

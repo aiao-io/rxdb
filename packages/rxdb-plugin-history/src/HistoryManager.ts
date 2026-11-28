@@ -2,6 +2,7 @@ import {
   buildPushableRepositoryRules,
   declareTrustedWrite,
   EntityType,
+  getEntityMetadata,
   HistoryItem,
   HistoryScope,
   HistoryScopeAPI,
@@ -11,7 +12,9 @@ import {
   RxDBBranch,
   RxDBChange,
   SKIP_BRANCH_SWITCH_PREPARE,
-  TrustedWriteIntent
+  TrustedWriteIntent,
+  type EntityMetadata,
+  type RepositoryIdentifier
 } from '@aiao/rxdb';
 import {
   BehaviorSubject,
@@ -57,16 +60,23 @@ import {
 } from './history-undo-session.types.js';
 import { settledPullableCount } from './pullable-count.js';
 import { RedoStack } from './redo-stack.js';
-import { RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-selection.js';
+import { repositoriesScopeOf, RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-selection.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import {
   applyUndoRedoHistories,
+  buildPendingPushWhere,
   fetchChildForks,
   fetchLatestHistories,
   getLocalRxDBSyncRepository,
   updatePushableCount,
   type UndoRedoApplyHost
 } from './undo-redo-apply.js';
+
+/** 实体元数据 → 仓库标识 */
+const repositoryOf = ({ namespace, name }: Pick<EntityMetadata, 'namespace' | 'name'>): RepositoryIdentifier => ({
+  namespace,
+  entity: name
+});
 // 重新导出供测试和外部消费者使用（移动到独立文件后保持 API 兼容）
 export { filterHistoriesByScope, filterUndoableHistories, getScopeKey } from './history-filters.js';
 export { generateHistoryDescription } from './history-item-builder.js';
@@ -105,8 +115,13 @@ export class HistoryManager {
   /** 远程待 pull 计数，pull 结束后按 {@link settlePullableCount} 结算 */
   #pullableCount$ = new BehaviorSubject<number>(0);
 
-  /** pullable 计数代次：结算令牌，用于判断 pull 期间是否有新事件 */
+  /** pullable 计数代次：远端事件、会话重置与 pull 结算都换代；令牌据此判断签发之后有没有别的动静 */
   #pullableGeneration = 0;
+  /** 最近一次 pull 结算或重置之后的代次：比它早签发的重算令牌，数的是拉取之前的游标 */
+  #pullableSettledGeneration = 0;
+
+  /** 待推数每重算一次就发一次：清单跟着同一个时机重查 */
+  readonly #pushableRefresh$ = new Subject<void>();
 
   /** 可 push 计数（repository 级 lastPushedChangeId 过滤） */
   #pushableCount$ = new BehaviorSubject<number>(0);
@@ -185,6 +200,16 @@ export class HistoryManager {
   readonly errors$ = new Subject<Error>();
   pushableCount$: Observable<number>;
   pullableCount$: Observable<number>;
+
+  /**
+   * 待推送清单（US-317）：推送会推的本机修改，一个事务一项、不在事务里的变更各一项，最新在前
+   *
+   * @remarks
+   * 与 {@link HistoryManager.pushableCount$} 共用一个查询条件（`buildPendingPushWhere`），在同样的时机重查：
+   * 写入与撤销重做改了变更表、推送或拉取结束、换分支或换挂之后。每次稳定之后长度等于待推数。
+   * 只在有人订阅时查询。
+   */
+  pushableHistories$: Observable<HistoryItem[]>;
 
   count$: Observable<number>;
 
@@ -375,6 +400,19 @@ export class HistoryManager {
 
     this.pushableCount$ = this.#pushableCount$.asObservable();
     this.pullableCount$ = this.#pullableCount$.asObservable();
+    this.pushableHistories$ = this.#pushableRefresh$.pipe(
+      startWith(undefined),
+      switchMap(() =>
+        from(this.#fetchPushableHistories()).pipe(
+          // 与计数同一策略：一次查询失败只报出去、保留上一份清单，不让整条流停摆
+          catchError((error: unknown) => {
+            this.#reportStreamError('pushableHistories 的待推送查询', error);
+            return EMPTY;
+          })
+        )
+      ),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
 
     const hasPushableRepositories =
       buildPushableRepositoryRules(this.rxdb.config.entities, this.rxdb.entitySync, []).length > 0;
@@ -432,6 +470,7 @@ export class HistoryManager {
     this.#subscriptions.length = 0;
     this.rxdb.removeEventListener(REPOSITORY_SYNC_COMPLETE_EVENT, this.#onRepositorySyncComplete);
     this.#revertStateWatermarks.clear();
+    this.#pushableRefresh$.complete();
     this.errors$.complete();
   }
 
@@ -445,6 +484,7 @@ export class HistoryManager {
   /** session 重置时清零 pullable；pull 结束结算走 {@link settlePullableCount} */
   resetPullableCount(): void {
     this.#pullableGeneration++;
+    this.#pullableSettledGeneration = this.#pullableGeneration;
     this.#pullableCount$.next(0);
   }
 
@@ -453,21 +493,33 @@ export class HistoryManager {
     return this.#pullableGeneration;
   }
 
-  /** 用远端水位线校准待拉计数 */
-  reconcilePullableCount(token: number, count: number): void {
+  /**
+   * 用远端水位线校准待拉计数
+   *
+   * @returns 用上了为 `true`；令牌签发之后有 pull 结算过（或会话重置）时为 `false`，计数不动，调用方该重算
+   *
+   * @remarks
+   * 重算逐个仓库数，拉取在中间结算时，先数的那几个仓库用的还是拉取之前的游标：把它们盖上去，
+   * 刚结算成 0 的计数又冒出几条（US-233）。期间只到了实时事件则取两者较大值，不吞掉事件。
+   */
+  reconcilePullableCount(token: number, count: number): boolean {
+    if (this.#pullableSettledGeneration > token) return false;
     const nextCount = token === this.#pullableGeneration ? count : Math.max(this.#pullableCount$.value, count);
     this.#pullableCount$.next(nextCount);
+    return true;
   }
 
   /** 按一次 pull 的实际覆盖范围结算待拉计数 */
   settlePullableCount(token: number, settlement: { complete: boolean; pulled: number }): void {
-    this.#pullableCount$.next(
-      settledPullableCount(this.#pullableCount$.value, {
-        complete: settlement.complete,
-        concurrent: token !== this.#pullableGeneration,
-        pulled: settlement.pulled
-      })
-    );
+    const nextCount = settledPullableCount(this.#pullableCount$.value, {
+      complete: settlement.complete,
+      concurrent: token !== this.#pullableGeneration,
+      pulled: settlement.pulled
+    });
+    // 结算也换代：在它之前签发的重算令牌作废（见 reconcilePullableCount）
+    this.#pullableGeneration++;
+    this.#pullableSettledGeneration = this.#pullableGeneration;
+    this.#pullableCount$.next(nextCount);
   }
 
   /**
@@ -696,8 +748,24 @@ export class HistoryManager {
   }
 
   /** 创建（或取出缓存的）作用域历史 API */
-  history<T extends EntityType>(options?: T | InstanceType<T> | HistoryScope): HistoryScopeAPI {
-    return createHistoryScopeApi(this.#scopeHost, options);
+  history<T extends EntityType>(options?: T | InstanceType<T> | readonly EntityType[] | HistoryScope): HistoryScopeAPI {
+    if (Array.isArray(options)) return createHistoryScopeApi(this.#scopeHost, this.#repositoriesScope(options));
+    return createHistoryScopeApi(this.#scopeHost, options as T | InstanceType<T> | HistoryScope | undefined);
+  }
+
+  /** 几个实体合起来的作用域（US-316）：两端都列出的多对多中间表一并算进来 */
+  #repositoriesScope(EntityTypes: readonly EntityType[]): HistoryScope {
+    const schema = this.rxdb.schemaManager;
+    const junctions = schema.generatedEntities.flatMap(Junction => {
+      const endpoints = schema.junctionEndpointsOf(Junction);
+      return endpoints ?
+          [{ junction: repositoryOf(getEntityMetadata(Junction)), endpoints: endpoints.map(repositoryOf) }]
+        : [];
+    });
+    return repositoriesScopeOf(
+      EntityTypes.map(EntityType => repositoryOf(getEntityMetadata(EntityType))),
+      junctions
+    );
   }
 
   /** 选出完整事务；跨作用域则抛 {@link RxDBCrossScopeTransactionError} */
@@ -882,7 +950,21 @@ export class HistoryManager {
   }
 
   async #updatePushableCount(): Promise<void> {
+    this.#pushableRefresh$.next();
     return updatePushableCount(this.#applyHost);
+  }
+
+  /** 按待推条件查一次本地变更，按事务分组（US-317） */
+  async #fetchPushableHistories(): Promise<HistoryItem[]> {
+    const where = await buildPendingPushWhere(this.rxdb);
+    if (!where) return [];
+    // 与计数同一个仓库、同一个条件（见 `updatePushableCount`），只是取行而不是数。用 findAll：find 不传 limit 时
+    // 核心仓储按 100 截断，待推超过 100 项时清单就只剩最新的 100 项，与待推数对不上
+    const changeRepository = this.rxdb.entityManager.getRepository(RxDBChange);
+    const changes = await firstValueFrom(changeRepository.findAll({ where, orderBy: [{ field: 'id', sort: 'desc' }] }));
+    // 计数按 transactionId 分组，这里只合并相邻的同事务行：两边一致的前提是同一事务的行 id 连号。
+    // 本地写入一次一个事务、自增 id，一个事务的变更一次写完，倒序读出来同一事务的行必然挨在一起
+    return convertChangesToHistories(changes);
   }
 
   #createScopeHost(): HistoryScopeApiHost {

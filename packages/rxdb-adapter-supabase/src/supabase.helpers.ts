@@ -13,7 +13,8 @@ import {
   RemoteChangeResult,
   RemoteEntityRef,
   RemoteMergeResult,
-  RuleGroup
+  RuleGroup,
+  RXDB_ANONYMOUS_SUBJECT
 } from '@aiao/rxdb';
 import { SupabaseConfigError, SupabaseDataError } from './errors.js';
 import type { PostgrestErrorBody } from './postgrest-error.js';
@@ -51,6 +52,136 @@ export const REALTIME_RECONNECT_MAX_DELAY_MS = 5_000;
 export const REALTIME_RECONNECTABLE_STATUSES = new Set(['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED']);
 
 export type RealtimeState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
+
+/**
+ * 一次建出的一批频道的订阅结局：据此请求重算待拉数（US-236）
+ *
+ * @typeParam T - 频道
+ *
+ * @remarks
+ * 统一频道加每个分区一个频道，一次建出的这一批各报一次状态。此前每报一次 SUBSCRIBED 就请求一次，
+ * 同步插件合成「正在数的一遍 + 收尾一遍」，打开页面就把所有仓库整整数两遍。改为等这一批每个频道都报过
+ * 一次状态（订阅上或失败），只要有频道订阅上就请求一次：数的时候这一批都已订阅上，断线期间攒下的变更
+ * 一次数进来，之后到达的由通知计数。
+ *
+ * 这一批都有了结局之后，某个频道再报 SUBSCRIBED 是它自己重新加入（Realtime 客户端的 rejoin）：断开的那一段
+ * 没听见，单独请求一次。
+ */
+export class RealtimeSubscriptionBatch<T> {
+  readonly #awaiting = new Set<T>();
+  #subscribed = false;
+
+  /**
+   * @param request - 请求重算待拉数；即发即忘
+   */
+  constructor(private readonly request: () => void) {}
+
+  /**
+   * 登记这一批里的一个频道，在订阅它之前调用
+   *
+   * @param channel - 频道
+   */
+  add(channel: T): void {
+    this.#awaiting.add(channel);
+  }
+
+  /**
+   * 收到一个频道的订阅状态
+   *
+   * @param channel - 报状态的频道
+   * @param status - Realtime 报的状态
+   */
+  settle(channel: T, status: string): void {
+    const settledNow = this.#awaiting.delete(channel);
+    const subscribed = status === 'SUBSCRIBED';
+    this.#subscribed ||= subscribed;
+    const batchSettled = settledNow && this.#awaiting.size === 0 && this.#subscribed;
+    if (batchSettled || (!settledNow && subscribed)) this.request();
+  }
+}
+
+/**
+ * 读取 JWT 的载荷。
+ *
+ * @param token - 会话令牌
+ * @returns 载荷对象；不是 JWT（如 `sb_publishable_` 开头的新式 key）或载荷解析失败时为 `undefined`
+ *
+ * @remarks
+ * 只解码、不校验签名：这里读出来的东西只用来判断要不要发起订阅、当前调用者是谁，
+ * 授权仍由服务端按令牌的签名与 RLS 裁决。
+ */
+export function readJwtClaims(token: string | null | undefined): Record<string, unknown> | undefined {
+  const payload = token?.split('.')[1];
+  if (!payload) return undefined;
+  try {
+    const base64 = payload.replaceAll('-', '+').replaceAll('_', '/');
+    const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+    return typeof claims === 'object' && claims !== null ? (claims as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 读取 JWT 载荷里的 `role`。
+ *
+ * @param token - Realtime 客户端加入频道时要带的令牌
+ * @returns 载荷里的 `role`；不是 JWT 或载荷解析失败时为 `undefined`
+ */
+export function readJwtRole(token: string | null | undefined): string | undefined {
+  const role = readJwtClaims(token)?.['role'];
+  return typeof role === 'string' ? role : undefined;
+}
+
+/** `service_role` 令牌没有 `sub`，它的身份就是这个角色名 */
+const SERVICE_ROLE_IDENTITY = 'service_role';
+
+/**
+ * 令牌代表的调用者身份（US-035）
+ *
+ * @param token - 此刻随请求发出的令牌
+ * @returns 已登录用户为令牌的 `sub`；`service_role` 令牌为 `service_role`；
+ *   其余（没有令牌、anon key、新式 publishable key、读不出载荷）在服务端都是匿名角色，一律 {@link RXDB_ANONYMOUS_SUBJECT}
+ * @throws {@link SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`：无法判断是谁，不猜
+ *
+ * @remarks
+ * 判定口径与 `canReceiveChangeNotifications` 同源：令牌读不出身份，就等于没登录。
+ */
+export function identityOfAccessToken(token: string | null | undefined): string {
+  const claims = readJwtClaims(token);
+  const role = claims?.['role'];
+  if (typeof role !== 'string' || role === 'anon') return RXDB_ANONYMOUS_SUBJECT;
+  const subject = claims?.['sub'];
+  if (typeof subject === 'string' && subject.length > 0) return subject;
+  if (role === 'service_role') return SERVICE_ROLE_IDENTITY;
+  throw new SupabaseConfigError(
+    `Cannot tell the caller identity: the session token has role "${role}" but no "sub" claim.`
+  );
+}
+
+/**
+ * 当前令牌能否接收变更通知（US-225）。
+ *
+ * @remarks
+ * 通知频道只对已登录身份开放（生产权限脚本只给 authenticated 建了接收策略，service_role 绕过 RLS）。
+ * 令牌是 anon key、不是 JWT 或干脆没有时，订阅必然被拒；不发起订阅，免得按「可重连」状态无限重试。
+ */
+export function canReceiveChangeNotifications(token: string | null | undefined): boolean {
+  const role = readJwtRole(token);
+  return role !== undefined && role !== 'anon';
+}
+
+/**
+ * 读到的分区与订阅时的分区是不是同一个集合（US-033）。
+ *
+ * @param subscribed - 订阅频道时记下的分区集合
+ * @param buckets - 刚读到的分区，可以有重复
+ * @returns 去重之后元素相同为 `true`；顺序与重复不算差异
+ */
+export function isSameBucketSet(subscribed: ReadonlySet<string>, buckets: readonly string[]): boolean {
+  const next = new Set(buckets);
+  return next.size === subscribed.size && [...next].every(bucket => subscribed.has(bucket));
+}
 
 const SNAPSHOT_FILTER_OPERATORS = new Set([
   '=',
@@ -130,6 +261,12 @@ export interface SupabaseRlsCheckResult {
   table: string;
   exists: boolean;
   rlsEnabled: boolean;
+  relationKind?: 'table' | 'partitioned_table' | 'view' | string;
+  /**
+   * 视图是否 `security_invoker`：只有这种视图沿用调用者的 RLS，普通视图以属主权限执行、绕过底层表的 RLS。
+   * 旧版服务端不返回这个字段，视图一律按普通视图报出
+   */
+  securityInvoker?: boolean;
 }
 
 export type RetryableWriteResponse = {
