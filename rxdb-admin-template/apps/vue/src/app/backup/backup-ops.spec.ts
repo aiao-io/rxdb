@@ -104,6 +104,22 @@ describe('backupErrorMessage', () => {
     );
   });
 
+  it('归档属于另一个账号时单独说明：别的账号的备份不能恢复到当前账号（ADMIN-US-222，平台 US-040）', async () => {
+    const foreign = new RxDBBackupError('incompatible_archive', 'Backup archive belongs to another identity', {
+      details: { field: 'identity' }
+    });
+    expect(errorMessage(foreign)).toBe('这份备份属于另一个账号，不能恢复到当前账号的本机库');
+    expect(errorMessage(new RxDBBackupError('incompatible_archive', 'schema'))).toBe('归档与当前工作台版本不兼容');
+    await runtime.setLocale('en');
+    try {
+      expect(errorMessage(foreign)).toBe(
+        "This backup belongs to another account and can't be restored into the current account's local database."
+      );
+    } finally {
+      await runtime.setLocale('zh-Hans');
+    }
+  });
+
   it('带 message 的 Error 把原文放进失败文案，非 Error 值使用通用的未知原因文案', () => {
     expect(errorMessage(new Error('boom'))).toBe('操作失败：boom');
     expect(errorMessage('what')).toBe('操作失败，原因未知');

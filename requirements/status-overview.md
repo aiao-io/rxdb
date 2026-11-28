@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 119  |
+| ✅ Done        | 120  |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
 | 📝 Backlog     | 34   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 169  |
+| **合计**       | 170  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -245,7 +245,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
-US-237 / US-039 / US-238 是 2026-11-28 owner 定方向「连 Supabase 走平台标准逻辑」之后补的连接层缺口，Admin 是它们的第一个三端业务验收；排期见 [roadmap 批次 13](roadmap.md#批次-13supabase-标准接入epic-015-续admin-是首个三端业务验收)。
+US-237 / US-039 / US-238 是 2026-11-28 owner 定方向「连 Supabase 走平台标准逻辑」之后补的连接层缺口，Admin 是它们的第一个三端业务验收；排期见 [roadmap 批次 13](roadmap.md#批次-13supabase-标准接入epic-015-续admin-是首个三端业务验收)。US-040（恢复时核对身份绑定）是 Admin 的 ADMIN-US-222 验收时发现的缺口，已交付。
 
 - ✅ [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
 - ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
@@ -253,6 +253,7 @@ US-237 / US-039 / US-238 是 2026-11-28 owner 定方向「连 Supabase 走平台
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ✅ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
 - ⬜ [US-039 整库一个作用域：库里每一行都属于同一个团队时，实体不带作用域列也能按授权快照判定写入、三端按权限显隐](stories/core/US-039-instance-access-scope.md)
+- ✅ [US-040 恢复归档时核对身份绑定：别的身份的备份恢复不进当前身份的库，没有绑定的旧备份照常恢复](stories/core/US-040-restore-identity-binding.md)
 - ✅ [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)
 - ✅ [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)
 - ⬜ [US-237 Supabase 会话层：一个客户端负责登录、会话恢复、离线身份与按身份换库，应用不再各写一套](stories/adapter/US-237-supabase-session-layer.md)

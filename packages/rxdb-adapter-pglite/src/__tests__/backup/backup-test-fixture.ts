@@ -14,7 +14,8 @@ import {
   RelationKind,
   RxDB,
   SyncType,
-  type EntityType
+  type EntityType,
+  type RxDBIdentity
 } from '@aiao/rxdb';
 import { resolvePGliteInitOptions } from '../../PGliteClient.js';
 import { RxDBAdapterPGlite } from '../../RxDBAdapterPGlite.js';
@@ -115,12 +116,19 @@ export interface BackupRxDB {
  * @param dbName - 库名
  * @param entities - 实体原型（会被克隆）
  * @param options - adapter 选项
+ * @param identity - 实例声明的身份（US-035）；不给时不启用身份绑定
  * @returns 实例、选项、克隆后的实体与连接入口
  */
-export const createBackupRxDB = (dbName: string, entities: EntityType[], options: PGliteClientOptions): BackupRxDB => {
+export const createBackupRxDB = (
+  dbName: string,
+  entities: EntityType[],
+  options: PGliteClientOptions,
+  identity?: RxDBIdentity
+): BackupRxDB => {
   const cloned = cloneEntityClasses(entities);
   const rxdb = new RxDB({
     dbName,
+    ...(identity ? { identity } : {}),
     context: { userId: 'backup-user' },
     entities: cloned,
     sync: { local: { adapter: 'pglite' }, type: SyncType.None }

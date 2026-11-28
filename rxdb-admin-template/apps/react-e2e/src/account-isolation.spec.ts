@@ -101,7 +101,7 @@ test.describe('本机工作台库按账号隔离（ADMIN-US-222）', () => {
     await expectTotal(page, 1);
   });
 
-  test('AC#7 备份按账号：在另一个账号下恢复写进它自己的库，不覆盖原账号的库', async ({ page }) => {
+  test('AC#7 备份按账号：同一账号在另一个浏览器里恢复成功；别的账号恢复被拒，自己的库不变', async ({ page, browser }) => {
     const dir = await mkdtemp(join(tmpdir(), 'rxdb-admin-account-backup-'));
     try {
       await page.goto('/entities/assets/AssetCategory');
@@ -114,14 +114,26 @@ test.describe('本机工作台库按账号隔离（ADMIN-US-222）', () => {
       await download.saveAs(archive);
       await expect(page.getByTestId('backup-result')).toContainText('备份成功');
 
+      // 同一账号、另一个浏览器环境（全新上下文 = 另一份本机存储）：恢复进它自己的空库
+      const context = await browser.newContext({ storageState: process.env['ADMIN_E2E_AUTH_STATE'] });
+      try {
+        const fresh = await context.newPage();
+        await resetE2eState(fresh);
+        await fresh.goto('/backup');
+        await fresh.getByTestId('restore-input').setInputFiles(archive);
+        await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
+        await expectTotal(fresh, 1);
+      } finally {
+        await context.close();
+      }
+
+      // 别的账号：备份属于甲，恢复在提交之前被拒，乙的库保持空库、照常可用
       await signOut(page);
       await signIn(page, OTHER_EMAIL);
       await page.goto('/backup');
       await page.getByTestId('restore-input').setInputFiles(archive);
-      await expect(page.getByTestId('restore-result')).toContainText('恢复成功');
-      await page.goto('/entities/assets/AssetCategory');
-      await createCategory(page, '乙的分类');
-      await expectTotal(page, 2);
+      await expect(page.getByTestId('restore-result')).toContainText('这份备份属于另一个账号');
+      await expectTotal(page, 0);
 
       await signOut(page);
       await signIn(page, DEFAULT_EMAIL);

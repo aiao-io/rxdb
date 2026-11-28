@@ -227,13 +227,13 @@ const writeArchive = async (archive: RxDBBackupArchiveReader, host: HostRestore)
  * 校验语句在一个摘要正确的库上执行失败（比如缺系统表），说明归档里装的不是 manifest 声明的那个库，
  * 与浏览器端「PostgreSQL 起不来」同样归为损坏。
  */
-const verifyOnHost = async (host: HostRestore, manifest: RxDBBackupManifest): Promise<void> => {
+const verifyOnHost = async (host: HostRestore, manifest: RxDBBackupManifest, rxdb: RxDB): Promise<void> => {
   const db: PGliteQueryable = {
     query: async <T>(sql: string, params: unknown[] = []) =>
       toDesktopPGliteResults<T>(await host.query(sql, params as readonly DesktopPgliteParam[]))
   };
   try {
-    await verifyPGliteRestored(db, manifest);
+    await verifyPGliteRestored(db, manifest, rxdb);
   } catch (error) {
     if (!(error instanceof RxDBAdapterDesktopError && error.code === 'statement_failed')) throw error;
     throw new RxDBBackupError('corrupt_archive', 'Restored database cannot answer the verification queries', {
@@ -244,6 +244,8 @@ const verifyOnHost = async (host: HostRestore, manifest: RxDBBackupManifest): Pr
 
 /** 恢复运行时：独占已取得，归档读到了 manifest 并判定兼容。 */
 interface RestoreSession {
+  /** 恢复目标的实例：校验时按它声明的身份核对恢复出来的库（US-040）。 */
+  readonly rxdb: RxDB;
   readonly host: HostRestore;
   readonly archive: RxDBBackupArchiveReader;
   readonly manifest: RxDBBackupManifest;
@@ -266,7 +268,7 @@ const runRestore = async (session: RestoreSession): Promise<RxDBBackupTrailer> =
   await host.step('pg.restore.open');
   await options.onStage?.('files-written');
   throwIfAborted(options.signal);
-  await verifyOnHost(host, session.manifest);
+  await verifyOnHost(host, session.manifest, session.rxdb);
   await options.onStage?.('verified');
   throwIfAborted(options.signal);
   await host.step('pg.restore.persist');
@@ -328,7 +330,7 @@ const restoreOnHost = async (
     assertRxDBBackupCompatible(manifest, expected);
     // 从这里起 host 可能已经写下未完成标记（请求发出去了、应答却没回来也算）。
     marked = true;
-    const trailer = await runRestore({ host, archive, manifest, options });
+    const trailer = await runRestore({ rxdb: target.rxdb, host, archive, manifest, options });
     return { ...trailer, manifest, scope: manifest.scope };
   } catch (error) {
     return abandon(host, marked, dataDirectoryName, error);

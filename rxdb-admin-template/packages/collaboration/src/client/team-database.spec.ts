@@ -1,6 +1,7 @@
 import { cloneEntityClasses, RxDB, RxDBIdentityMismatchError, SyncType, type RxDBIdentity } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -81,9 +82,10 @@ describe('打开团队库：连接前装上 working-tree，空库上启用提交
   });
   it('身份的主体不是作用域里的用户时不打开，工厂都不调用（ADMIN-US-222）', async () => {
     const create = vi.fn(pgliteTeamFactory(assetEntities));
-    await expect(
-      openTeamDatabase(create, scope, { ...identity, subject: crypto.randomUUID() })
-    ).rejects.toMatchObject({ code: 'configuration', message: '团队库配置不正确' });
+    await expect(openTeamDatabase(create, scope, { ...identity, subject: crypto.randomUUID() })).rejects.toMatchObject({
+      code: 'configuration',
+      message: '团队库配置不正确'
+    });
     expect(create).not.toHaveBeenCalled();
   });
   it('每个账号一个团队库：A 写下的草稿，B 打开同一团队读不到；A 重新打开时草稿还在（ADMIN-US-222）', async () => {
@@ -121,8 +123,9 @@ describe('打开团队库：连接前装上 working-tree，空库上启用提交
       ]);
       await alice.close();
 
-      // 篡改：库名与落盘位置仍是 A 的，身份换成另一个账号（绕过 openTeamDatabase 的约定检查，直接连）
+      // 篡改：库名与落盘位置仍是 A 的，身份换成另一个账号（绕过 openTeamDatabase 的约定检查，照它的做法装上 working-tree 再连）
       const forged = create(scope, { ...identity, subject: crypto.randomUUID() });
+      forged.use(rxDBPluginWorkingTree);
       await expect(forged.connect('pglite')).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
       await forged.destroy();
 
@@ -148,7 +151,9 @@ describe('打开团队库：连接前装上 working-tree，空库上启用提交
   });
   it('拒绝时关闭已经建立的连接', async () => {
     const destroy = vi.spyOn(RxDB.prototype, 'destroy');
-    await expect(openTeamDatabase(factory({ history: false }), scope, identity)).rejects.toMatchObject({ code: 'configuration' });
+    await expect(openTeamDatabase(factory({ history: false }), scope, identity)).rejects.toMatchObject({
+      code: 'configuration'
+    });
     expect(destroy).toHaveBeenCalledTimes(1);
     destroy.mockRestore();
   });

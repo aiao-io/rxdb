@@ -68,6 +68,7 @@ export const pageZhMessages = {
   'backup.filePrefix': '工作台备份',
   'backup.error.unsupported_combination': '当前存储组合不支持备份 / 恢复（浏览器下仅 IndexedDB 存储支持）',
   'backup.error.incompatible_archive': '归档与当前工作台版本不兼容',
+  'backup.error.incompatible_archive.identity': '这份备份属于另一个账号，不能恢复到当前账号的本机库',
   'backup.error.auth_domain_mismatch': '归档的加密认证域与当前工作台不一致',
   'backup.error.corrupt_archive': '归档文件损坏或不是有效的工作台备份',
   'backup.error.truncated_archive': '归档文件不完整（传输中断）',
@@ -160,6 +161,8 @@ export const pageEnMessages: Record<keyof typeof pageZhMessages, string> = {
   'backup.error.unsupported_combination':
     'This storage configuration does not support backup or restore. Only IndexedDB storage is supported in browsers.',
   'backup.error.incompatible_archive': 'The archive is incompatible with this workbench version.',
+  'backup.error.incompatible_archive.identity':
+    "This backup belongs to another account and can't be restored into the current account's local database.",
   'backup.error.auth_domain_mismatch': 'The archive encryption authentication domain does not match this workbench.',
   'backup.error.corrupt_archive': 'The archive is damaged or is not a valid workbench backup.',
   'backup.error.truncated_archive': 'The archive is incomplete because its transfer was interrupted.',

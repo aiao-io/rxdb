@@ -66,7 +66,8 @@ export const RESTORE_TARGET_INITIALIZED_MESSAGE = pageZhMessages['backup.error.t
  * 把引擎错误翻译成用户可读的失败原因。
  *
  * @remarks
- * 已知的备份错误码按 code 翻译；带 message 的普通 `Error` 把原文放进「操作失败」文案；
+ * 已知的备份错误码按 code 翻译；归档属于另一个账号（`incompatible_archive` 且 `details.field` 为 `identity`，
+ * 平台 US-040）单独说明，免得被当成版本不兼容（ADMIN-US-222）。带 message 的普通 `Error` 把原文放进「操作失败」文案；
  * 其余值（非 `Error`，或 message 为空）使用通用的未知原因文案，不展示其内容。
  * @param error - 捕获到的错误。
  * @param t - 当前应用的翻译函数。
@@ -74,6 +75,8 @@ export const RESTORE_TARGET_INITIALIZED_MESSAGE = pageZhMessages['backup.error.t
  */
 export function backupErrorMessage(error: unknown, t: I18n['t']): string {
   if (isRxDBBackupError(error)) {
+    if (error.code === 'incompatible_archive' && error.details.field === 'identity')
+      return t('backup.error.incompatible_archive.identity');
     return t(`backup.error.${error.code}`);
   }
   if (error instanceof Error && error.message) {

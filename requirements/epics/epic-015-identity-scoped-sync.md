@@ -59,7 +59,7 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 - [ ] 两用户、两租户的公共包契约测试：同一远端、一个直写实体，覆盖首次同步、成员关系变化而业务行未写、换号时在途的拉取与推送、离线待推与重连，以服务端按该身份的查询结果作对照（只读部分由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领，写入待后续故事）
 - [ ] 实体声明隔离范围：元数据声明租户键或作用域；声明了隔离而后端不具备按身份读取时，连接即报错，不降级为普通 `Filter`（写入作用域的声明，以及远端缺授权函数时连接即报错，由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 认领；读取隔离的声明**尚无故事认领**）
 - [ ] 失权移除：授权代次变化时锁住旧投影，按当前身份重建后原子替换，中途再次变权就废弃本轮；待推变更与可读投影分开保留，重新授权前不重放（**尚无故事认领**）
-- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（库名、打开时与同步前的身份校验、换身份时在途响应的丢弃由 [US-035](../stories/core/US-035-identity-bound-local-database.md) 认领；多标签页的身份变化广播与按代次丢弃迟到回调由 [US-237](../stories/adapter/US-237-supabase-session-layer.md) 认领；「从此设备移除此账户数据」**尚无故事认领**；Admin 本机工作台库的按账号隔离由 ADMIN-US-222 承接）
+- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（库名、打开时与同步前的身份校验、换身份时在途响应的丢弃由 [US-035](../stories/core/US-035-identity-bound-local-database.md) 认领；多标签页的身份变化广播与按代次丢弃迟到回调由 [US-237](../stories/adapter/US-237-supabase-session-layer.md) 认领；「从此设备移除此账户数据」**尚无故事认领**；恢复归档时按身份核对、别的身份的备份恢复不进来由 [US-040](../stories/core/US-040-restore-identity-binding.md) 认领；Admin 本机工作台库的按账号隔离由 ADMIN-US-222 承接）
 - [ ] 区内细分的权限：同一个区里成员可读的列不同时，正文按当前身份从业务表读（由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领）；同一个区里可读的行不同时，分区日志会让成员看到自己读不到的行的 id 与变更时间，要先评估这层元数据（**尚无故事认领**）
 - [ ] 规则之外的公开数据：立项目标是没登录的用户能看到全部公开数据，而分区同步只落地规则选中的行；同一个实体的同步类型互斥，不能同时走 QueryCache 在线浏览其余公开行（另声明一个只读浏览实体的做法由 [US-036](../stories/core/US-036-browse-public-data-outside-sync-rule.md) 认领；一个实体既同步又在线浏览**尚无故事认领**）
 - [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（直写模式下分区实体的本地写入、撤销/重做与推送由 [US-034](../stories/core/US-034-bucketed-entity-local-writes.md) 认领；按成员权限的只读即员工，服务端与演示由 [US-234](../stories/adapter/US-234-supabase-tenant-member-permissions.md) 认领，本地判定与界面由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 认领，整库属于一个作用域时的判定与界面由 [US-039](../stories/core/US-039-instance-access-scope.md) 认领；仅经 PR 登记在 [epic-017](epic-017-pr-only-team-data.md)，价值待证）
@@ -83,6 +83,7 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 - [US-237 Supabase 会话层：一个客户端负责登录、会话恢复、离线身份与按身份换库，应用不再各写一套](../stories/adapter/US-237-supabase-session-layer.md) (High)
 - [US-039 整库一个作用域：库里每一行都属于同一个团队时，实体不带作用域列也能按授权快照判定写入、三端按权限显隐](../stories/core/US-039-instance-access-scope.md) (Medium)
 - [US-238 Supabase 适配器只接身份与授权：不走日志同步的库不订阅变更频道、不探日志表，服务端只需授权函数](../stories/adapter/US-238-supabase-adapter-identity-grants-only.md) (Medium)
+- [US-040 恢复归档时核对身份绑定：别的身份的备份恢复不进当前身份的库，没有绑定的旧备份照常恢复](../stories/core/US-040-restore-identity-binding.md) (High)
 
 前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
 

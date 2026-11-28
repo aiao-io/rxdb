@@ -18,7 +18,8 @@ import {
   RxDBBackupArchiveWriter,
   SyncType,
   type EntityType,
-  type RxDBBackupManifest
+  type RxDBBackupManifest,
+  type RxDBIdentity
 } from '@aiao/rxdb';
 import { cloneEntityClasses } from '@aiao/rxdb-adapter-pglite/testing';
 import type { DesktopHostTransport } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
@@ -330,16 +331,19 @@ export interface ElectronBackupRxDB {
  * @param dbName - 库名
  * @param entities - 实体原型（会被克隆）
  * @param options - adapter 选项，至少带上 {@link BackupHost.transportFor} 给的传输层
+ * @param identity - 实例声明的身份（US-035）；不给时不启用身份绑定
  * @returns 实例、选项、克隆后的实体与连接入口
  */
 export const createElectronBackupRxDB = (
   dbName: string,
   entities: EntityType[],
-  options: ElectronPGliteOptions
+  options: ElectronPGliteOptions,
+  identity?: RxDBIdentity
 ): ElectronBackupRxDB => {
   const cloned = cloneEntityClasses(entities);
   const rxdb = new RxDB({
     dbName,
+    ...(identity ? { identity } : {}),
     context: { userId: 'backup-user' },
     entities: cloned,
     sync: { local: { adapter: ADAPTER_NAME }, type: SyncType.None }
