@@ -38,6 +38,17 @@
 1. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase：还差在全新的真实 Supabase 项目上部署并跑三端（AC#1）。
 2. [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) staging / production 部署、真实邮箱证据、部署后三端协作验收与运维护栏；它同时提供 ADMIN-US-201 与 ADMIN-US-220 所缺的真实环境证据。
 
+## Supabase 接入标准化
+
+方向见 [D-11](decisions.md#d-11supabase-接入走平台标准层)，评估、对照与本次合并的影响见 [Supabase 接入标准化计划](plans/supabase-standardization-tasks.md)，统一归属 [ADMIN-EPIC-005](epics/ADMIN-EPIC-005.md)。结论：会话、身份、按身份分库与授权快照走平台标准（`rxdb-adapter-supabase` 与 RxDB 核心），Admin 是这些能力的第一个三端业务验收；团队共享数据仍仅经 PR 合并，不改用日志同步与直写。
+
+0. 先修合并回归：合并 `origin/main`（#226）之后，三端 Dashboard「最近活动」e2e 各有 1 条失败，根因是平台 US-318 的删除判据比故事范围宽；修法待 owner 选，推荐收窄平台判据（计划第 3 节）。
+1. [ADMIN-US-222](stories/collaboration/ADMIN-US-222-identity-bound-local-databases.md) 本机库按账号隔离：平台前置 US-035 已交付，可以开工；旧的设备共用库怎么处理先由 owner 定。建议在 ADMIN-US-217 正式上线前完成，免得给真实设备写迁移。
+2. [ADMIN-US-223](stories/collaboration/ADMIN-US-223-platform-supabase-session.md) 全局会话改用平台会话层：等平台 US-237（根 roadmap 批次 13）。
+3. [ADMIN-US-224](stories/collaboration/ADMIN-US-224-team-database-standard-grants.md) 团队库接入标准适配器、按权限显隐：等平台 US-039 与 US-238（根 roadmap 批次 13）。
+
+协作服务端迁到平台的仅经 PR 能力登记在平台 epic-017（US-321 / US-322 / US-239，价值待证），平台交付之前协作包保持现状。ADMIN-US-217 / 220 的部署证据可以并行推进；部署后的三端协作验收建议排在 ADMIN-US-223 之后跑一次，免得重跑。
+
 ## 既有前置
 
 [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 等待一组真实的新业务关联实体、字段、关系与非 `assets` 命名空间；确定后验证新业务 CRUD、关联筛选、搜索、Dashboard、刷新重开和备份恢复，同时保留默认资产回归。Dashboard 已验证非 CRUD 页面路径，自定义页面不再依赖另找实例。

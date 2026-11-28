@@ -10,11 +10,11 @@
 | ✅ Done        | 119    |
 | 🚧 In Progress | 13     |
 | 👀 In Review   | 3      |
-| 📝 Backlog     | 28     |
+| 📝 Backlog     | 34     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **44** |
+| **未完成合计** | **50** |
 
-仓库还剩 **44 条**未关闭故事（13 In Progress + 3 In Review + 28 Backlog + 0 Blocked）。
+仓库还剩 **50 条**未关闭故事（13 In Progress + 3 In Review + 34 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -31,6 +31,9 @@
 | [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                       | 批次 6   |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                      | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                       | 立项池   |
 | [US-226](stories/adapter/US-226-supabase-pull-count-records.md)                                                                                                         | 📝 Backlog     | 远端日志补记 `transactionId`、广播带上它、按记录重算；先定旧服务端的处理方式                           | 立项池   |
+| [US-237](stories/adapter/US-237-supabase-session-layer.md)                                                                                                              | 📝 Backlog     | 平台会话层：登录、会话恢复、离线身份、跨标签页与按身份换库；demo 改用，Admin 由 ADMIN-US-223 接入      | 批次 13  |
+| [US-039](stories/core/US-039-instance-access-scope.md) / [US-238](stories/adapter/US-238-supabase-adapter-identity-grants-only.md)                                      | 📝 Backlog     | 整库一个作用域的写判定与三端显隐；适配器只接身份与授权；Admin 团队库由 ADMIN-US-224 接入               | 批次 13  |
+| [epic-017 仅经 PR 的团队数据](epics/epic-017-pr-only-team-data.md)（US-321 / US-322 / US-239）                                                                          | 📝 Backlog     | 价值待证：Admin 协作包是唯一实现，等第二个使用方；先定服务端形态（TypeScript 引擎还是 PL/pgSQL RPC）   | 立项池   |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                         | 立项池   |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7   |
 | [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B | 批次 7   |
@@ -177,6 +180,19 @@ e2e 锚点与界面改动在同一步迁移，场景一条不删。
 [epic-014](epics/epic-014-commit-graph-remote-exchange.md) 的 US-319（导入远端提交）与 US-320（discard / restore 回写业务表）已交付。
 它们跨过 epic-006 v1「纯本地、discard 不回写业务表」的边界；剩下的是随下一次发布单列这次语义变化，见[发布计划](release-plan.md#④-discard--restore-改写业务表签名不变语义变了)。
 
+### 批次 13：Supabase 标准接入（epic-015 续，Admin 是首个三端业务验收）
+
+2026-11-28 owner 定方向：应用连 Supabase 要有一套标准逻辑，`rxdb-adapter-supabase` 能解决的由它解决；Admin 里有而平台没有的场景，列故事补齐成可复用能力。
+评估结论与 Admin 侧的接入顺序见 [Admin 的 Supabase 接入标准化计划](../rxdb-admin-template/requirements/plans/supabase-standardization-tasks.md)。
+
+| 顺序 | 范围   | 前置                   | 关闭条件                                                                                        |
+| ---- | ------ | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| 1    | US-237 | US-035（Done）         | 平台会话层交付；dev-rxdb-supabase 改用后身份切换的远端 e2e 通过；Admin 接入由 ADMIN-US-223 验收 |
+| 2    | US-039 | US-029（Done）         | 库级作用域的写判定与三端 `EntityList` 显隐；PGlite 与六个 SQLite 系后端同一组契约用例一致       |
+| 2    | US-238 | US-029、US-035（Done） | 不走日志同步的库只调授权函数、不订阅变更频道；只部署最小安装集的真栈用例通过                    |
+
+US-039 与 US-238 可并行，两条都交付后 Admin 的 ADMIN-US-224 才能开工。仅经 PR 的可复用化（epic-017）不在本批，留在立项池。
+
 ### 线 A：桥接版本发布（owner 门控）
 
 当前下一次迁移的桥接锚点是 v0.0.28。此处仅保留引用入口，不重跑 v0.0.26 的历史操作；执行以 [发布计划](release-plan.md)为准。
@@ -189,6 +205,7 @@ e2e 锚点与界面改动在同一步迁移，场景一条不删。
 | US-541                            | 具名团队离线协作症状出现后，先冻结身份、成员权限、RLS 与冲突合同                                    |
 | US-226                            | owner 排期；实现前先定新客户端连旧服务端（没跑升级脚本）时计数怎么处理                              |
 | US-709 / US-710 / US-711 / US-712 | 以 US-708 为前置；各故事「解锁条件」出现后由 owner 解锁，排序上 US-709 整库克隆在先                 |
+| US-321 / US-322 / US-239          | epic-017 价值待证：出现 Admin 之外要仅经 PR 团队数据的应用，或 owner 决定迁移 Admin 协作包          |
 
 ### epic-006 评审顺延的架构项
 
@@ -221,6 +238,7 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 5. `@aiao/rxdb-model@0.0.26` 坏产物的处置与 GitHub Release 正文同步，见 [发布计划](release-plan.md#开项版本漂移)。
 6. sqlite-wasm 的 idb VFS 路径上限：`mxPathname` 为 64，库名连同 `@0_1.sqlite.db-journal` 后缀超过约 63 字节时 `sqlite3_open_v2` 报不透明的失败（实测 62 字节通过、65 字节失败）；库名里出现 `x:` 还会被 `new URL(name, 'file://')` 当成协议。复现：浏览器里用 45 字符的 `dbName` 配 `{ vfs: 'idb' }` 连接。至少应在连接时给出明确报错；Admin 团队库已用散列库名规避（ADMIN-US-221）。
 7. working-tree 的分支清理与读取成本：`removeBranch` 不能删除当前分支与有子分支的分支，另存、快进之后的旧任务分支会一直留在库里；`listCommits` / `exportCommits` 每次都读完整的第一父链，状态读取的成本随历史增长，缺按范围读取的选项（US-319 已登记有合并时同类成本）。待出现长期使用的真实团队库后评估。
+8. US-318 的删除入口判据比故事范围宽：[`EntityManager.remove()`](../packages/rxdb/src/entity/entity-manager.ts) 对 `schemaManager.isReferenced()` 为真的实体一律改走带事务号的批量写，而 [US-318](stories/collaboration/US-318-cascade-delete-one-transaction.md) 的范围只承诺「会级联（`CASCADE`）或置空（`SET NULL`）子记录时」记成一个事务。只被 `RESTRICT` 外键引用的实体（Admin 的资产分类）删一行也成了「一条变更的事务」，Admin Dashboard 见到事务号就显示「批量变更 1 条记录」，三端 `rxdb-admin-template/apps/react-e2e/src/dashboard.spec.ts` 的「最近活动按增删改时间倒序展示五条」因此失败。修法二选一，待 owner 定：判据收窄为「有 `CASCADE` / `SET NULL` 子关系」（与 US-318 的范围一致），或 Admin Dashboard 把只有一条变更的事务按原类型显示。
 
 US-603 已有独立故事，不在这里另建一份待办。
 

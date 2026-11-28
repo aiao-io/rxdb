@@ -11,9 +11,9 @@
 | ✅ Done        | 119  |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 34   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 163  |
+| **合计**       | 169  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -245,13 +245,18 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
+US-237 / US-039 / US-238 是 2026-11-28 owner 定方向「连 Supabase 走平台标准逻辑」之后补的连接层缺口，Admin 是它们的第一个三端业务验收；排期见 [roadmap 批次 13](roadmap.md#批次-13supabase-标准接入epic-015-续admin-是首个三端业务验收)。
+
 - ✅ [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
 - ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 - ✅ [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ✅ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
+- ⬜ [US-039 整库一个作用域：库里每一行都属于同一个团队时，实体不带作用域列也能按授权快照判定写入、三端按权限显隐](stories/core/US-039-instance-access-scope.md)
 - ✅ [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)
 - ✅ [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)
+- ⬜ [US-237 Supabase 会话层：一个客户端负责登录、会话恢复、离线身份与按身份换库，应用不再各写一套](stories/adapter/US-237-supabase-session-layer.md)
+- ⬜ [US-238 Supabase 适配器只接身份与授权：不走日志同步的库不订阅变更频道、不探日志表，服务端只需授权函数](stories/adapter/US-238-supabase-adapter-identity-grants-only.md)
 
 ### [本机修改工作台：推送、拉取、撤销与历史的统一交互](epics/epic-016-local-change-workbench.md)
 
@@ -264,6 +269,14 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - ✅ [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)
 - ✅ [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)
 - ✅ [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)
+
+### [仅经 PR 的团队数据：Supabase 上的提交图交换、数据 PR 与团队协作](epics/epic-017-pr-only-team-data.md)
+
+价值待证：具名使用方只有 Admin，且它已有可用的产品实现；三条都在 [roadmap 立项池](roadmap.md#立项池待-owner-决策未进任何批次)，解锁信号见各故事的「解锁条件」。
+
+- ⬜ [US-239 Supabase 团队成员、邀请与协作实时：邀请绑定已验证邮箱、撤权即时生效、私有频道的业务通知与在线成员](stories/adapter/US-239-supabase-team-membership-realtime.md)
+- ⬜ [US-321 Supabase 上的提交图远端交换：服务端存提交与引用，按预期头上传、分页下载，跨设备保留提交身份](stories/collaboration/US-321-supabase-commit-exchange.md)
+- ⬜ [US-322 仅经 PR 写入：实体声明写入模式，共享数据只能经绑定候选的审核与原子合并改变](stories/collaboration/US-322-pr-only-write-mode.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

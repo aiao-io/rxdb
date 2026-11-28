@@ -1,6 +1,6 @@
 # 协作后端收敛实施计划
 
-> 日期：2026-11-17。状态：方向已定、尚未实施。决策见 [D-09](../decisions.md#d-09协作后端收敛方向)；实施故事为 [ADMIN-US-218](../stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)～[ADMIN-US-221](../stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)，上线验收仍由 [ADMIN-US-217](../stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 承接。
+> 日期：2026-11-17。状态：阶段 0～3 与 5 已交付（ADMIN-US-218、219、221 Done，220 差真实项目部署），阶段 4（ADMIN-US-217）进行中。决策见 [D-09](../decisions.md#d-09协作后端收敛方向)；实施故事为 [ADMIN-US-218](../stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)～[ADMIN-US-221](../stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)，上线验收仍由 [ADMIN-US-217](../stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 承接。
 
 目标不变：一套服务端权威、像 Git 一样「任务分支 → 提交 → 数据 PR → 绑定候选的审批 → 原子合并」的协作后端，并以最小成本接入 Supabase。本计划只改变存储、传输与部署形态；ADMIN-US-201～216 的用户可见行为、[共享契约](../collaboration-contract.md) 与领域引擎的裁决规则保持不变。
 
@@ -195,4 +195,4 @@ RETURNING revision;
 - 锁拆分后，撤权与批准、并发上传、合并与状态变更交错等不变量依赖锁顺序；现有并发与事务回滚集成用例必须原样通过，并补「治理行 `FOR SHARE` 与 `FOR UPDATE` 交错」用例。
 - Realtime Presence 的撤权移除不再是数据库事务的一部分，需要以撤权广播加重新鉴权兜住 ADMIN-US-215 的时限。
 - Edge Function 冷启动与 CPU 上限：阶段 3 以最重的候选生成用例验收；超限时保留 Node 入口作为部署选项。
-- 平台能力可能晚于产品上线：ADMIN-US-221 保持 Backlog，团队任务继续使用现有 IndexedDB 存储，但已切换为 ChangeSet 协议。
+- 平台能力可能晚于产品上线（已解除：平台 US-319、US-320 与 ADMIN-US-221 均已交付，团队任务已落在 working-tree）。

@@ -47,25 +47,27 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 ### 本机隔离
 
 - **每个身份一个本地库。** 库与身份绑定，对不上就停下报错、不混数据，不自动改绑；应用按身份打开各自的库。拉取进度随库隔离，不需要再按身份分键。
+- **会话与换号归平台。** 2026-11-28 owner 定方向：应用连 Supabase 要有一套标准逻辑。登录、会话恢复、离线身份、跨标签页与按身份换库由平台会话层提供（[US-237](../stories/adapter/US-237-supabase-session-layer.md)），应用不再各写一套；Admin 是它的第一个三端业务验收。
 
 ### 范围边界
 
 - **不做分支远程删除保护。** 平台和产品都没有远程删除分支的功能，有了再谈。
-- **Admin 现有协作链路不动。** 团队共享数据保持 `SyncType.None` + 提交交换 + 仅经 PR 合并（admin-template 分支 `rxdb-admin-template/requirements/decisions.md` 的 D-06、协作契约 C06）。
+- **Admin 现有协作链路不动。** 团队共享数据保持 `SyncType.None` + 提交交换 + 仅经 PR 合并（admin-template 分支 `rxdb-admin-template/requirements/decisions.md` 的 D-06、协作契约 C06）。Admin 连接层（会话、身份、授权快照）改走本 Epic 的平台能力；把仅经 PR 的链路做成可复用能力登记在 [epic-017](epic-017-pr-only-team-data.md)，不在本 Epic。
 
 ## 目标
 
 - [ ] 两用户、两租户的公共包契约测试：同一远端、一个直写实体，覆盖首次同步、成员关系变化而业务行未写、换号时在途的拉取与推送、离线待推与重连，以服务端按该身份的查询结果作对照（只读部分由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领，写入待后续故事）
 - [ ] 实体声明隔离范围：元数据声明租户键或作用域；声明了隔离而后端不具备按身份读取时，连接即报错，不降级为普通 `Filter`（写入作用域的声明，以及远端缺授权函数时连接即报错，由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 认领；读取隔离的声明**尚无故事认领**）
 - [ ] 失权移除：授权代次变化时锁住旧投影，按当前身份重建后原子替换，中途再次变权就废弃本轮；待推变更与可读投影分开保留，重新授权前不重放（**尚无故事认领**）
-- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（库名、打开时与同步前的身份校验、换身份时在途响应的丢弃由 [US-035](../stories/core/US-035-identity-bound-local-database.md) 认领，多标签页锁定与移除数据待后续故事；Admin 本机工作台库按 admin-template 分支 D-10 第 4 条另起评审）
+- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（库名、打开时与同步前的身份校验、换身份时在途响应的丢弃由 [US-035](../stories/core/US-035-identity-bound-local-database.md) 认领；多标签页的身份变化广播与按代次丢弃迟到回调由 [US-237](../stories/adapter/US-237-supabase-session-layer.md) 认领；「从此设备移除此账户数据」**尚无故事认领**；Admin 本机工作台库的按账号隔离由 ADMIN-US-222 承接）
 - [ ] 区内细分的权限：同一个区里成员可读的列不同时，正文按当前身份从业务表读（由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领）；同一个区里可读的行不同时，分区日志会让成员看到自己读不到的行的 id 与变更时间，要先评估这层元数据（**尚无故事认领**）
 - [ ] 规则之外的公开数据：立项目标是没登录的用户能看到全部公开数据，而分区同步只落地规则选中的行；同一个实体的同步类型互斥，不能同时走 QueryCache 在线浏览其余公开行（另声明一个只读浏览实体的做法由 [US-036](../stories/core/US-036-browse-public-data-outside-sync-rule.md) 认领；一个实体既同步又在线浏览**尚无故事认领**）
-- [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（直写模式下分区实体的本地写入、撤销/重做与推送由 [US-034](../stories/core/US-034-bucketed-entity-local-writes.md) 认领；按成员权限的只读即员工，服务端与演示由 [US-234](../stories/adapter/US-234-supabase-tenant-member-permissions.md) 认领，本地判定与界面由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 认领；仅经 PR **尚无故事认领**）
+- [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（直写模式下分区实体的本地写入、撤销/重做与推送由 [US-034](../stories/core/US-034-bucketed-entity-local-writes.md) 认领；按成员权限的只读即员工，服务端与演示由 [US-234](../stories/adapter/US-234-supabase-tenant-member-permissions.md) 认领，本地判定与界面由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 认领，整库属于一个作用域时的判定与界面由 [US-039](../stories/core/US-039-instance-access-scope.md) 认领；仅经 PR 登记在 [epic-017](epic-017-pr-only-team-data.md)，价值待证）
 - [ ] 远端变更历史：每次业务写入在独立于同步日志的历史表里记完整前后快照、操作者与来源，只对当前能编辑该行的成员经受控 RPC 按列权限开放（由 [US-229](../stories/adapter/US-229-supabase-change-history.md) 认领）
 - [ ] 存在性信号：读授权落地后，推送对不可见的行按「不存在」处理，取代 [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) AC#2 对「被拒绝」与「已不存在」的区分（**尚无故事认领**）
 - [ ] 租户内成员权限：同一租户里管理员能改、员工只能看；越权的写在服务端被拒、在本机对齐，本地写入口当场拒绝，三端按行显隐（服务端与 `dev-rxdb-supabase` 演示由 [US-234](../stories/adapter/US-234-supabase-tenant-member-permissions.md) 认领，本地判定与三端界面由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 认领）
-- [ ] 三端验收：Angular / React / Vue 对同一权限矩阵运行同一组用户流程（实体列表与详情的权限矩阵由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 阶段 D 认领；同步、身份切换等其余流程**尚无故事认领**）
+- [ ] 三端验收：Angular / React / Vue 对同一权限矩阵运行同一组用户流程（实体列表与详情的权限矩阵由 [US-029](../stories/core/US-029-rbac-owner-role-permission.md) 阶段 D 认领；身份切换的平台能力由 [US-237](../stories/adapter/US-237-supabase-session-layer.md) 认领，三端业务验收由 Admin 的 ADMIN-US-222～224 承接；同步流程**尚无故事认领**）
+- [ ] 只接身份与授权：自带数据协议、不走日志同步的库也能用平台的身份核对与授权快照，服务端只需授权函数（由 [US-238](../stories/adapter/US-238-supabase-adapter-identity-grants-only.md) 认领）
 
 ## 故事
 
@@ -78,6 +80,9 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 - [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](../stories/adapter/US-229-supabase-change-history.md) (High)
 - [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](../stories/adapter/US-234-supabase-tenant-member-permissions.md) (High) — A 服务端成员权限与演示（演示部分排在 epic-016 的页面骨架之后）→ B 演示接入引擎声明（前置 US-029 阶段 C）
 - [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](../stories/core/US-029-rbac-owner-role-permission.md) (High) — A 声明与校验 → B 授权快照与本地判定 → C Supabase 授权来源（前置 US-234 阶段 A）∥ D 三端按行派生
+- [US-237 Supabase 会话层：一个客户端负责登录、会话恢复、离线身份与按身份换库，应用不再各写一套](../stories/adapter/US-237-supabase-session-layer.md) (High)
+- [US-039 整库一个作用域：库里每一行都属于同一个团队时，实体不带作用域列也能按授权快照判定写入、三端按权限显隐](../stories/core/US-039-instance-access-scope.md) (Medium)
+- [US-238 Supabase 适配器只接身份与授权：不走日志同步的库不订阅变更频道、不探日志表，服务端只需授权函数](../stories/adapter/US-238-supabase-adapter-identity-grants-only.md) (Medium)
 
 前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
 

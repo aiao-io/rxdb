@@ -1,6 +1,6 @@
 # Admin 产品需求
 
-当前交付：[8/27 已交付]。17 条 In Review：ADMIN-US-201 与 ADMIN-US-220 各有 AC 等待真实环境证据，ADMIN-US-202～216 的 AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭。ADMIN-US-217（生产部署）进行中，ADMIN-US-101 因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[8/30 已交付]。17 条 In Review：ADMIN-US-201 与 ADMIN-US-220 各有 AC 等待真实环境证据，ADMIN-US-202～216 的 AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭。ADMIN-US-217（生产部署）进行中，ADMIN-US-101 因缺少真实业务输入保持 Backlog；ADMIN-US-222～224（Supabase 接入标准化，[D-11](decisions.md#d-11supabase-接入走平台标准层)）待排期。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
@@ -26,6 +26,7 @@
 | [epics/ADMIN-EPIC-002.md](epics/ADMIN-EPIC-002.md)     | 认证与团队工作区                   |
 | [epics/ADMIN-EPIC-003.md](epics/ADMIN-EPIC-003.md)     | 数据变更中心与合并治理             |
 | [epics/ADMIN-EPIC-004.md](epics/ADMIN-EPIC-004.md)     | 协作后端收敛、部署与运维           |
+| [epics/ADMIN-EPIC-005.md](epics/ADMIN-EPIC-005.md)     | Supabase 接入标准化                |
 | [stories/story.template.md](stories/story.template.md) | 新故事模板                         |
 | [stories/collaboration/](stories/collaboration)        | 认证、团队和数据协作故事           |
 | [plans/README.md](plans/README.md)                     | 实施计划与验收记录                 |

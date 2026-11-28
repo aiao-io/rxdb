@@ -125,6 +125,7 @@ Epic：
 - [epic-014 提交图远端交换与草稿回写](epics/epic-014-commit-graph-remote-exchange.md)
 - [epic-015 按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 - [epic-016 本机修改工作台：推送、拉取、撤销与历史的统一交互](epics/epic-016-local-change-workbench.md)
+- [epic-017 仅经 PR 的团队数据：Supabase 上的提交图交换、数据 PR 与团队协作](epics/epic-017-pr-only-team-data.md)
 
 视图：
 

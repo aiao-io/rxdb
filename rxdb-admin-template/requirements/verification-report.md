@@ -38,6 +38,8 @@
 - [ADMIN-US-201～ADMIN-US-216](status-overview.md) 已有本地实现和分层验证，详见 [协作记录](plans/collaboration-implementation.md)；ADMIN-US-201 的 AC#2 / #3 缺真实邮件环境证据，ADMIN-US-202～216 随这条硬依赖关闭，正式部署由 ADMIN-US-217 承接。
 - 独立复制、仓外安装、正式部署或发行；当前继续在本仓库孵化。
 - 生产 SMTP 投递与正式 Supabase 项目部署；本地隔离环境已验证真实 Auth 会话、RLS、双设备协作和 PostgreSQL 原子合并。
+- 合并 `origin/main`（#226）之后，三端 [dashboard.spec.ts](../apps/react-e2e/src/dashboard.spec.ts)「最近活动按增删改时间倒序展示五条，刷新后保留」失败：平台 US-318 的删除判据把只被 `RESTRICT` 外键引用的单行删除也记成事务，Dashboard 显示为「批量变更 1 条记录」。修法待 owner 定，修复之前「真实数据 Dashboard 与最近活动」的本地验证不成立，见 [Supabase 接入标准化计划](plans/supabase-standardization-tasks.md)。
+- ADMIN-US-222～224（Supabase 接入标准化）尚未开始，平台前置见 [roadmap](roadmap.md#supabase-接入标准化)。
 
 ## 产品根需求迁移
 

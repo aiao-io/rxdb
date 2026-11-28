@@ -36,3 +36,7 @@
 [协作实现与验收记录](collaboration-implementation.md) 汇总三端真实身份、IndexedDB 离线任务、双设备分叉、PR、讨论通知、审批、原子事务与 RLS 的实现、测试证据和部署前置。
 
 [协作后端收敛实施计划](collaboration-convergence-tasks.md) 记录 2026-11-17 定下的收敛方向：差量提交与拆表、Supabase 原生读取与实时、只部署 Supabase、与平台 working-tree 的结合评估及平台缺口，对应 ADMIN-US-217～221。
+
+## Supabase 接入标准化
+
+[Supabase 接入标准化：评估与实施计划](supabase-standardization-tasks.md) 记录 2026-11-28 对 #226 合并影响的复验（含一处 Dashboard 回归）、Admin 需求与平台标准做法的逐项对照、平台缺口与故事，以及 ADMIN-US-222～224 的顺序；方向见 D-11。

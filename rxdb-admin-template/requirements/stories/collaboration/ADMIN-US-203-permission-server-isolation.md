@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
-updated: 2026-11-17
+updated: 2026-11-28
 tags: [admin, permission, rls, security, collaboration]
 dependsOn: [ADMIN-US-201, ADMIN-US-202]
 capabilities: [rxdb:US-027, rxdb:US-029]
@@ -54,6 +54,8 @@ capabilities: [rxdb:US-027, rxdb:US-029]
 
 权限是服务端事实，共享写入遵循共享契约 C06。RLS、RPC、Realtime 和任务同步均按真实身份与上下文授权；共享业务表对普通会话只读，合并权只授权进入受控事务，不转换为共享表写权限。策略与阻塞意见的管理操作也须按 C05 验证并审计；最终合并的并发授权由 212 验收。
 
+团队任务编辑界面今天靠「打开或保留任务要求是作者且有 `edit`」保证只有编辑者进得去，实体列表本身不判权限；改为按平台授权快照逐行显隐（界面与服务端读同一份成员数据）由 [ADMIN-US-224](ADMIN-US-224-team-database-standard-grants.md) 承接，不改变本故事已验收的服务端边界。
+
 ## 实现文件
 
 本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/access.ts`、`src/server/input.ts`、`src/server/repository.ts`、`supabase/migrations/202611160001_collaboration.sql`。
@@ -67,5 +69,5 @@ capabilities: [rxdb:US-027, rxdb:US-029]
 - [ADMIN-US-201](ADMIN-US-201-supabase-email-otp-session.md)
 - [ADMIN-US-202](ADMIN-US-202-team-membership-workspace.md)
 - [实体操作权限模型](../../../../requirements/stories/core/US-027-entity-permission-model.md)
-- [多用户 RBAC](../../../../requirements/stories/core/US-029-rbac-owner-role-permission.md)
+- [按作用域的成员写权限（平台 US-029）](../../../../requirements/stories/core/US-029-rbac-owner-role-permission.md)
 - [ADMIN-EPIC-002](../../epics/ADMIN-EPIC-002.md)

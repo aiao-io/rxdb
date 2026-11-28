@@ -53,7 +53,17 @@ Admin 模板通用能力：
 
 [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 需要的平台能力已于 2026-11-17 在根 requirements 以 [epic-014](../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 立项，不再是候选：导入远端提交与多父提交见 [US-319](../../requirements/stories/collaboration/US-319-remote-commit-import.md)，`discard()` / `restore()` 回写业务表见 [US-320](../../requirements/stories/collaboration/US-320-discard-restore-projection.md)。仍留作候选的只有：
 
-- 三方字段级合并与「停在合并状态由用户裁决」：目前只有产品服务端的 `mergeRecords` 实现；平台需要时再上移，不作为 ADMIN-US-221 的前置。
+- 三方字段级合并与「停在合并状态由用户裁决」：目前只有产品服务端的 `mergeRecords` 实现；平台需要时再上移，不作为 ADMIN-US-221 的前置（2026-11-28 已登记为平台 US-322，见下节）。
+
+### 平台能力候选（来自 Supabase 接入标准化）
+
+2026-11-28 owner 定方向（[D-11](decisions.md#d-11supabase-接入走平台标准层)）：连 Supabase 走平台标准逻辑。连接层的平台缺口已立项，由 [ADMIN-EPIC-005](epics/ADMIN-EPIC-005.md) 消费（平台 US-237 会话层、US-039 整库一个作用域、US-238 只接身份与授权）。Admin 独有、日志同步给不了的部分在根 requirements 登记为 [epic-017](../../requirements/epics/epic-017-pr-only-team-data.md)，价值待证：
+
+- [US-321](../../requirements/stories/collaboration/US-321-supabase-commit-exchange.md) Supabase 上的提交图远端交换；
+- [US-322](../../requirements/stories/collaboration/US-322-pr-only-write-mode.md) 仅经 PR 写入；
+- [US-239](../../requirements/stories/adapter/US-239-supabase-team-membership-realtime.md) 团队成员、邀请与协作实时。
+
+平台交付并解锁之后，另立 Admin 故事把协作服务端迁上去；在那之前协作包保持现状。
 
 ### 2026-11-17 代码评审登记的工程收敛
 

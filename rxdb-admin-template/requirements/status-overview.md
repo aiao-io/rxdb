@@ -9,9 +9,9 @@
 | ✅ Done        |    8 |
 | 🚧 In Progress |    1 |
 | 👀 In Review   |   17 |
-| 📝 Backlog     |    1 |
+| 📝 Backlog     |    4 |
 | 🚫 Blocked     |    0 |
-| **合计**       |   27 |
+| **合计**       |   30 |
 
 ## 进行中（1 条）
 
@@ -46,9 +46,13 @@ AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭的 15 条：
 
 - [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 示例实体替换与元数据贯通：缺少真实业务实体、字段、关系和非 `assets` 命名空间，不能自行发明领域完成需求。
 
-## 待排期（0 条）
+## 待排期（3 条）
 
-当前没有待排期的故事。
+Supabase 接入标准化（[ADMIN-EPIC-005](epics/ADMIN-EPIC-005.md)，方向见 [D-11](decisions.md#d-11supabase-接入走平台标准层)），顺序与平台前置见 [roadmap](roadmap.md#supabase-接入标准化)：
+
+- [ADMIN-US-222](stories/collaboration/ADMIN-US-222-identity-bound-local-databases.md) 本机库按账号隔离：平台前置 US-035 已交付；旧的设备共用库怎么处理待 owner 定。
+- [ADMIN-US-223](stories/collaboration/ADMIN-US-223-platform-supabase-session.md) 全局会话改用平台会话层：等平台 US-237。
+- [ADMIN-US-224](stories/collaboration/ADMIN-US-224-team-database-standard-grants.md) 团队库接入标准适配器、按权限显隐：等平台 US-039 与 US-238。
 
 ## 按 Epic 索引
 
@@ -90,3 +94,9 @@ AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭的 15 条：
 - 👀 [ADMIN-US-220 协作服务只部署 Supabase 即可运行](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md)
 - 🚧 [ADMIN-US-217 协作服务生产部署与运维闭环](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)
 - ✅ [ADMIN-US-221 团队任务草稿落在 RxDB 工作树](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)
+
+### ADMIN-EPIC-005 Supabase 接入标准化
+
+- ⬜ [ADMIN-US-222 本机库按账号隔离：工作台库与团队库按身份命名并绑定](stories/collaboration/ADMIN-US-222-identity-bound-local-databases.md)
+- ⬜ [ADMIN-US-223 全局会话改用平台 Supabase 会话层](stories/collaboration/ADMIN-US-223-platform-supabase-session.md)
+- ⬜ [ADMIN-US-224 团队库接入标准 Supabase 适配器：身份核对、成员授权快照与按权限显隐](stories/collaboration/ADMIN-US-224-team-database-standard-grants.md)

@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
-updated: 2026-11-19
+updated: 2026-11-28
 tags: [admin, auth, supabase, session, collaboration]
 dependsOn: []
 capabilities: []
@@ -27,7 +27,7 @@ capabilities: []
 - 用真实会话中的用户 ID 替代模板写死的 `userId`，作为所有云端请求和审计记录的身份来源。
 - 显示当前用户、会话状态和重新认证入口。
 - 按共享契约 C01 区分热续作、冷启动、自然过期、主动退出和账号切换；保留草稿但不把保留等同于已解锁。
-- 本机工作台与连接前恢复入口保留，但都在登录之后使用；本机库这一轮仍按设备共用，按账号隔离另起一轮（D-10）。
+- 本机工作台与连接前恢复入口保留，但都在登录之后使用；本机库这一轮仍按设备共用，按账号隔离另起一轮（D-10），由 [ADMIN-US-222](ADMIN-US-222-identity-bound-local-databases.md) 承接；会话实现改用平台会话层由 [ADMIN-US-223](ADMIN-US-223-platform-supabase-session.md) 承接，本故事的 AC 是它的回归基线。
 
 ### Out of Scope
 
